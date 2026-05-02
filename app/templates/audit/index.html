@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header"><h1>Auditoria</h1></header>
+<form class="filters">
+  <input name="module" value="{{ module }}" placeholder="Módulo">
+  <input name="action" value="{{ action }}" placeholder="Acção">
+  <button>Filtrar</button>
+</form>
+<div class="panel">
+  <table>
+    <thead><tr><th>Data</th><th>Utilizador</th><th>Acção</th><th>Módulo</th><th>Registo</th><th>Anterior</th><th>Novo</th><th>IP/Dispositivo</th></tr></thead>
+    <tbody>
+    {% for log in logs %}
+      <tr>
+        <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+        <td>{{ log.user.full_name if log.user else '' }}</td>
+        <td>{{ log.action }}</td>
+        <td>{{ log.module }}</td>
+        <td>{{ log.record_id or '' }}</td>
+        <td><code>{{ log.old_value or '' }}</code></td>
+        <td><code>{{ log.new_value or '' }}</code></td>
+        <td>{{ log.ip_device or '' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

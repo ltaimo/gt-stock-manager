@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header"><h1>{{ req.number }}</h1><a class="button secondary" href="/requisicoes/{{ req.id }}/pdf">PDF</a></header>
+{% if error %}<div class="alert red">{{ error }}</div>{% endif %}
+<section class="panel">
+<p><strong>Estado:</strong> <span class="badge orange">{{ req.status }}</span> <strong>Tipo:</strong> {{ req.req_type }} <strong>Requisitante:</strong> {{ req.requesting_user.full_name }} <strong>Departamento:</strong> {{ req.department.name if req.department else '' }}</p>
+<p><strong>Gestor Operacional:</strong> {{ req.operational_manager or '' }} <strong>A ser autorizado por:</strong> {{ req.authorization_person or 'Gestor de Estoque' }}</p>
+<table><thead><tr><th>Código</th><th>Item</th><th>Qtde</th><th>Disponível</th><th>Destino</th><th>Obs</th></tr></thead><tbody>
+{% for i in req.items %}<tr><td>{{ i.product.code }}</td><td>{{ i.product.name }}</td><td>{{ i.quantity_requested }}</td><td>{{ i.product.current_stock }} {{ i.product.unit }}</td><td>{{ i.destination or '' }}</td><td>{{ i.observation or '' }}</td></tr>{% endfor %}
+</tbody></table>
+<div class="actions">
+{% if req.status == 'Draft' and req.requesting_user_id == user.id %}<form method="post" action="/requisicoes/{{ req.id }}/submit"><button>Submeter</button></form>{% endif %}
+{% if role_in(user, 'SuperAdmin', 'Admin', 'Editor', 'Gestor de Estoque', 'Chefe do Terminal') and req.status == 'Submitted' %}
+<form method="post" action="/requisicoes/{{ req.id }}/review" class="form-stack">
+  <label>Motivo de rejeição, se aplicável<input name="rejection_reason"></label>
+  <div class="actions"><button name="decision" value="approve">Aprovar e movimentar stock</button><button name="decision" value="reject" class="danger">Rejeitar</button></div>
+</form>
+{% endif %}
+</div></section>
+{% endblock %}

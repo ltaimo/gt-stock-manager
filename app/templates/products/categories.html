@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header"><h1>Configurações</h1></header>
+<section class="quick-links">
+  <a href="/utilizadores">Utilizadores</a>
+</section>
+<section class="grid-two">
+  <div class="panel"><h2>Categorias</h2><form method="post" action="/produtos/categorias" class="inline-form"><input name="name" required><button>Adicionar</button></form><ul>{% for c in categories %}<li>{{ c.name }}</li>{% endfor %}</ul></div>
+  <div class="panel"><h2>Departamentos</h2><form method="post" action="/produtos/departamentos" class="inline-form"><input name="name" required><button>Adicionar</button></form><ul>{% for d in departments %}<li>{{ d.name }}</li>{% endfor %}</ul></div>
+</section>
+{% endblock %}

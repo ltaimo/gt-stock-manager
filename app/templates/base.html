@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+{% if user %}
+<aside class="sidebar">
+  <a class="brand" href="/dashboard" aria-label="{{ app_name }}">
+    {% if logo_available() %}
+      <img src="/static/img/logo-gt.png" alt="Gestão de Terminais, SA">
+    {% else %}
+      <span class="brand-mark">GT</span>
+    {% endif %}
+    <span><strong>{{ app_name }}</strong><small>{{ app_subtitle }}</small></span>
+  </a>
+  <nav>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/produtos">Economato / Produtos</a>
+    {% if role_in(user, 'SuperAdmin', 'Admin', 'Editor') %}<a href="/movimentos">Movimentos</a>{% endif %}
+    {% if role_in(user, 'SuperAdmin', 'Admin', 'Editor', 'Gestor de Estoque', 'Chefe do Terminal') %}<a href="/documentos">Documentos</a>{% endif %}
+    <a href="/requisicoes/nova">Nova Requisição</a>
+    <a href="/requisicoes">Requisições</a>
+    {% if role_in(user, 'SuperAdmin', 'Admin', 'Editor') %}<a href="/relatorios">Relatórios</a>{% endif %}
+    {% if role_in(user, 'SuperAdmin', 'Admin') %}<a href="/importar">Importar</a>{% endif %}
+    {% if role_in(user, 'SuperAdmin', 'Admin') %}<a href="/auditoria">Auditoria</a>{% endif %}
+    {% if role_in(user, 'SuperAdmin', 'Admin') %}<a href="/produtos/categorias">Configurações</a>{% endif %}
+    <a href="/sobre">Sobre</a>
+  </nav>
+  <form method="post" action="/logout"><button class="link-button">Sair</button></form>
+</aside>
+<div class="app-shell">
+  <header class="topbar">
+    <div>
+      <strong>{{ app_short_name }}</strong>
+      <span>{{ app_subtitle }}</span>
+    </div>
+    <div class="topbar-actions">
+      <a class="notification-link" href="/notificacoes">Notificações <span>{{ unread_notifications(user.id) }}</span></a>
+      <div class="user-chip">{{ user.full_name }} · {{ user.role.name }}</div>
+    </div>
+  </header>
+  <main class="content">
+{% else %}
+<main class="auth-shell">
+{% endif %}
+    {% block content %}{% endblock %}
+{% if user %}
+  </main>
+  <footer class="app-footer">Designed by Layton Taimo</footer>
+</div>
+{% else %}
+  <footer class="auth-footer">Designed by Layton Taimo</footer>
+</main>
+{% endif %}
+<script src="/static/js/app.js"></script>
+</body>
+</html>

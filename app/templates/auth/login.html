@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="login-card">
+  <div class="login-logo">
+    {% if logo_available() %}
+      <img src="/static/img/logo-gt.png" alt="Gestão de Terminais, SA">
+    {% else %}
+      <span class="brand-mark large">GT</span>
+    {% endif %}
+  </div>
+  <h1>{{ app_name }}</h1>
+  <p>{{ app_subtitle }}</p>
+  {% if error %}<div class="alert red">{{ error }}</div>{% endif %}
+  <form method="post" class="form-stack">
+    <label>Nome de utilizador<input name="username" required autofocus></label>
+    <label>Senha<input name="password" type="password" required></label>
+    <button>Entrar</button>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel narrow">
+  <h1>{{ 'Editar Produto' if product else 'Novo Produto' }}</h1>
+  {% if error %}<div class="alert red">{{ error }} {% if duplicate %}<a href="/produtos?q={{ duplicate.code }}">Ver produto existente</a> ou <a href="/movimentos/novo">adicionar stock</a>.{% endif %}</div>{% endif %}
+  <form method="post" class="form-stack">
+    {% if not product %}
+      <label>Código gerado automaticamente<input value="{{ next_code }}" disabled></label>
+    {% endif %}
+    <label>Produto/Marca<input name="name" value="{{ product.name if product else '' }}" required></label>
+    <label>Categoria<select name="category_id"><option value="">Sem Categoria</option>{% for c in categories %}<option value="{{ c.id }}" {% if product and product.category_id==c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></label>
+    <label>Unidade de medida
+      <select name="unit">
+        {% for u in ['un','caixa','embalagem','rolo','par','garrafa','resma','kg','g','L','ml','m'] %}
+          <option value="{{ u }}" {% if product and product.unit==u %}selected{% endif %}>{{ u }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Stock mínimo<input name="minimum_stock" type="number" step="0.01" value="{{ product.minimum_stock if product else 0 }}"></label>
+    {% if product %}<label>Estado<select name="status"><option value="active" {% if product.status=='active' %}selected{% endif %}>Ativo</option><option value="inactive" {% if product.status=='inactive' %}selected{% endif %}>Inativo</option></select></label>{% endif %}
+    <button>Guardar</button>
+  </form>
+</section>
+{% endblock %}

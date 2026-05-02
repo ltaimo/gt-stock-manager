@@ -1,0 +1,956 @@
+[
+  {
+    "code": "CAN-AZ",
+    "name": "Caneta Azul",
+    "unit": "un",
+    "current_stock": 120.0,
+    "minimum_stock": 30.0,
+    "status": "active",
+    "category": "Material de Escritório"
+  },
+  {
+    "code": "DET-01",
+    "name": "Detergente Multiuso",
+    "unit": "L",
+    "current_stock": 8.0,
+    "minimum_stock": 10.0,
+    "status": "active",
+    "category": "Limpeza"
+  },
+  {
+    "code": "IMP-00005",
+    "name": "Agrafos",
+    "unit": "un",
+    "current_stock": 18.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00006",
+    "name": "Computadores (PC)",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00007",
+    "name": "Monitores",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00008",
+    "name": "Lâmpada OSRAM 7W",
+    "unit": "un",
+    "current_stock": 56.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00009",
+    "name": "Eletrobomba Pedrollo",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00010",
+    "name": "Agrafadores",
+    "unit": "un",
+    "current_stock": 13.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00011",
+    "name": "Caixa de agrafos normais",
+    "unit": "caixa",
+    "current_stock": 20.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00012",
+    "name": "Álcool Desinfetante",
+    "unit": "L",
+    "current_stock": 5.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00013",
+    "name": "Embalagens de plástico para lixo",
+    "unit": "embalagem",
+    "current_stock": 9.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00014",
+    "name": "Ambientador",
+    "unit": "un",
+    "current_stock": 9.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00015",
+    "name": "Cones",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00016",
+    "name": "Danger Tape",
+    "unit": "rolo",
+    "current_stock": 9.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00017",
+    "name": "Óculos de proteção",
+    "unit": "par",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00018",
+    "name": "Caixa de Fixador de papel",
+    "unit": "caixa",
+    "current_stock": 1.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00019",
+    "name": "Borrachas para carimbo",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00020",
+    "name": "Canetas azuis",
+    "unit": "un",
+    "current_stock": 54.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00021",
+    "name": "Canetas vermelhas",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00022",
+    "name": "Carimbos GTSA",
+    "unit": "un",
+    "current_stock": 2.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00023",
+    "name": "Carimbos Pago",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00024",
+    "name": "Bomba de água",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00025",
+    "name": "Balde de tinta 5L",
+    "unit": "L",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00026",
+    "name": "Porta Chaves",
+    "unit": "un",
+    "current_stock": 1.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00027",
+    "name": "Curva PVC",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00028",
+    "name": "Coletes Refletores",
+    "unit": "un",
+    "current_stock": 14.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00029",
+    "name": "Detergente em Pó (OMO)",
+    "unit": "kg",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00030",
+    "name": "Bicha flexível",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00031",
+    "name": "Anti-caleiras (perneiras)",
+    "unit": "par",
+    "current_stock": 2.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00032",
+    "name": "Elásticos",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00033",
+    "name": "Máquina de lavar de alta pressão",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00034",
+    "name": "Soprador de poeiras",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00035",
+    "name": "Canhões",
+    "unit": "un",
+    "current_stock": 4.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00036",
+    "name": "Fita-cola",
+    "unit": "rolo",
+    "current_stock": 1.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00037",
+    "name": "Fitas Isoladoras",
+    "unit": "un",
+    "current_stock": 17.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00038",
+    "name": "Conjunto de Pilhas AA",
+    "unit": "caixa",
+    "current_stock": 2.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00039",
+    "name": "Conjunto de pilhas AAA",
+    "unit": "caixa",
+    "current_stock": 2.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00040",
+    "name": "Impressoras",
+    "unit": "un",
+    "current_stock": 3.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00041",
+    "name": "Plásticos de fita Teflon",
+    "unit": "un",
+    "current_stock": 9.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00042",
+    "name": "Livro de Ocorrência",
+    "unit": "un",
+    "current_stock": 4.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00043",
+    "name": "Máquina de corte de capim",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00044",
+    "name": "Livros para ticket manual (guarita de entrada)",
+    "unit": "un",
+    "current_stock": 2.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00045",
+    "name": "Lixívia (Javel)",
+    "unit": "L",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00046",
+    "name": "UPS",
+    "unit": "un",
+    "current_stock": 6.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00047",
+    "name": "Luvas Cirúrgicas",
+    "unit": "par",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00048",
+    "name": "Luvas de Cozinha",
+    "unit": "par",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00049",
+    "name": "Luvas DMR",
+    "unit": "par",
+    "current_stock": 20.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00050",
+    "name": "Marcadores",
+    "unit": "un",
+    "current_stock": 1.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00051",
+    "name": "Máscaras",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00052",
+    "name": "Torneiras de esquadrilha",
+    "unit": "un",
+    "current_stock": 5.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00053",
+    "name": "Mop",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00054",
+    "name": "Torneiras de lavatório",
+    "unit": "un",
+    "current_stock": 5.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00055",
+    "name": "Rolos de fio de relva",
+    "unit": "rolo",
+    "current_stock": 3.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00056",
+    "name": "Caixa de rolos para POS",
+    "unit": "caixa",
+    "current_stock": 16.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00057",
+    "name": "Caixa de Papel A4",
+    "unit": "caixa",
+    "current_stock": 16.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00058",
+    "name": "Pastas de Arquivo",
+    "unit": "un",
+    "current_stock": 23.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00059",
+    "name": "Pesticida (Baygon)",
+    "unit": "L",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00060",
+    "name": "Pilhas Grandes",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00061",
+    "name": "Pilhas pequenas",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00062",
+    "name": "Pilhas normais",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00063",
+    "name": "Pó Vim",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00064",
+    "name": "Quadro",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00065",
+    "name": "Quadro de informação",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00066",
+    "name": "Lâmpadas fluorescentes 36W",
+    "unit": "un",
+    "current_stock": 8.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00067",
+    "name": "Rolos de papel higiénico",
+    "unit": "rolo",
+    "current_stock": 5.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00068",
+    "name": "Rolos de papel aderente",
+    "unit": "rolo",
+    "current_stock": 8.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00069",
+    "name": "Rolos POS",
+    "unit": "rolo",
+    "current_stock": 20.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00070",
+    "name": "Sabão Bingo",
+    "unit": "L",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00071",
+    "name": "Sabão para mãos (garrafas)",
+    "unit": "garrafa",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00072",
+    "name": "Sabão para loiça 5L",
+    "unit": "L",
+    "current_stock": 1.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00073",
+    "name": "Sacos de lixo (Embalagens)",
+    "unit": "embalagem",
+    "current_stock": 15.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00074",
+    "name": "Armadura régua 36W",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00075",
+    "name": "Tinta para carimbo",
+    "unit": "un",
+    "current_stock": 6.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00076",
+    "name": "AC Gree 18000 BTU",
+    "unit": "un",
+    "current_stock": 1.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00077",
+    "name": "Toner Minolta TN513 Black",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00078",
+    "name": "Toner 55A",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00079",
+    "name": "T IPS 3/4",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00080",
+    "name": "Arrancadores",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00081",
+    "name": "Tonner 59A",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": "Consumíveis"
+  },
+  {
+    "code": "IMP-00082",
+    "name": "Miolo de fechadura",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00083",
+    "name": "Tanque Rino de 1000L",
+    "unit": "L",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00084",
+    "name": "Tubo azul 100M",
+    "unit": "m",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00085",
+    "name": "Hidropess Pedrol",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00086",
+    "name": "União especial",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00087",
+    "name": "Fio PBC",
+    "unit": "m",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00088",
+    "name": "T PVC",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00089",
+    "name": "Rebites",
+    "unit": "un",
+    "current_stock": 100.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00090",
+    "name": "Fita isoladora PVC",
+    "unit": "rolo",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00091",
+    "name": "Luvas Goat",
+    "unit": "par",
+    "current_stock": 20.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00092",
+    "name": "Suportes de TV",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00093",
+    "name": "Flash drive",
+    "unit": "un",
+    "current_stock": 2.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00094",
+    "name": "TV Samsung Cristal UHD CU7000 43''",
+    "unit": "un",
+    "current_stock": 2.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00095",
+    "name": "Torneiras de esquadrilha",
+    "unit": "un",
+    "current_stock": 5.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00096",
+    "name": "Miolos de autoclismos",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00097",
+    "name": "Toner 59A",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00098",
+    "name": "Lâmpadas LED para seguranças",
+    "unit": "un",
+    "current_stock": 6.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00099",
+    "name": "Peças de motobomba",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00100",
+    "name": "Embalagem de OMO 6x600g",
+    "unit": "embalagem",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00101",
+    "name": "Mouse USB HP M10 Wired",
+    "unit": "un",
+    "current_stock": 0.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00102",
+    "name": "Teclado HP K200 - English",
+    "unit": "un",
+    "current_stock": 12.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00103",
+    "name": "Bar Code Laser USB Contact Honeywell HH360",
+    "unit": "un",
+    "current_stock": 4.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00104",
+    "name": "Bar Code Laser Wireless EWENT (With Stand)",
+    "unit": "un",
+    "current_stock": 2.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00105",
+    "name": "Impressora POS Epson térmica TM-T20III (Serial + USB)",
+    "unit": "un",
+    "current_stock": 11.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "IMP-00106",
+    "name": "Scanner portátil CZUR Lens 1200 Pro A4 12MP USB-C",
+    "unit": "un",
+    "current_stock": 2.0,
+    "minimum_stock": 0.0,
+    "status": "active",
+    "category": null
+  },
+  {
+    "code": "PAP-A4",
+    "name": "Papel A4 80g",
+    "unit": "resma",
+    "current_stock": 25.0,
+    "minimum_stock": 10.0,
+    "status": "active",
+    "category": "Material de Escritório"
+  },
+  {
+    "code": "TON-HP",
+    "name": "Toner HP 85A",
+    "unit": "un",
+    "current_stock": 3.0,
+    "minimum_stock": 4.0,
+    "status": "active",
+    "category": "Consumíveis"
+  }
+]

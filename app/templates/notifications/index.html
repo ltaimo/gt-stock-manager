@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header"><h1>Notificações</h1></header>
+<section class="panel">
+  <table>
+    <thead><tr><th>Data</th><th>Título</th><th>Mensagem</th><th>Módulo</th><th>Estado</th><th></th></tr></thead>
+    <tbody>
+    {% for n in notifications %}
+      <tr>
+        <td>{{ n.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>{{ n.title }}</td>
+        <td>{{ n.message }}</td>
+        <td>{{ n.module }}</td>
+        <td><span class="badge {{ 'grey' if n.is_read else 'orange' }}">{{ 'Lida' if n.is_read else 'Pendente' }}</span></td>
+        <td>{% if not n.is_read %}<form method="post" action="/notificacoes/{{ n.id }}/ler"><button class="secondary">Marcar lida</button></form>{% endif %}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6"><div class="empty-state">Sem notificações.</div></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

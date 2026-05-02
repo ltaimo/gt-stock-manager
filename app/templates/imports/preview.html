@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header">
+  <h1>Pré-visualização da Importação</h1>
+  <a class="button secondary" href="/importar">Novo ficheiro</a>
+</header>
+<section class="kpis">
+  <div><strong>{{ preview.counts.products_valid }}</strong><span>Produtos válidos</span></div>
+  <div><strong>{{ preview.counts.users_valid }}</strong><span>Utilizadores válidos</span></div>
+  <div><strong>{{ preview.counts.movements_valid }}</strong><span>Movimentos válidos</span></div>
+  <div><strong>{{ preview.counts.errors }}</strong><span>Erros</span></div>
+  <div><strong>{{ preview.counts.warnings }}</strong><span>Avisos</span></div>
+</section>
+{% if preview.errors %}
+<section class="panel">
+  <header class="page-header"><h2>Relatório de erros</h2><a class="button secondary" href="/importar/falhas/{{ preview.batch_id }}.csv">Baixar CSV</a></header>
+  <table><thead><tr><th>Módulo</th><th>Linha</th><th>Erro</th><th>Dados</th></tr></thead><tbody>
+    {% for e in preview.errors %}<tr><td>{{ e.module }}</td><td>{{ e.row }}</td><td>{{ e.error }}</td><td><code>{{ e.data }}</code></td></tr>{% endfor %}
+  </tbody></table>
+</section>
+{% else %}
+<section class="panel">
+  <h2>Pronto para importar</h2>
+  <p class="muted">Nenhum erro encontrado. Ao confirmar, produtos, utilizadores e movimentos serão gravados numa única transação auditável.</p>
+  <form method="post" action="/importar/confirm/{{ preview.batch_id }}"><button>Confirmar importação</button></form>
+</section>
+{% endif %}
+<section class="grid-two">
+  <div class="panel"><h2>Produtos</h2><table><thead><tr><th>Linha</th><th>Código</th><th>Produto</th><th>Categoria</th><th>Qtde</th></tr></thead><tbody>{% for p in preview.products[:20] %}<tr><td>{{ p.row }}</td><td>{{ p.code }}</td><td>{{ p.name }}</td><td>{{ p.category }}</td><td>{{ p.current_stock }}</td></tr>{% endfor %}</tbody></table></div>
+  <div class="panel"><h2>Utilizadores</h2><table><thead><tr><th>Linha</th><th>Nome</th><th>Username</th><th>Perfil</th><th>Departamento</th></tr></thead><tbody>{% for u in preview.users[:20] %}<tr><td>{{ u.row }}</td><td>{{ u.full_name }}</td><td>{{ u.username }}</td><td>{{ u.role }}</td><td>{{ u.department }}</td></tr>{% endfor %}</tbody></table></div>
+</section>
+<section class="panel"><h2>Movimentos</h2><table><thead><tr><th>Linha</th><th>Acção</th><th>Item</th><th>Quantidade</th><th>Destino</th></tr></thead><tbody>{% for m in preview.movements[:40] %}<tr><td>{{ m.row }}</td><td>{{ m.action }}</td><td>{{ m.item_name }}</td><td>{{ m.quantity }}</td><td>{{ m.destination }}</td></tr>{% endfor %}</tbody></table></section>
+{% endblock %}

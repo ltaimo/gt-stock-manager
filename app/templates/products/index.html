@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header">
+  <h1>Economato / Produtos</h1>
+  {% if role_in(user, 'SuperAdmin', 'Admin') %}<a class="button" href="/produtos/novo">Novo Produto</a>{% endif %}
+</header>
+<form class="filters">
+  <input name="q" value="{{ q }}" placeholder="Pesquisar código, produto ou categoria">
+  <select name="status">
+    <option value="">Todos</option>
+    <option value="active" {% if status=='active' %}selected{% endif %}>Ativo</option>
+    <option value="inactive" {% if status=='inactive' %}selected{% endif %}>Inativo</option>
+  </select>
+  <button>Filtrar</button>
+</form>
+<div class="panel">
+  <table>
+    <thead>
+      <tr><th>Código</th><th>Produto/Marca</th><th>Categoria</th><th>Unidade</th><th>Qtde</th><th>Entrada</th><th>Saída</th><th>Alerta</th><th>Estado</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for p in products %}
+      <tr>
+        <td>{{ p.code }}</td>
+        <td>{{ p.name }}</td>
+        <td>{{ p.category.name if p.category else 'Sem Categoria' }}</td>
+        <td>{{ p.unit }}</td>
+        <td>{{ p.current_stock }}</td>
+        <td>{{ p.total_entries }}</td>
+        <td>{{ p.total_exits }}</td>
+        <td><span class="badge {{ 'green' if p.alert_status=='Estoque OK' else 'red' }}">{{ p.alert_status }}</span></td>
+        <td><span class="badge grey">{{ p.status }}</span></td>
+        <td>{% if role_in(user, 'SuperAdmin', 'Admin') %}<a href="/produtos/{{ p.id }}/editar">Editar</a>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

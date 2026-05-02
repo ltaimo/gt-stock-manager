@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header"><h1>Documentos de Stock</h1><a class="button" href="/movimentos/novo">Novo Movimento</a></header>
+<section class="panel">
+  <table>
+    <thead><tr><th>Data</th><th>Tipo</th><th>Nº Documento</th><th>Ficheiro</th><th>Produtos</th><th>Carregado por</th><th></th></tr></thead>
+    <tbody>
+    {% for d in documents %}
+      <tr>
+        <td>{{ d.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>{{ d.document_type }}</td>
+        <td>{{ d.document_number or '' }}</td>
+        <td>{{ d.original_filename }}</td>
+        <td>{% for link in d.products %}<span class="badge grey">{{ link.product.code }}</span> {% endfor %}</td>
+        <td>{{ d.uploaded_by.full_name }}</td>
+        <td><a href="/documentos/{{ d.id }}/download">Baixar</a></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="7"><div class="empty-state">Ainda não existem documentos anexados.</div></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

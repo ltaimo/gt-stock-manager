@@ -1,0 +1,9 @@
+.git
+.venv
+__pycache__
+*.pyc
+stock_manager.db
+uploads
+outputs
+tests
+*.log

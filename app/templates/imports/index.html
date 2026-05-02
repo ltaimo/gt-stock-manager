@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header"><h1>Importar Excel/CSV</h1></header>
+{% if error %}<div class="alert red">{{ error }}</div>{% endif %}
+<section class="panel narrow">
+  <h2>Ficheiro antigo Stock Manager</h2>
+  <p class="muted">Carregue o ficheiro Excel antigo. O sistema lê as folhas ECONOMATO, USERS e MOVIMENTO, valida os dados e mostra uma pré-visualização antes de gravar qualquer coisa na base de dados.</p>
+  <form method="post" action="/importar/preview" enctype="multipart/form-data" class="form-stack">
+    <label>Ficheiro Excel/CSV<input type="file" name="file" accept=".xls,.xlsx,.csv" required></label>
+    <button>Validar e pré-visualizar</button>
+  </form>
+</section>
+<section class="grid-two">
+  <div class="panel"><h2>Validações de produtos</h2><p class="muted">Códigos duplicados, nomes vazios, categorias nulas e stock negativo.</p></div>
+  <div class="panel"><h2>Validações de utilizadores</h2><p class="muted">Usernames duplicados no ficheiro ou já existentes na base de dados.</p></div>
+  <div class="panel"><h2>Validações de movimentos</h2><p class="muted">Acções inválidas, produtos inexistentes e quantidades inválidas ou negativas.</p></div>
+  <div class="panel"><h2>Confirmação segura</h2><p class="muted">A importação só é gravada após confirmação e apenas quando não existem erros.</p></div>
+</section>
+{% endblock %}

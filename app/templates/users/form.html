@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel narrow"><h1>{{ 'Editar Utilizador' if target else 'Novo Utilizador' }}</h1>
+<form method="post" class="form-stack">
+  <label>Nome completo<input name="full_name" value="{{ target.full_name if target else '' }}" required></label>
+  {% if not target %}<label>Utilizador<input name="username" required></label><label>Senha inicial<input name="password" type="password" required></label>{% endif %}
+  <label>Email<input name="email" type="email" value="{{ target.email if target and target.email else '' }}"></label>
+  <label>Perfil<select name="role_id">{% for r in roles %}{% if user.role.name == 'SuperAdmin' or r.name != 'SuperAdmin' %}<option value="{{ r.id }}" {% if target and target.role_id==r.id %}selected{% endif %}>{{ r.name }}</option>{% endif %}{% endfor %}</select></label>
+  <label>Departamento<select name="department_id"><option value="">-</option>{% for d in departments %}<option value="{{ d.id }}" {% if target and target.department_id==d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select></label>
+  {% if target %}<label class="check"><input type="checkbox" name="is_active" value="true" {% if target.is_active %}checked{% endif %}> Ativo</label>{% endif %}
+  <button>Guardar</button>
+</form></section>
+{% endblock %}

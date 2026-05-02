@@ -1,0 +1,8 @@
+<table>
+  <thead><tr><th>Data</th><th>Acção</th><th>Item</th><th>Destino</th><th>Quantidade</th><th>Responsável</th></tr></thead>
+  <tbody>
+  {% for m in recent_movements or movements %}
+    <tr><td>{{ m.posted_at.strftime('%Y-%m-%d %H:%M') }}</td><td>{{ m.action_type }}</td><td>{{ m.product.code }} · {{ m.product.name }}</td><td>{{ m.destination or '' }}</td><td>{{ m.quantity }}</td><td>{{ m.responsible_person or '' }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>

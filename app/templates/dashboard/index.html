@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <h1>Dashboard</h1>
+    <p class="muted">Visão operacional de stock, movimentos, alertas e projeções do mês.</p>
+  </div>
+  <span>{{ user.full_name }} · {{ user.role.name }}</span>
+</header>
+
+<section class="kpis dashboard-kpis">
+  <div><strong>{{ total_products }}</strong><span>Total de produtos</span><small>{{ active_products }} ativos</small></div>
+  <div><strong>{{ critical }}</strong><span>Estoque Crítico</span><small>{{ zero_stock }} com stock zero</small></div>
+  <div><strong>{{ entries_month }}</strong><span>Entradas do mês</span><small>Proj. {{ projected_entries }}</small></div>
+  <div><strong>{{ exits_month }}</strong><span>Saídas do mês</span><small>Proj. {{ projected_exits }}</small></div>
+  <div><strong>{{ stock_health }}%</strong><span>Saúde do stock</span><small>{{ negative }} stock negativo</small></div>
+</section>
+
+<section class="dashboard-grid">
+  <div class="panel chart-panel wide">
+    <div class="panel-heading">
+      <h2>Entradas vs Saídas do Mês</h2>
+      <span class="badge orange">Projeção mensal</span>
+    </div>
+    <canvas id="monthlyFlowChart" height="150"></canvas>
+    <div class="projection-strip">
+      <div><strong>{{ projected_entries }}</strong><span>Entradas projetadas</span></div>
+      <div><strong>{{ projected_exits }}</strong><span>Saídas projetadas</span></div>
+      <div><strong>{{ projected_entries - projected_exits }}</strong><span>Saldo projetado</span></div>
+    </div>
+  </div>
+
+  <div class="panel chart-panel">
+    <div class="panel-heading"><h2>Movimentos por Tipo</h2></div>
+    <canvas id="movementTypeChart" height="190"></canvas>
+  </div>
+
+  <div class="panel chart-panel">
+    <div class="panel-heading"><h2>Produtos por Unidade</h2></div>
+    <canvas id="unitChart" height="190"></canvas>
+  </div>
+</section>
+
+<section class="grid-two">
+  <div class="panel">
+    <div class="panel-heading">
+      <h2>Itens em Estoque Crítico</h2>
+      <a href="/relatorios/critico">Ver relatório</a>
+    </div>
+    <table>
+      <thead><tr><th>Código</th><th>Produto</th><th>Un.</th><th>Atual</th><th>Mín.</th></tr></thead>
+      <tbody>
+      {% for p in critical_products %}
+        <tr><td>{{ p.code }}</td><td>{{ p.name }}</td><td>{{ p.unit }}</td><td>{{ p.current_stock }}</td><td>{{ p.minimum_stock }}</td></tr>
+      {% else %}
+        <tr><td colspan="5"><div class="empty-state">Sem produtos em estoque crítico.</div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <div class="panel-heading">
+      <h2>Movimentos recentes</h2>
+      <a href="/movimentos">Ver todos</a>
+    </div>
+    {% include "movements/_table.html" %}
+  </div>
+</section>
+
+<section class="grid-two">
+  <div class="panel">
+    <div class="panel-heading"><h2>Requisições Pendentes</h2><span class="badge orange">{{ pending_count }}</span></div>
+    <table>
+      <thead><tr><th>Nº</th><th>Departamento</th><th>Estado</th></tr></thead>
+      <tbody>
+      {% for r in pending_requisitions %}
+        <tr><td><a href="/requisicoes/{{ r.id }}">{{ r.number }}</a></td><td>{{ r.department.name if r.department else '' }}</td><td><span class="badge orange">{{ r.status }}</span></td></tr>
+      {% else %}
+        <tr><td colspan="3"><div class="empty-state">Sem requisições pendentes.</div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <div class="panel-heading"><h2>Produtos mais requisitados</h2></div>
+    <table>
+      <thead><tr><th>Produto</th><th>Total requisitado</th></tr></thead>
+      <tbody>
+      {% for name, total in most_requested %}
+        <tr><td>{{ name }}</td><td>{{ total }}</td></tr>
+      {% else %}
+        <tr><td colspan="2"><div class="empty-state">Ainda não existem saídas suficientes para ranking.</div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script id="dashboard-data" type="application/json">
+{{ {
+  "month": month_chart,
+  "movementTypes": movement_type_chart,
+  "units": unit_chart
+} | tojson }}
+</script>
+{% endblock %}

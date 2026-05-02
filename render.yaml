@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: gt-stock-manager
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m app.seed && python -m app.maintenance.seed_demo_data && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: ENVIRONMENT
+        value: production
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: APP_NAME
+        value: Sistema de Gestão de Stock
+      - key: APP_SUBTITLE
+        value: Gestão de Terminais, SA
+      - key: APP_SHORT_NAME
+        value: GT Stock Manager
+      - key: DATABASE_URL
+        value: sqlite:////tmp/stock_manager.db
+      - key: UPLOADS_DIR
+        value: /tmp/uploads
+      - key: OUTPUTS_DIR
+        value: /tmp/outputs
+      - key: DOCUMENTS_DIR
+        value: /tmp/uploads/stock_documents
+      - key: EMAIL_OUTBOX_DIR
+        value: /tmp/outputs/email_outbox
+      - key: SECRET_KEY
+        generateValue: true

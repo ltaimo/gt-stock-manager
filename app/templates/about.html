@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header"><h1>Sobre</h1></header>
+<section class="panel narrow">
+  <div class="login-logo">
+    {% if logo_available() %}
+      <img src="/static/img/logo-gt.png" alt="Gestão de Terminais, SA">
+    {% else %}
+      <span class="brand-mark large">GT</span>
+    {% endif %}
+  </div>
+  <h2>{{ app_name }}</h2>
+  <p class="muted">{{ app_subtitle }}</p>
+  <p>Sistema web para gestão de economato, movimentos, requisições, relatórios, importação do Excel legado e auditoria operacional.</p>
+  <p class="muted">Designed by Layton Taimo</p>
+</section>
+{% endblock %}

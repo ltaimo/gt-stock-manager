@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header"><h1>Relatório de Requisições</h1><div><a class="button secondary" href="?status={{ status }}&department_id={{ department_id or '' }}&requester_id={{ requester_id or '' }}&export=xlsx">Excel</a><a class="button secondary" href="?status={{ status }}&department_id={{ department_id or '' }}&requester_id={{ requester_id or '' }}&export=pdf">PDF</a></div></header>
+<form class="filters">
+  <select name="status"><option value="">Todos estados</option>{% for s in ['Draft','Submitted','Approved','Rejected','Issued','Cancelled'] %}<option value="{{ s }}" {% if status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+  <select name="department_id"><option value="">Departamento</option>{% for d in departments %}<option value="{{ d.id }}" {% if department_id==d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select>
+  <select name="requester_id"><option value="">Requisitante</option>{% for u in users %}<option value="{{ u.id }}" {% if requester_id==u.id %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}</select>
+  <button>Filtrar</button>
+</form>
+<div class="panel"><table><thead><tr><th>Nº</th><th>Data</th><th>Estado</th><th>Departamento</th><th>Requisitante</th></tr></thead><tbody>{% for r in requisitions %}<tr><td>{{ r.number }}</td><td>{{ r.request_date.strftime('%Y-%m-%d') }}</td><td>{{ r.status }}</td><td>{{ r.department.name if r.department else '' }}</td><td>{{ r.requesting_user.full_name }}</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}
