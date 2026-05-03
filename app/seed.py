@@ -3,6 +3,7 @@ from sqlalchemy import select
 from app.database import Base, SessionLocal, engine
 from app.models.core import Category, Department, Product, Role, StockMovement, User
 from app.security import hash_password
+from app.services.categorization import normalize_text
 from app.services.inventory import post_movement
 
 
@@ -23,7 +24,7 @@ def seed() -> None:
 
         categories = ["Material de Escritório", "Limpeza", "Consumíveis", "Equipamento"]
         for name in categories:
-            normalized = name.lower()
+            normalized = normalize_text(name)
             if not db.scalar(select(Category).where(Category.normalized_name == normalized)):
                 db.add(Category(name=name, normalized_name=normalized))
         db.flush()

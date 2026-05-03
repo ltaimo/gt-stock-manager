@@ -24,9 +24,11 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
     pending = db.scalars(select(Requisition).where(Requisition.status == RequisitionStatus.submitted.value).limit(8)).all()
 
     active_products = [p for p in products if p.status == "active"]
-    critical_products = [p for p in products if p.alert_status == "Estoque Crítico"]
+    attention_statuses = {"Sem Stock", "Stock Crítico", "Stock em Atenção", "Erro: Stock Negativo"}
+    critical_products = [p for p in products if p.alert_status in attention_statuses]
+    stockout_products = [p for p in products if p.alert_status == "Sem Stock"]
+    warning_products = [p for p in products if p.alert_status == "Stock em Atenção"]
     negative_products = [p for p in products if p.alert_status == "Erro: Stock Negativo"]
-    zero_stock_products = [p for p in products if float(p.current_stock or 0) == 0]
 
     entries_month = db.scalar(
         select(func.coalesce(func.sum(StockMovement.quantity), 0)).where(
@@ -93,7 +95,7 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
 
     projected_entries = round(float(entries_month) / elapsed_days * days_in_month, 2)
     projected_exits = round(float(exits_month) / elapsed_days * days_in_month, 2)
-    stock_health = round(((len(products) - len(critical_products) - len(negative_products)) / len(products) * 100), 1) if products else 0
+    stock_health = round(((len(products) - len(critical_products)) / len(products) * 100), 1) if products else 0
 
     return templates.TemplateResponse(
         "dashboard/index.html",
@@ -103,8 +105,9 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
             "total_products": len(products),
             "active_products": len(active_products),
             "critical": len(critical_products),
+            "stockout": len(stockout_products),
+            "warning": len(warning_products),
             "negative": len(negative_products),
-            "zero_stock": len(zero_stock_products),
             "pending_count": len(pending),
             "entries_month": entries_month,
             "exits_month": exits_month,
@@ -115,7 +118,6 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
             "pending_requisitions": pending,
             "most_requested": most_requested,
             "critical_products": critical_products[:10],
-            "zero_stock_products": zero_stock_products[:10],
             "month_chart": month_chart,
             "movement_type_chart": movement_type_chart,
             "unit_chart": unit_chart,

@@ -15,7 +15,7 @@
     "current_stock": 8.0,
     "minimum_stock": 10.0,
     "status": "active",
-    "category": "Limpeza"
+    "category": "Limpeza e Higiene"
   },
   {
     "code": "IMP-00005",
@@ -24,7 +24,7 @@
     "current_stock": 18.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material de Escritório"
   },
   {
     "code": "IMP-00006",
@@ -33,7 +33,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Informática e Equipamentos"
   },
   {
     "code": "IMP-00007",
@@ -42,7 +42,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Informática e Equipamentos"
   },
   {
     "code": "IMP-00008",
@@ -51,7 +51,7 @@
     "current_stock": 56.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material Elétrico e Iluminação"
   },
   {
     "code": "IMP-00009",
@@ -60,7 +60,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Ferramentas e Manutenção"
   },
   {
     "code": "IMP-00010",
@@ -69,7 +69,7 @@
     "current_stock": 13.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material de Escritório"
   },
   {
     "code": "IMP-00011",
@@ -78,7 +78,7 @@
     "current_stock": 20.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material de Escritório"
   },
   {
     "code": "IMP-00012",
@@ -87,7 +87,7 @@
     "current_stock": 5.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Limpeza e Higiene"
   },
   {
     "code": "IMP-00013",
@@ -96,7 +96,7 @@
     "current_stock": 9.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Limpeza e Higiene"
   },
   {
     "code": "IMP-00014",
@@ -105,7 +105,7 @@
     "current_stock": 9.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Limpeza e Higiene"
   },
   {
     "code": "IMP-00015",
@@ -114,7 +114,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Equipamentos de Proteção"
   },
   {
     "code": "IMP-00016",
@@ -123,7 +123,7 @@
     "current_stock": 9.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Equipamentos de Proteção"
   },
   {
     "code": "IMP-00017",
@@ -132,7 +132,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Equipamentos de Proteção"
   },
   {
     "code": "IMP-00018",
@@ -141,7 +141,7 @@
     "current_stock": 1.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material de Escritório"
   },
   {
     "code": "IMP-00019",
@@ -150,7 +150,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material de Escritório"
   },
   {
     "code": "IMP-00020",
@@ -159,7 +159,7 @@
     "current_stock": 54.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material de Escritório"
   },
   {
     "code": "IMP-00021",
@@ -168,7 +168,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material de Escritório"
   },
   {
     "code": "IMP-00022",
@@ -177,7 +177,7 @@
     "current_stock": 2.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material de Escritório"
   },
   {
     "code": "IMP-00023",
@@ -186,7 +186,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material de Escritório"
   },
   {
     "code": "IMP-00024",
@@ -195,7 +195,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Ferramentas e Manutenção"
   },
   {
     "code": "IMP-00025",
@@ -204,7 +204,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Pintura"
   },
   {
     "code": "IMP-00026",
@@ -213,7 +213,7 @@
     "current_stock": 1.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material de Escritório"
   },
   {
     "code": "IMP-00027",
@@ -222,7 +222,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Canalização"
   },
   {
     "code": "IMP-00028",
@@ -231,7 +231,7 @@
     "current_stock": 14.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Equipamentos de Proteção"
   },
   {
     "code": "IMP-00029",
@@ -240,7 +240,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Limpeza e Higiene"
   },
   {
     "code": "IMP-00030",
@@ -249,7 +249,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Canalização"
   },
   {
     "code": "IMP-00031",
@@ -258,7 +258,7 @@
     "current_stock": 2.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Equipamentos de Proteção"
   },
   {
     "code": "IMP-00032",
@@ -267,7 +267,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material de Escritório"
   },
   {
     "code": "IMP-00033",
@@ -276,7 +276,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Ferramentas e Manutenção"
   },
   {
     "code": "IMP-00034",
@@ -285,7 +285,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Ferramentas e Manutenção"
   },
   {
     "code": "IMP-00035",
@@ -294,7 +294,7 @@
     "current_stock": 4.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Operações e Diversos"
   },
   {
     "code": "IMP-00036",
@@ -303,7 +303,7 @@
     "current_stock": 1.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material de Escritório"
   },
   {
     "code": "IMP-00037",
@@ -312,7 +312,7 @@
     "current_stock": 17.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Operações e Diversos"
   },
   {
     "code": "IMP-00038",
@@ -321,7 +321,7 @@
     "current_stock": 2.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Operações e Diversos"
   },
   {
     "code": "IMP-00039",
@@ -330,7 +330,7 @@
     "current_stock": 2.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Operações e Diversos"
   },
   {
     "code": "IMP-00040",
@@ -339,7 +339,7 @@
     "current_stock": 3.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Informática e Equipamentos"
   },
   {
     "code": "IMP-00041",
@@ -348,7 +348,7 @@
     "current_stock": 9.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Canalização"
   },
   {
     "code": "IMP-00042",
@@ -357,7 +357,7 @@
     "current_stock": 4.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material de Escritório"
   },
   {
     "code": "IMP-00043",
@@ -366,7 +366,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Ferramentas e Manutenção"
   },
   {
     "code": "IMP-00044",
@@ -375,7 +375,7 @@
     "current_stock": 2.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material de Escritório"
   },
   {
     "code": "IMP-00045",
@@ -384,7 +384,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Limpeza e Higiene"
   },
   {
     "code": "IMP-00046",
@@ -393,7 +393,7 @@
     "current_stock": 6.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Informática e Equipamentos"
   },
   {
     "code": "IMP-00047",
@@ -402,7 +402,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Equipamentos de Proteção"
   },
   {
     "code": "IMP-00048",
@@ -411,7 +411,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Equipamentos de Proteção"
   },
   {
     "code": "IMP-00049",
@@ -420,7 +420,7 @@
     "current_stock": 20.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Equipamentos de Proteção"
   },
   {
     "code": "IMP-00050",
@@ -429,7 +429,7 @@
     "current_stock": 1.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material de Escritório"
   },
   {
     "code": "IMP-00051",
@@ -438,7 +438,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Equipamentos de Proteção"
   },
   {
     "code": "IMP-00052",
@@ -447,7 +447,7 @@
     "current_stock": 5.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Canalização"
   },
   {
     "code": "IMP-00053",
@@ -456,7 +456,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Limpeza e Higiene"
   },
   {
     "code": "IMP-00054",
@@ -465,7 +465,7 @@
     "current_stock": 5.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Canalização"
   },
   {
     "code": "IMP-00055",
@@ -474,7 +474,7 @@
     "current_stock": 3.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Jardinagem"
   },
   {
     "code": "IMP-00056",
@@ -483,7 +483,7 @@
     "current_stock": 16.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Operações e Diversos"
   },
   {
     "code": "IMP-00057",
@@ -492,7 +492,7 @@
     "current_stock": 16.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material de Escritório"
   },
   {
     "code": "IMP-00058",
@@ -501,7 +501,7 @@
     "current_stock": 23.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material de Escritório"
   },
   {
     "code": "IMP-00059",
@@ -510,7 +510,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Limpeza e Higiene"
   },
   {
     "code": "IMP-00060",
@@ -519,7 +519,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Operações e Diversos"
   },
   {
     "code": "IMP-00061",
@@ -528,7 +528,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Operações e Diversos"
   },
   {
     "code": "IMP-00062",
@@ -537,7 +537,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Operações e Diversos"
   },
   {
     "code": "IMP-00063",
@@ -546,7 +546,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Limpeza e Higiene"
   },
   {
     "code": "IMP-00064",
@@ -555,7 +555,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material de Escritório"
   },
   {
     "code": "IMP-00065",
@@ -564,7 +564,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material de Escritório"
   },
   {
     "code": "IMP-00066",
@@ -573,7 +573,7 @@
     "current_stock": 8.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material Elétrico e Iluminação"
   },
   {
     "code": "IMP-00067",
@@ -582,7 +582,7 @@
     "current_stock": 5.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Limpeza e Higiene"
   },
   {
     "code": "IMP-00068",
@@ -591,7 +591,7 @@
     "current_stock": 8.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Limpeza e Higiene"
   },
   {
     "code": "IMP-00069",
@@ -600,7 +600,7 @@
     "current_stock": 20.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Consumíveis de Impressão"
   },
   {
     "code": "IMP-00070",
@@ -609,7 +609,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Limpeza e Higiene"
   },
   {
     "code": "IMP-00071",
@@ -618,7 +618,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Limpeza e Higiene"
   },
   {
     "code": "IMP-00072",
@@ -627,7 +627,7 @@
     "current_stock": 1.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Limpeza e Higiene"
   },
   {
     "code": "IMP-00073",
@@ -636,7 +636,7 @@
     "current_stock": 15.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Limpeza e Higiene"
   },
   {
     "code": "IMP-00074",
@@ -645,7 +645,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material Elétrico e Iluminação"
   },
   {
     "code": "IMP-00075",
@@ -654,7 +654,7 @@
     "current_stock": 6.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Consumíveis de Impressão"
   },
   {
     "code": "IMP-00076",
@@ -663,7 +663,7 @@
     "current_stock": 1.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Climatização"
   },
   {
     "code": "IMP-00077",
@@ -672,7 +672,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Consumíveis de Impressão"
   },
   {
     "code": "IMP-00078",
@@ -681,7 +681,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Consumíveis de Impressão"
   },
   {
     "code": "IMP-00079",
@@ -690,7 +690,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Canalização"
   },
   {
     "code": "IMP-00080",
@@ -699,7 +699,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material Elétrico e Iluminação"
   },
   {
     "code": "IMP-00081",
@@ -708,7 +708,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": "Consumíveis"
+    "category": "Consumíveis de Impressão"
   },
   {
     "code": "IMP-00082",
@@ -717,7 +717,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Ferramentas e Manutenção"
   },
   {
     "code": "IMP-00083",
@@ -726,7 +726,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Canalização"
   },
   {
     "code": "IMP-00084",
@@ -735,7 +735,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Canalização"
   },
   {
     "code": "IMP-00085",
@@ -744,7 +744,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Ferramentas e Manutenção"
   },
   {
     "code": "IMP-00086",
@@ -753,7 +753,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Canalização"
   },
   {
     "code": "IMP-00087",
@@ -762,7 +762,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material Elétrico e Iluminação"
   },
   {
     "code": "IMP-00088",
@@ -771,7 +771,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Canalização"
   },
   {
     "code": "IMP-00089",
@@ -780,7 +780,7 @@
     "current_stock": 100.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Ferramentas e Manutenção"
   },
   {
     "code": "IMP-00090",
@@ -789,7 +789,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material Elétrico e Iluminação"
   },
   {
     "code": "IMP-00091",
@@ -798,7 +798,7 @@
     "current_stock": 20.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Equipamentos de Proteção"
   },
   {
     "code": "IMP-00092",
@@ -807,7 +807,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Informática e Equipamentos"
   },
   {
     "code": "IMP-00093",
@@ -816,7 +816,7 @@
     "current_stock": 2.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Informática e Equipamentos"
   },
   {
     "code": "IMP-00094",
@@ -825,7 +825,7 @@
     "current_stock": 2.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Informática e Equipamentos"
   },
   {
     "code": "IMP-00095",
@@ -834,7 +834,7 @@
     "current_stock": 5.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Canalização"
   },
   {
     "code": "IMP-00096",
@@ -843,7 +843,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Canalização"
   },
   {
     "code": "IMP-00097",
@@ -852,7 +852,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Consumíveis de Impressão"
   },
   {
     "code": "IMP-00098",
@@ -861,7 +861,7 @@
     "current_stock": 6.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Material Elétrico e Iluminação"
   },
   {
     "code": "IMP-00099",
@@ -870,7 +870,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Ferramentas e Manutenção"
   },
   {
     "code": "IMP-00100",
@@ -879,7 +879,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Limpeza e Higiene"
   },
   {
     "code": "IMP-00101",
@@ -888,7 +888,7 @@
     "current_stock": 0.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Informática e Equipamentos"
   },
   {
     "code": "IMP-00102",
@@ -897,7 +897,7 @@
     "current_stock": 12.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Informática e Equipamentos"
   },
   {
     "code": "IMP-00103",
@@ -906,7 +906,7 @@
     "current_stock": 4.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Informática e Equipamentos"
   },
   {
     "code": "IMP-00104",
@@ -915,7 +915,7 @@
     "current_stock": 2.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Informática e Equipamentos"
   },
   {
     "code": "IMP-00105",
@@ -924,7 +924,7 @@
     "current_stock": 11.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Informática e Equipamentos"
   },
   {
     "code": "IMP-00106",
@@ -933,7 +933,7 @@
     "current_stock": 2.0,
     "minimum_stock": 0.0,
     "status": "active",
-    "category": null
+    "category": "Informática e Equipamentos"
   },
   {
     "code": "PAP-A4",
@@ -951,6 +951,6 @@
     "current_stock": 3.0,
     "minimum_stock": 4.0,
     "status": "active",
-    "category": "Consumíveis"
+    "category": "Consumíveis de Impressão"
   }
 ]

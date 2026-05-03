@@ -28,7 +28,7 @@
         <td>{{ p.current_stock }}</td>
         <td>{{ p.total_entries }}</td>
         <td>{{ p.total_exits }}</td>
-        <td><span class="badge {{ 'green' if p.alert_status=='Estoque OK' else 'red' }}">{{ p.alert_status }}</span></td>
+        <td><span class="badge {{ p.alert_badge }}">{{ p.alert_status }}</span></td>
         <td><span class="badge grey">{{ p.status }}</span></td>
         <td>{% if role_in(user, 'SuperAdmin', 'Admin') %}<a href="/produtos/{{ p.id }}/editar">Editar</a>{% endif %}</td>
       </tr>

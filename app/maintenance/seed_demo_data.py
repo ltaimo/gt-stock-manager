@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from app.database import SessionLocal
 from app.models.core import Category, Product, User
+from app.services.categorization import infer_category, normalize_text
 from app.services.inventory import post_movement
 from app.services.transactions import atomic
 
@@ -27,19 +28,21 @@ def seed_demo_products() -> None:
             for item in products:
                 if db.scalar(select(Product).where(Product.code == item["code"])):
                     continue
-                category_id = None
-                if item.get("category"):
-                    normalized = item["category"].strip().lower()
-                    category = db.scalar(select(Category).where(Category.normalized_name == normalized))
-                    if not category:
-                        category = Category(name=item["category"].strip(), normalized_name=normalized)
-                        db.add(category)
-                        db.flush()
-                    category_id = category.id
+                category_name = item.get("category") or infer_category(item.get("name", ""))
+                normalized = normalize_text(category_name)
+                category = db.scalar(select(Category).where(Category.normalized_name == normalized))
+                if not category:
+                    category = db.scalar(select(Category).where(Category.name == category_name.strip()))
+                    if category and category.normalized_name != normalized:
+                        category.normalized_name = normalized
+                if not category:
+                    category = Category(name=category_name.strip(), normalized_name=normalized)
+                    db.add(category)
+                    db.flush()
                 product = Product(
                     code=item["code"],
                     name=item["name"],
-                    category_id=category_id,
+                    category_id=category.id,
                     unit=item.get("unit") or "un",
                     current_stock=0,
                     minimum_stock=item.get("minimum_stock") or 0,

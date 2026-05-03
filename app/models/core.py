@@ -111,11 +111,27 @@ class Product(Base):
 
     @property
     def alert_status(self) -> str:
-        if float(self.current_stock or 0) < 0:
+        current = float(self.current_stock or 0)
+        minimum = float(self.minimum_stock or 0)
+        if current < 0:
             return "Erro: Stock Negativo"
-        if float(self.current_stock or 0) <= float(self.minimum_stock or 0):
-            return "Estoque Crítico"
-        return "Estoque OK"
+        if current == 0:
+            return "Sem Stock"
+        if minimum > 0 and current <= minimum:
+            return "Stock Crítico"
+        if minimum > 0 and current <= minimum * 1.5:
+            return "Stock em Atenção"
+        return "Stock Adequado"
+
+    @property
+    def alert_badge(self) -> str:
+        return {
+            "Stock Adequado": "green",
+            "Stock em Atenção": "orange",
+            "Stock Crítico": "red",
+            "Sem Stock": "grey",
+            "Erro: Stock Negativo": "red",
+        }.get(self.alert_status, "grey")
 
 
 class StockMovement(Base):

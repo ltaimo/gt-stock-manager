@@ -11,10 +11,11 @@
 
 <section class="kpis dashboard-kpis">
   <div><strong>{{ total_products }}</strong><span>Total de produtos</span><small>{{ active_products }} ativos</small></div>
-  <div><strong>{{ critical }}</strong><span>Estoque Crítico</span><small>{{ zero_stock }} com stock zero</small></div>
+  <div><strong>{{ stockout }}</strong><span>Sem Stock</span><small>{{ critical }} itens requerem atenção</small></div>
+  <div><strong>{{ warning }}</strong><span>Stock em Atenção</span><small>{{ negative }} stock negativo</small></div>
   <div><strong>{{ entries_month }}</strong><span>Entradas do mês</span><small>Proj. {{ projected_entries }}</small></div>
   <div><strong>{{ exits_month }}</strong><span>Saídas do mês</span><small>Proj. {{ projected_exits }}</small></div>
-  <div><strong>{{ stock_health }}%</strong><span>Saúde do stock</span><small>{{ negative }} stock negativo</small></div>
+  <div><strong>{{ stock_health }}%</strong><span>Saúde do stock</span><small>Stock adequado</small></div>
 </section>
 
 <section class="dashboard-grid">
@@ -45,16 +46,16 @@
 <section class="grid-two">
   <div class="panel">
     <div class="panel-heading">
-      <h2>Itens em Estoque Crítico</h2>
+      <h2>Itens que requerem atenção</h2>
       <a href="/relatorios/critico">Ver relatório</a>
     </div>
     <table>
-      <thead><tr><th>Código</th><th>Produto</th><th>Un.</th><th>Atual</th><th>Mín.</th></tr></thead>
+      <thead><tr><th>Código</th><th>Produto</th><th>Un.</th><th>Atual</th><th>Estado</th></tr></thead>
       <tbody>
       {% for p in critical_products %}
-        <tr><td>{{ p.code }}</td><td>{{ p.name }}</td><td>{{ p.unit }}</td><td>{{ p.current_stock }}</td><td>{{ p.minimum_stock }}</td></tr>
+        <tr><td>{{ p.code }}</td><td>{{ p.name }}</td><td>{{ p.unit }}</td><td>{{ p.current_stock }}</td><td><span class="badge {{ p.alert_badge }}">{{ p.alert_status }}</span></td></tr>
       {% else %}
-        <tr><td colspan="5"><div class="empty-state">Sem produtos em estoque crítico.</div></td></tr>
+        <tr><td colspan="5"><div class="empty-state">Sem produtos que requerem atenção.</div></td></tr>
       {% endfor %}
       </tbody>
     </table>

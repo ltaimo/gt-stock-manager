@@ -123,5 +123,5 @@ def requisition_report(request: Request, status: str = "", department_id: int | 
 
 @router.get("/critico")
 def critical_report(request: Request, db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin", "Editor"))):
-    products = [p for p in db.scalars(select(Product).order_by(Product.name)).all() if p.alert_status != "Estoque OK"]
+    products = [p for p in db.scalars(select(Product).order_by(Product.name)).all() if p.alert_status != "Stock Adequado"]
     return templates.TemplateResponse("reports/critical.html", {"request": request, "user": user, "products": products})

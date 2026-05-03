@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.core import Department, Product, Requisition, RequisitionItem, RequisitionStatus, Role, User
+from app.models.core import Product, Requisition, RequisitionItem, RequisitionStatus, Role, User
 from app.routers.common import templates
 from app.security import current_user, operational_roles, require_roles
 from app.services.audit import audit_log
@@ -51,7 +51,6 @@ def new_requisition(request: Request, db: Session = Depends(get_db), user: User 
             "request": request,
             "user": user,
             "products": db.scalars(select(Product).where(Product.status == "active").order_by(Product.name)).all(),
-            "departments": db.scalars(select(Department).order_by(Department.name)).all(),
             "managers": managers,
             "default_manager_id": default_manager_id(user, managers),
             "authorization_person": "Gestor de Estoque",
@@ -63,7 +62,6 @@ def new_requisition(request: Request, db: Session = Depends(get_db), user: User 
 @router.post("/nova")
 def create_requisition(
     request: Request,
-    department_id: int | None = Form(None),
     operational_manager_id: int | None = Form(None),
     req_type: str = Form("REQUISIÇÃO"),
     product_id: list[int] = Form(...),
@@ -78,7 +76,7 @@ def create_requisition(
         req = Requisition(
             number=next_requisition_number(db),
             requesting_user_id=user.id,
-            department_id=department_id or user.department_id,
+            department_id=user.department_id,
             operational_manager=manager.full_name if manager else None,
             authorization_person="Gestor de Estoque",
             req_type=req_type,
@@ -196,8 +194,10 @@ def issue(req_id: int, request: Request, db: Session = Depends(get_db), user: Us
 
 
 @router.get("/{req_id}/pdf")
-def requisition_pdf(req_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
+def requisition_pdf(req_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
     req = db.get(Requisition, req_id)
     if not req:
         raise HTTPException(404)
-    return Response(requisition_to_pdf(req), media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{req.number}.pdf"'})
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    client_ip = forwarded_for.split(",")[0].strip() if forwarded_for else (request.client.host if request.client else "")
+    return Response(requisition_to_pdf(req, user, client_ip), media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{req.number}.pdf"'})

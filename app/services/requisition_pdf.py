@@ -1,5 +1,7 @@
 from datetime import datetime
+import getpass
 from io import BytesIO
+import socket
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -8,7 +10,7 @@ from reportlab.lib.units import cm
 from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from app.config import get_settings
-from app.models.core import Requisition
+from app.models.core import Requisition, User
 
 
 GOLD = colors.HexColor("#F5BF00")
@@ -49,7 +51,21 @@ def box_table(rows: list[list], widths: list[float]) -> Table:
     return table
 
 
-def requisition_to_pdf(req: Requisition) -> bytes:
+def host_footer_lines(req: Requisition, generated_by: User | None, client_ip: str | None) -> list[str]:
+    user_label = "Sistema"
+    if generated_by:
+        user_label = f"{generated_by.full_name} ({generated_by.username})"
+    return [
+        f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        f"Gerado por: {user_label}",
+        f"IP de acesso: {client_ip or 'N/D'}",
+        f"Servidor: {socket.gethostname()}",
+        f"Utilizador do host: {getpass.getuser()}",
+        f"Requisição: {req.number}",
+    ]
+
+
+def requisition_to_pdf(req: Requisition, generated_by: User | None = None, client_ip: str | None = None) -> bytes:
     settings = get_settings()
     stream = BytesIO()
     doc = SimpleDocTemplate(
@@ -148,5 +164,18 @@ def requisition_to_pdf(req: Requisition) -> bytes:
     if req.notes:
         story.extend([Spacer(1, 0.35 * cm), box_table([["Observações:", Paragraph(req.notes, normal)]], [3.2 * cm, 15.9 * cm])])
 
-    doc.build(story)
+    footer_lines = host_footer_lines(req, generated_by, client_ip)
+
+    def draw_footer(canvas, _doc):
+        canvas.saveState()
+        canvas.setStrokeColor(colors.HexColor("#DDDDDD"))
+        canvas.setLineWidth(0.4)
+        canvas.line(1.1 * cm, 0.55 * cm, A4[0] - 1.1 * cm, 0.55 * cm)
+        canvas.setFillColor(colors.HexColor("#666666"))
+        canvas.setFont("Courier", 6.5)
+        canvas.drawString(1.1 * cm, 0.34 * cm, " | ".join(footer_lines[:3]))
+        canvas.drawString(1.1 * cm, 0.18 * cm, " | ".join(footer_lines[3:]))
+        canvas.restoreState()
+
+    doc.build(story, onFirstPage=draw_footer, onLaterPages=draw_footer)
     return stream.getvalue()

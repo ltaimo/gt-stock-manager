@@ -4,7 +4,7 @@
 {% if error %}<div class="alert red">{{ error }}</div>{% endif %}
 <form method="post" class="form-stack">
   <div class="form-grid">
-    <label>Departamento<select name="department_id"><option value="">Meu departamento</option>{% for d in departments %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}</select></label>
+    <label>Departamento<input value="{{ user.department.name if user.department else 'Sem departamento definido' }}" disabled></label>
     <label>Gestor Operacional em serviço
       <select name="operational_manager_id" required>
         {% for manager in managers %}

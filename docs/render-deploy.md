@@ -27,6 +27,7 @@ Nesta configuração de demo, a base SQLite fica em `/tmp`. Em serviços free, o
 ```bash
 python -m app.seed
 python -m app.maintenance.seed_demo_data
+python -m app.maintenance.categorize_products
 ```
 
 Assim a aplicação volta a ter dados de demonstração automaticamente.
