@@ -10,9 +10,9 @@ from app.models.core import Department, Product, Requisition, RequisitionItem, R
 from app.routers.common import templates
 from app.security import current_user, operational_roles, require_roles
 from app.services.audit import audit_log
-from app.services.exports import rows_to_pdf
 from app.services.inventory import StockError
 from app.services.notifications import notify_requisition_decision, notify_requisition_pending
+from app.services.requisition_pdf import requisition_to_pdf
 from app.services.requisitions import issue_requisition, next_requisition_number
 from app.services.transactions import atomic
 
@@ -128,22 +128,54 @@ def submit_requisition(req_id: int, request: Request, db: Session = Depends(get_
 
 
 @router.post("/{req_id}/review")
-def review_requisition(req_id: int, request: Request, decision: str = Form(...), rejection_reason: str | None = Form(None), db: Session = Depends(get_db), user: User = Depends(require_roles(*operational_roles()))):
+def review_requisition(
+    req_id: int,
+    request: Request,
+    decision: str = Form(...),
+    rejection_reason: str | None = Form(None),
+    item_id: list[int] = Form([]),
+    approved_quantity: list[float] = Form([]),
+    review_observation: list[str] = Form([]),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(*operational_roles())),
+):
     req = db.get(Requisition, req_id)
     if not req:
         raise HTTPException(404)
     try:
         with atomic(db):
-            req.status = RequisitionStatus.approved.value if decision == "approve" else RequisitionStatus.rejected.value
             req.reviewed_by_id = user.id
             req.reviewed_at = datetime.now(timezone.utc)
-            if decision == "approve":
+
+            if decision == "reject":
+                req.status = RequisitionStatus.rejected.value
+                req.notes = rejection_reason or req.notes
+                for item in req.items:
+                    item.quantity_issued = 0
+                    item.review_status = "Rejeitado"
+                    item.review_observation = rejection_reason or "Requisição rejeitada."
+                notify_requisition_decision(db, req, user, "Rejeitada")
+            elif decision == "approve":
+                req.status = RequisitionStatus.approved.value
                 issue_requisition(db, req, user)
                 notify_requisition_decision(db, req, user, "Emitida")
             else:
+                req.status = RequisitionStatus.approved.value
+                quantities = {item_id[idx]: approved_quantity[idx] for idx in range(min(len(item_id), len(approved_quantity)))}
+                notes = {item_id[idx]: review_observation[idx] for idx in range(min(len(item_id), len(review_observation)))}
+                issue_requisition(db, req, user, approved_quantities=quantities, review_notes=notes)
                 req.notes = rejection_reason or req.notes
-                notify_requisition_decision(db, req, user, "Rejeitada")
-            audit_log(db, user, "Aprovou/Rejeitou requisição", "Requisições", req.number, new_value={"status": req.status}, request=request)
+                notify_requisition_decision(db, req, user, req.status)
+
+            audit_log(
+                db,
+                user,
+                "Aprovou/Rejeitou requisição",
+                "Requisições",
+                req.number,
+                new_value={"status": req.status, "decision": decision},
+                request=request,
+            )
     except StockError as exc:
         return templates.TemplateResponse("requisitions/detail.html", {"request": request, "user": user, "req": req, "error": str(exc)}, status_code=400)
     return RedirectResponse(f"/requisicoes/{req.id}", status_code=303)
@@ -168,6 +200,4 @@ def requisition_pdf(req_id: int, db: Session = Depends(get_db), user: User = Dep
     req = db.get(Requisition, req_id)
     if not req:
         raise HTTPException(404)
-    headers = ["Código", "Item", "Qtde", "Destino", "Obs"]
-    rows = [(i.product.code, i.product.name, i.quantity_requested, i.destination, i.observation) for i in req.items]
-    return Response(rows_to_pdf(headers, rows, req.number), media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{req.number}.pdf"'})
+    return Response(requisition_to_pdf(req), media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{req.number}.pdf"'})

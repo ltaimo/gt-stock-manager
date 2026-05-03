@@ -29,30 +29,76 @@ def movement_action_for_requisition(req: Requisition) -> str:
     return "ACERTO"
 
 
-def issue_requisition(db: Session, req: Requisition, actor: User) -> None:
+def issue_requisition(
+    db: Session,
+    req: Requisition,
+    actor: User,
+    approved_quantities: dict[int, float] | None = None,
+    review_notes: dict[int, str] | None = None,
+) -> None:
     if req.status != RequisitionStatus.approved.value:
         raise StockError("Apenas requisições aprovadas podem ser emitidas.")
     action = movement_action_for_requisition(req)
+    notes = review_notes or {}
+
+    quantities: dict[int, float] = {}
+    for item in req.items:
+        requested = float(item.quantity_requested or 0)
+        approved = requested if approved_quantities is None else float(approved_quantities.get(item.id, 0) or 0)
+        if approved < 0:
+            raise StockError("A quantidade aprovada não pode ser negativa.")
+        if approved > requested:
+            raise StockError(f"A quantidade aprovada para {item.product.code} excede a quantidade requisitada.")
+        quantities[item.id] = approved
+
     if action == "SAÍDA":
         for item in req.items:
-            if float(item.product.current_stock or 0) < float(item.quantity_requested or 0):
+            approved = quantities[item.id]
+            if approved and float(item.product.current_stock or 0) < approved:
                 raise StockError(f"Estoque insuficiente para {item.product.code} - {item.product.name}.")
 
+    issued_any = False
+    partially_issued = False
     for item in req.items:
+        requested = float(item.quantity_requested or 0)
+        approved = quantities[item.id]
+        item.quantity_issued = approved
+        item.review_observation = (notes.get(item.id) or "").strip() or None
+
+        if approved <= 0:
+            item.review_status = "Rejeitado"
+            partially_issued = True
+            if not item.review_observation:
+                item.review_observation = "Item não aprovado."
+            continue
+
+        if approved < requested:
+            item.review_status = "Parcial"
+            partially_issued = True
+            if not item.review_observation:
+                item.review_observation = f"Parcialmente aprovado. Quantidade não aprovada: {requested - approved:g}."
+        else:
+            item.review_status = "Aprovado"
+
+        issued_any = True
         post_movement(
             db,
             product=item.product,
             action_type=action,
-            quantity=float(item.quantity_requested),
+            quantity=approved,
             registered_by=actor,
             destination=item.destination or (req.department.name if req.department else None),
             responsible_person=req.authorization_person,
             requesting_user_id=req.requesting_user_id,
             department_id=req.department_id,
-            notes=item.observation or f"Movimento automático da requisição {req.number}",
+            notes=item.review_observation or item.observation or f"Movimento automático da requisição {req.number}",
             reference_number=req.number,
             adjustment_direction="increase" if action == "ACERTO" else None,
         )
-    req.status = RequisitionStatus.issued.value
+
+    if not issued_any:
+        raise StockError("Nenhum item foi aprovado para emissão.")
+
+    req.status = RequisitionStatus.partially_issued.value if partially_issued else RequisitionStatus.issued.value
     req.issued_by_id = actor.id
     req.issued_at = datetime.now(timezone.utc)

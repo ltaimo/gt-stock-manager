@@ -5,11 +5,13 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import get_settings
 from app.database import Base, engine
+from app.maintenance.migrate_schema import ensure_schema
 from app.routers import about, audit, auth, dashboard, documents, imports, movements, notifications, products, reports, requisitions, users
 
 
 settings = get_settings()
 Base.metadata.create_all(bind=engine)
+ensure_schema()
 
 app = FastAPI(title=settings.app_name)
 app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, same_site="lax", https_only=settings.secure_cookies)

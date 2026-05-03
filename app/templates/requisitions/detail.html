@@ -1,20 +1,102 @@
 {% extends "base.html" %}
 {% block content %}
-<header class="page-header"><h1>{{ req.number }}</h1><a class="button secondary" href="/requisicoes/{{ req.id }}/pdf">PDF</a></header>
+<header class="page-header">
+  <h1>{{ req.number }}</h1>
+  <a class="button secondary" href="/requisicoes/{{ req.id }}/pdf">PDF</a>
+</header>
+
 {% if error %}<div class="alert red">{{ error }}</div>{% endif %}
+
 <section class="panel">
-<p><strong>Estado:</strong> <span class="badge orange">{{ req.status }}</span> <strong>Tipo:</strong> {{ req.req_type }} <strong>Requisitante:</strong> {{ req.requesting_user.full_name }} <strong>Departamento:</strong> {{ req.department.name if req.department else '' }}</p>
-<p><strong>Gestor Operacional:</strong> {{ req.operational_manager or '' }} <strong>A ser autorizado por:</strong> {{ req.authorization_person or 'Gestor de Estoque' }}</p>
-<table><thead><tr><th>Código</th><th>Item</th><th>Qtde</th><th>Disponível</th><th>Destino</th><th>Obs</th></tr></thead><tbody>
-{% for i in req.items %}<tr><td>{{ i.product.code }}</td><td>{{ i.product.name }}</td><td>{{ i.quantity_requested }}</td><td>{{ i.product.current_stock }} {{ i.product.unit }}</td><td>{{ i.destination or '' }}</td><td>{{ i.observation or '' }}</td></tr>{% endfor %}
-</tbody></table>
-<div class="actions">
-{% if req.status == 'Draft' and req.requesting_user_id == user.id %}<form method="post" action="/requisicoes/{{ req.id }}/submit"><button>Submeter</button></form>{% endif %}
-{% if role_in(user, 'SuperAdmin', 'Admin', 'Editor', 'Gestor de Estoque', 'Chefe do Terminal') and req.status == 'Submitted' %}
-<form method="post" action="/requisicoes/{{ req.id }}/review" class="form-stack">
-  <label>Motivo de rejeição, se aplicável<input name="rejection_reason"></label>
-  <div class="actions"><button name="decision" value="approve">Aprovar e movimentar stock</button><button name="decision" value="reject" class="danger">Rejeitar</button></div>
-</form>
-{% endif %}
-</div></section>
+  <p>
+    <strong>Estado:</strong> <span class="badge orange">{{ req.status }}</span>
+    <strong>Tipo:</strong> {{ req.req_type }}
+    <strong>Requisitante:</strong> {{ req.requesting_user.full_name }}
+    <strong>Departamento:</strong> {{ req.department.name if req.department else '' }}
+  </p>
+  <p>
+    <strong>Gestor Operacional:</strong> {{ req.operational_manager or '' }}
+    <strong>A ser autorizado por:</strong> {{ req.authorization_person or 'Gestor de Estoque' }}
+  </p>
+  {% if req.notes %}<p><strong>Observações da decisão:</strong> {{ req.notes }}</p>{% endif %}
+
+  <table>
+    <thead>
+      <tr>
+        <th>Código</th>
+        <th>Item</th>
+        <th>Qtde pedida</th>
+        <th>Qtde emitida</th>
+        <th>Disponível</th>
+        <th>Estado do item</th>
+        <th>Obs</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for i in req.items %}
+      <tr>
+        <td>{{ i.product.code }}</td>
+        <td>{{ i.product.name }}</td>
+        <td>{{ i.quantity_requested }} {{ i.product.unit }}</td>
+        <td>{{ i.quantity_issued or 0 }} {{ i.product.unit }}</td>
+        <td>{{ i.product.current_stock }} {{ i.product.unit }}</td>
+        <td><span class="badge {{ 'green' if i.review_status == 'Aprovado' else 'orange' if i.review_status == 'Parcial' else 'red' if i.review_status == 'Rejeitado' else 'grey' }}">{{ i.review_status or 'Pendente' }}</span></td>
+        <td>{{ i.review_observation or i.observation or '' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="actions">
+    {% if req.status == 'Draft' and req.requesting_user_id == user.id %}
+      <form method="post" action="/requisicoes/{{ req.id }}/submit"><button>Submeter</button></form>
+    {% endif %}
+  </div>
+
+  {% if role_in(user, 'SuperAdmin', 'Admin', 'Editor', 'Gestor de Estoque', 'Chefe do Terminal') and req.status == 'Submitted' %}
+  <form method="post" action="/requisicoes/{{ req.id }}/review" class="form-stack">
+    <h2>Decisão da Requisição</h2>
+    <p class="muted">Pode aprovar tudo, rejeitar tudo, ou ajustar as quantidades abaixo para emitir parcialmente.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Produto</th>
+          <th>Pedido</th>
+          <th>Disponível</th>
+          <th>Qtde a aprovar</th>
+          <th>Observação do item</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for i in req.items %}
+        {% set requested = i.quantity_requested|float %}
+        {% set available = i.product.current_stock|float %}
+        {% set suggested = requested if req.req_type != 'REQUISIÇÃO' or available >= requested else available %}
+        <tr>
+          <td>
+            <input type="hidden" name="item_id" value="{{ i.id }}">
+            <strong>{{ i.product.code }}</strong><br>{{ i.product.name }}
+          </td>
+          <td>{{ i.quantity_requested }} {{ i.product.unit }}</td>
+          <td>{{ i.product.current_stock }} {{ i.product.unit }}</td>
+          <td><input type="number" name="approved_quantity" min="0" max="{{ i.quantity_requested }}" step="0.01" value="{{ suggested if suggested > 0 else 0 }}"></td>
+          <td><input name="review_observation" placeholder="Motivo se parcial/rejeitado"></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <label>Observação geral / motivo de rejeição
+      <input name="rejection_reason" placeholder="Obrigatório quando rejeitar; opcional na aprovação parcial">
+    </label>
+
+    <div class="actions">
+      <button name="decision" value="approve">Aprovar tudo e movimentar stock</button>
+      <button name="decision" value="partial" class="secondary">Aprovar parcialmente</button>
+      <button name="decision" value="reject" class="danger">Rejeitar requisição</button>
+    </div>
+  </form>
+  {% endif %}
+</section>
 {% endblock %}

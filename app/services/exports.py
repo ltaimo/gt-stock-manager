@@ -83,7 +83,5 @@ def rows_to_pdf(headers: list[str], rows: Iterable[Iterable], title: str = "Rela
         )
     )
     story.append(table)
-    story.append(Spacer(1, 0.4 * cm))
-    story.append(Paragraph("<font color='#8A9098' size='8'>Designed by Layton Taimo</font>", styles["Normal"]))
     doc.build(story)
     return stream.getvalue()

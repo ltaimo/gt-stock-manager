@@ -38,6 +38,7 @@ class RequisitionStatus(str, Enum):
     approved = "Approved"
     rejected = "Rejected"
     issued = "Issued"
+    partially_issued = "Emitido Parcialmente"
     cancelled = "Cancelled"
 
 
@@ -171,8 +172,11 @@ class RequisitionItem(Base):
     requisition_id: Mapped[int] = mapped_column(ForeignKey("requisitions.id"), nullable=False)
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), nullable=False)
     quantity_requested: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    quantity_issued: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    review_status: Mapped[str] = mapped_column(String(30), default="Pendente")
     destination: Mapped[str | None] = mapped_column(String(180))
     observation: Mapped[str | None] = mapped_column(Text)
+    review_observation: Mapped[str | None] = mapped_column(Text)
 
     requisition: Mapped[Requisition] = relationship(back_populates="items")
     product: Mapped[Product] = relationship()
