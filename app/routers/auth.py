@@ -8,6 +8,7 @@ from app.models.core import User
 from app.routers.common import templates
 from app.security import current_user, hash_password, touch_last_login, verify_password
 from app.services.audit import audit_log
+from app.services.forms import required_text
 from app.services.transactions import atomic
 
 router = APIRouter()
@@ -19,11 +20,13 @@ def login_form(request: Request):
 
 
 @router.post("/login")
-def login(request: Request, username: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
-    user = db.scalar(select(User).where(User.username == username))
-    if not user or not user.is_active or not verify_password(password, user.password_hash):
+def login(request: Request, username: str | None = Form(None), password: str | None = Form(None), db: Session = Depends(get_db)):
+    clean_username = required_text(username, "Utilizador")
+    clean_password = required_text(password, "Senha")
+    user = db.scalar(select(User).where(User.username == clean_username))
+    if not user or not user.is_active or not verify_password(clean_password, user.password_hash):
         with atomic(db):
-            audit_log(db, None, "Login falhou", "Auth", username, request=request)
+            audit_log(db, None, "Login falhou", "Auth", clean_username, request=request)
         return templates.TemplateResponse("auth/login.html", {"request": request, "error": "Credenciais inválidas."}, status_code=400)
     request.session["user_id"] = user.id
     with atomic(db):

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel narrow">
+  <h1>Não foi possível concluir</h1>
+  <div class="alert red">{{ message }}</div>
+  <div class="actions">
+    <a class="button secondary" href="{{ back_url }}">Voltar e corrigir</a>
+    {% if user %}<a class="button" href="/dashboard">Ir ao Dashboard</a>{% endif %}
+  </div>
+</section>
+{% endblock %}

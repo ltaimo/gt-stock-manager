@@ -69,7 +69,7 @@ def post_movement(
 
     signed = signed_quantity(action_type, quantity, adjustment_direction)
     available_after = Decimal(str(product.current_stock or 0)) + signed
-    if signed < 0 and available_after < 0 and registered_by.role.name != "SuperAdmin":
+    if signed < 0 and available_after < 0:
         raise StockError("Estoque insuficiente para a saída solicitada.")
 
     movement = StockMovement(

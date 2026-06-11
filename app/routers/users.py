@@ -8,7 +8,7 @@ from app.models.core import Department, Role, User
 from app.routers.common import templates
 from app.security import can_manage_user, current_user, hash_password, require_roles
 from app.services.audit import audit_log
-from app.services.forms import optional_int
+from app.services.forms import optional_email, optional_int, required_int, required_text
 from app.services.transactions import atomic
 
 router = APIRouter(prefix="/utilizadores", tags=["utilizadores"])
@@ -28,33 +28,42 @@ def new_user(request: Request, db: Session = Depends(get_db), user: User = Depen
 @router.post("/novo")
 def create_user(
     request: Request,
-    full_name: str = Form(...),
-    username: str = Form(...),
+    full_name: str | None = Form(None),
+    username: str | None = Form(None),
     email: str | None = Form(None),
-    password: str = Form(...),
-    role_id: int = Form(...),
+    password: str | None = Form(None),
+    role_id: str | None = Form(None),
     department_id: str | None = Form(None),
     db: Session = Depends(get_db),
     user: User = Depends(require_roles("SuperAdmin", "Admin")),
 ):
+    clean_name = required_text(full_name, "Nome completo", 160)
+    clean_username = required_text(username, "Utilizador", 80)
+    clean_password = required_text(password, "Senha inicial")
+    if len(clean_password) < 8:
+        raise HTTPException(400, "A senha inicial deve ter pelo menos 8 caracteres.")
+    parsed_role_id = required_int(role_id, "Perfil")
     parsed_department_id = optional_int(department_id, "Departamento")
-    role = db.get(Role, role_id)
+    role = db.get(Role, parsed_role_id)
     if not role or not can_manage_user(user, None, role.name):
         raise HTTPException(403)
-    if db.scalar(select(User).where(User.username == username.strip())):
-        raise HTTPException(400, "Utilizador duplicado.")
+    if db.scalar(select(User).where(User.username == clean_username)):
+        raise HTTPException(400, "Já existe um utilizador com este nome.")
+    clean_email = optional_email(email)
+    if clean_email and db.scalar(select(User).where(User.email == clean_email)):
+        raise HTTPException(400, "Já existe um utilizador com este email.")
     with atomic(db):
         target = User(
-            full_name=full_name,
-            username=username.strip(),
-            email=email or None,
-            password_hash=hash_password(password),
-            role_id=role_id,
+            full_name=clean_name,
+            username=clean_username,
+            email=clean_email,
+            password_hash=hash_password(clean_password),
+            role_id=parsed_role_id,
             department_id=parsed_department_id,
         )
         db.add(target)
         db.flush()
-        audit_log(db, user, "Criou utilizador", "Utilizadores", target.id, new_value={"username": username, "role": role.name}, request=request)
+        audit_log(db, user, "Criou utilizador", "Utilizadores", target.id, new_value={"username": clean_username, "role": role.name}, request=request)
     return RedirectResponse("/utilizadores", status_code=303)
 
 
@@ -67,17 +76,23 @@ def edit_user(target_id: int, request: Request, db: Session = Depends(get_db), u
 
 
 @router.post("/{target_id}/editar")
-def update_user(target_id: int, request: Request, full_name: str = Form(...), email: str | None = Form(None), role_id: int = Form(...), department_id: str | None = Form(None), is_active: bool = Form(False), db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin"))):
+def update_user(target_id: int, request: Request, full_name: str | None = Form(None), email: str | None = Form(None), role_id: str | None = Form(None), department_id: str | None = Form(None), is_active: bool = Form(False), db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin"))):
+    clean_name = required_text(full_name, "Nome completo", 160)
+    parsed_role_id = required_int(role_id, "Perfil")
     parsed_department_id = optional_int(department_id, "Departamento")
     target = db.get(User, target_id)
-    role = db.get(Role, role_id)
+    role = db.get(Role, parsed_role_id)
     if not target or not role or not can_manage_user(user, target, role.name):
         raise HTTPException(403)
     old = {"role": target.role.name, "active": target.is_active}
+    clean_email = optional_email(email)
+    duplicate_email = clean_email and db.scalar(select(User).where(User.email == clean_email, User.id != target.id))
+    if duplicate_email:
+        raise HTTPException(400, "Já existe um utilizador com este email.")
     with atomic(db):
-        target.full_name = full_name
-        target.email = email or None
-        target.role_id = role_id
+        target.full_name = clean_name
+        target.email = clean_email
+        target.role_id = parsed_role_id
         target.department_id = parsed_department_id
         target.is_active = is_active
         audit_log(db, user, "Atualizou utilizador", "Utilizadores", target.id, old_value=old, new_value={"role": role.name, "active": is_active}, request=request)

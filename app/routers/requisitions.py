@@ -10,6 +10,7 @@ from app.models.core import Product, Requisition, RequisitionItem, RequisitionSt
 from app.routers.common import templates
 from app.security import current_user, operational_roles, require_roles
 from app.services.audit import audit_log
+from app.services.forms import optional_int, parse_float_list, parse_int_list
 from app.services.inventory import StockError
 from app.services.notifications import notify_requisition_decision, notify_requisition_pending
 from app.services.requisition_pdf import requisition_to_pdf
@@ -104,18 +105,27 @@ def new_requisition(request: Request, db: Session = Depends(get_db), user: User 
 @router.post("/nova")
 def create_requisition(
     request: Request,
-    operational_manager_id: int | None = Form(None),
+    operational_manager_id: str | None = Form(None),
     req_type: str = Form("REQUISIÇÃO"),
-    product_id: list[int] = Form(...),
-    quantity: list[float] = Form(...),
+    product_id: list[str] = Form([]),
+    quantity: list[str] = Form([]),
     observation: list[str] = Form([]),
     submit: str | None = Form(None),
     db: Session = Depends(get_db),
     user: User = Depends(current_user),
 ):
-    manager = db.get(User, operational_manager_id) if operational_manager_id else None
+    parsed_manager_id = optional_int(operational_manager_id, "Gestor operacional")
+    if len(product_id) != len(quantity):
+        raise HTTPException(400, "Cada item deve ter uma quantidade correspondente.")
+    parsed_product_ids = parse_int_list(product_id, "Produto")
+    parsed_quantities = parse_float_list(quantity, "Quantidade")
+    manager = db.get(User, parsed_manager_id) if parsed_manager_id else None
+    if parsed_manager_id and not manager:
+        raise HTTPException(400, "O gestor operacional selecionado não existe.")
+    if req_type not in {"REQUISIÇÃO", "DEVOLUÇÃO", "OUTRO"}:
+        raise HTTPException(400, "Tipo de requisição inválido.")
     try:
-        validated_items = validate_requisition_items(db, req_type, product_id, quantity)
+        validated_items = validate_requisition_items(db, req_type, parsed_product_ids, parsed_quantities)
         with atomic(db):
             req = Requisition(
                 number=next_requisition_number(db),
@@ -166,6 +176,8 @@ def submit_requisition(req_id: int, request: Request, db: Session = Depends(get_
     req = db.get(Requisition, req_id)
     if not req or (user.role.name == "User" and req.requesting_user_id != user.id):
         raise HTTPException(404)
+    if req.status != RequisitionStatus.draft.value:
+        raise HTTPException(400, "Apenas requisições em rascunho podem ser submetidas.")
     try:
         validate_requisition_items(
             db,
@@ -214,8 +226,8 @@ def review_requisition(
     request: Request,
     decision: str = Form(...),
     rejection_reason: str | None = Form(None),
-    item_id: list[int] = Form([]),
-    approved_quantity: list[float] = Form([]),
+    item_id: list[str] = Form([]),
+    approved_quantity: list[str] = Form([]),
     review_observation: list[str] = Form([]),
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(*operational_roles())),
@@ -223,6 +235,18 @@ def review_requisition(
     req = db.get(Requisition, req_id)
     if not req:
         raise HTTPException(404)
+    if req.status != RequisitionStatus.submitted.value:
+        raise HTTPException(400, "Apenas requisições submetidas podem ser analisadas.")
+    if decision not in {"approve", "partial", "reject"}:
+        raise HTTPException(400, "Escolha uma decisão válida.")
+    parsed_item_ids = parse_int_list(item_id, "Item") if decision == "partial" else []
+    parsed_quantities = parse_float_list(approved_quantity, "Quantidade aprovada") if decision == "partial" else []
+    if decision == "partial":
+        if len(parsed_item_ids) != len(parsed_quantities):
+            raise HTTPException(400, "Cada item deve ter uma quantidade aprovada correspondente.")
+        expected_ids = {item.id for item in req.items}
+        if len(set(parsed_item_ids)) != len(parsed_item_ids) or set(parsed_item_ids) != expected_ids:
+            raise HTTPException(400, "A seleção de itens da requisição é inválida ou incompleta.")
     try:
         with atomic(db):
             req.reviewed_by_id = user.id
@@ -246,8 +270,8 @@ def review_requisition(
                 notify_requisition_decision(db, req, user, "Emitida")
             else:
                 req.status = RequisitionStatus.approved.value
-                quantities = {item_id[idx]: approved_quantity[idx] for idx in range(min(len(item_id), len(approved_quantity)))}
-                notes = {item_id[idx]: review_observation[idx] for idx in range(min(len(item_id), len(review_observation)))}
+                quantities = {parsed_item_ids[idx]: parsed_quantities[idx] for idx in range(min(len(parsed_item_ids), len(parsed_quantities)))}
+                notes = {parsed_item_ids[idx]: review_observation[idx] for idx in range(min(len(parsed_item_ids), len(review_observation)))}
                 issue_requisition(db, req, user, approved_quantities=quantities, review_notes=notes)
                 req.notes = (rejection_reason or "").strip() or req.notes
                 notify_requisition_decision(db, req, user, req.status)

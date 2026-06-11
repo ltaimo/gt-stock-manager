@@ -13,6 +13,7 @@ from app.models.core import Category, Department, Product, StockMovement, User
 from app.routers.common import templates
 from app.security import current_user, require_roles
 from app.services.audit import audit_log
+from app.services.forms import optional_float, optional_int, required_text
 from app.services.transactions import atomic
 from app.services.stock_reset import reset_all_stock
 
@@ -50,14 +51,24 @@ def new_product(request: Request, db: Session = Depends(get_db), user: User = De
 @router.post("/novo")
 def create_product(
     request: Request,
-    name: str = Form(...),
-    category_id: int | None = Form(None),
+    name: str | None = Form(None),
+    category_id: str | None = Form(None),
     unit: str = Form("un"),
-    minimum_stock: float = Form(0),
+    minimum_stock: str | None = Form("0"),
     db: Session = Depends(get_db),
     user: User = Depends(require_roles("SuperAdmin", "Admin")),
 ):
-    duplicate = db.scalar(select(Product).where(Product.name.ilike(name.strip())))
+    clean_name = required_text(name, "Nome do produto", 220)
+    parsed_category_id = optional_int(category_id, "Categoria")
+    parsed_minimum = optional_float(minimum_stock, "Stock mínimo", 0) or 0
+    if parsed_minimum < 0:
+        raise HTTPException(400, "Stock mínimo não pode ser negativo.")
+    clean_unit = required_text(unit, "Unidade de medida", 30)
+    if clean_unit not in {"un", "caixa", "embalagem", "rolo", "par", "garrafa", "resma", "kg", "g", "L", "ml", "m"}:
+        raise HTTPException(400, "Unidade de medida inválida.")
+    if parsed_category_id and not db.get(Category, parsed_category_id):
+        raise HTTPException(400, "A categoria selecionada não existe.")
+    duplicate = db.scalar(select(Product).where(Product.name.ilike(clean_name)))
     if duplicate:
         return templates.TemplateResponse(
             "products/form.html",
@@ -74,10 +85,10 @@ def create_product(
         )
     code = next_product_code(db)
     with atomic(db):
-        product = Product(code=code.strip(), name=name.strip(), category_id=category_id, unit=unit, minimum_stock=minimum_stock, created_by_id=user.id)
+        product = Product(code=code.strip(), name=clean_name, category_id=parsed_category_id, unit=clean_unit, minimum_stock=parsed_minimum, created_by_id=user.id)
         db.add(product)
         db.flush()
-        audit_log(db, user, "Criou produto", "Produtos", product.id, new_value={"code": code, "name": name}, request=request)
+        audit_log(db, user, "Criou produto", "Produtos", product.id, new_value={"code": code, "name": clean_name}, request=request)
     return RedirectResponse("/produtos", status_code=303)
 
 
@@ -93,10 +104,10 @@ def edit_product(product_id: int, request: Request, db: Session = Depends(get_db
 def update_product(
     product_id: int,
     request: Request,
-    name: str = Form(...),
-    category_id: int | None = Form(None),
+    name: str | None = Form(None),
+    category_id: str | None = Form(None),
     unit: str = Form("un"),
-    minimum_stock: float = Form(0),
+    minimum_stock: str | None = Form("0"),
     status: str = Form("active"),
     db: Session = Depends(get_db),
     user: User = Depends(require_roles("SuperAdmin", "Admin")),
@@ -104,14 +115,31 @@ def update_product(
     product = db.get(Product, product_id)
     if not product:
         raise HTTPException(404)
+    clean_name = required_text(name, "Nome do produto", 220)
+    clean_unit = required_text(unit, "Unidade de medida", 30)
+    if clean_unit not in {"un", "caixa", "embalagem", "rolo", "par", "garrafa", "resma", "kg", "g", "L", "ml", "m"}:
+        raise HTTPException(400, "Unidade de medida inválida.")
+    parsed_category_id = optional_int(category_id, "Categoria")
+    parsed_minimum = optional_float(minimum_stock, "Stock mínimo", 0) or 0
+    if parsed_minimum < 0:
+        raise HTTPException(400, "Stock mínimo não pode ser negativo.")
+    if parsed_category_id and not db.get(Category, parsed_category_id):
+        raise HTTPException(400, "A categoria selecionada não existe.")
+    if status not in {"active", "inactive"}:
+        raise HTTPException(400, "Estado do produto inválido.")
+    duplicate = db.scalar(
+        select(Product).where(Product.name.ilike(clean_name), Product.id != product.id)
+    )
+    if duplicate:
+        raise HTTPException(400, "Já existe outro produto com este nome.")
     old = {"name": product.name, "minimum_stock": float(product.minimum_stock or 0), "status": product.status}
     with atomic(db):
-        product.name = name.strip()
-        product.category_id = category_id
-        product.unit = unit
-        product.minimum_stock = minimum_stock
+        product.name = clean_name
+        product.category_id = parsed_category_id
+        product.unit = clean_unit
+        product.minimum_stock = parsed_minimum
         product.status = status
-        audit_log(db, user, "Atualizou produto", "Produtos", product.id, old_value=old, new_value={"name": name, "minimum_stock": minimum_stock, "status": status}, request=request)
+        audit_log(db, user, "Atualizou produto", "Produtos", product.id, old_value=old, new_value={"name": clean_name, "minimum_stock": parsed_minimum, "status": status}, request=request)
     return RedirectResponse("/produtos", status_code=303)
 
 
@@ -147,11 +175,12 @@ def categories(request: Request, db: Session = Depends(get_db), user: User = Dep
 
 
 @router.post("/categorias")
-def add_category(name: str = Form(...), db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin"))):
-    normalized = name.strip().lower()
+def add_category(name: str | None = Form(None), db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin"))):
+    clean_name = required_text(name, "Nome da categoria", 120)
+    normalized = clean_name.lower()
     if not db.scalar(select(Category).where(Category.normalized_name == normalized)):
         with atomic(db):
-            category = Category(name=name.strip().title(), normalized_name=normalized)
+            category = Category(name=clean_name.title(), normalized_name=normalized)
             db.add(category)
             db.flush()
             audit_log(db, user, "Criou categoria", "Configurações", category.id, new_value={"name": category.name})
@@ -159,10 +188,11 @@ def add_category(name: str = Form(...), db: Session = Depends(get_db), user: Use
 
 
 @router.post("/departamentos")
-def add_department(name: str = Form(...), db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin"))):
-    if not db.scalar(select(Department).where(Department.name == name.strip().title())):
+def add_department(name: str | None = Form(None), db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin"))):
+    clean_name = required_text(name, "Nome do departamento", 120)
+    if not db.scalar(select(Department).where(Department.name == clean_name.title())):
         with atomic(db):
-            department = Department(name=name.strip().title())
+            department = Department(name=clean_name.title())
             db.add(department)
             db.flush()
             audit_log(db, user, "Criou departamento", "Configurações", department.id, new_value={"name": department.name})

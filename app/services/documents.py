@@ -8,6 +8,10 @@ from app.config import get_settings
 from app.models.core import StockDocument, StockDocumentProduct, User
 
 
+ALLOWED_DOCUMENT_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".webp", ".doc", ".docx", ".xls", ".xlsx"}
+MAX_DOCUMENT_SIZE = 10 * 1024 * 1024
+
+
 async def save_stock_document(
     db: Session,
     *,
@@ -21,10 +25,16 @@ async def save_stock_document(
     if not upload or not upload.filename:
         return None
     settings = get_settings()
-    suffix = Path(upload.filename).suffix
+    suffix = Path(upload.filename).suffix.lower()
+    if suffix not in ALLOWED_DOCUMENT_EXTENSIONS:
+        raise ValueError("Tipo de documento não permitido.")
     stored_filename = f"{uuid.uuid4()}{suffix}"
     destination = settings.documents_dir / stored_filename
     content = await upload.read()
+    if not content:
+        raise ValueError("O documento anexado está vazio.")
+    if len(content) > MAX_DOCUMENT_SIZE:
+        raise ValueError("O documento não pode exceder 10 MB.")
     destination.write_bytes(content)
     document = StockDocument(
         document_type=document_type or "Guia",

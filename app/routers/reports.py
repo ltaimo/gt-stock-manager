@@ -1,6 +1,6 @@
 from datetime import datetime, time
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -59,10 +59,13 @@ def movement_report(
         stmt = stmt.where(StockMovement.department_id == department_id)
     if user_id:
         stmt = stmt.where(StockMovement.registered_by_id == user_id)
-    if date_from:
-        stmt = stmt.where(StockMovement.posted_at >= datetime.combine(datetime.fromisoformat(date_from).date(), time.min))
-    if date_to:
-        stmt = stmt.where(StockMovement.posted_at <= datetime.combine(datetime.fromisoformat(date_to).date(), time.max))
+    try:
+        if date_from:
+            stmt = stmt.where(StockMovement.posted_at >= datetime.combine(datetime.fromisoformat(date_from).date(), time.min))
+        if date_to:
+            stmt = stmt.where(StockMovement.posted_at <= datetime.combine(datetime.fromisoformat(date_to).date(), time.max))
+    except ValueError as exc:
+        raise HTTPException(400, "Informe datas válidas no formato AAAA-MM-DD.") from exc
     movements = db.scalars(stmt).all()
     headers = ["Data", "Acção", "Código", "Item", "Destino", "Quantidade", "Tipo", "Responsável", "Departamento"]
     rows = [(m.posted_at, m.action_type, m.product.code, m.product.name, m.destination, m.quantity, m.reference_number, m.responsible_person, m.department.name if m.department else "") for m in movements]
