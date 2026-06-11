@@ -32,6 +32,7 @@ class OptionalIntegerFormTests(unittest.TestCase):
         with self.assertRaisesRegex(HTTPException, "não pode exceder"):
             required_text("abcd", "Código", 3)
         self.assertEqual(optional_email(" pessoa@example.com "), "pessoa@example.com")
+        self.assertEqual(optional_email(" SuperAdmin@Example.Local "), "superadmin@example.local")
         with self.assertRaisesRegex(HTTPException, "email válido"):
             optional_email("email-invalido")
 

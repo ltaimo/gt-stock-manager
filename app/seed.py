@@ -61,7 +61,7 @@ def seed() -> None:
                 User(
                     full_name="Administrador Principal",
                     username="superadmin",
-                    email="superadmin@example.local",
+                    email="superadmin@gt.co.mz",
                     password_hash=hash_password("Admin@12345"),
                     role_id=super_role.id,
                     department_id=geral.id,

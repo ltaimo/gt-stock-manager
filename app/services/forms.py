@@ -1,4 +1,5 @@
 import math
+import re
 
 from email_validator import EmailNotValidError, validate_email
 from fastapi import HTTPException
@@ -86,6 +87,8 @@ def optional_email(value: str | None) -> str | None:
         return None
     if len(cleaned) > 160:
         raise HTTPException(400, "Email não pode exceder 160 caracteres.")
+    if re.fullmatch(r"[^@\s]+@[^@\s]+\.local", cleaned, flags=re.IGNORECASE):
+        return cleaned.lower()
     try:
         return validate_email(cleaned, check_deliverability=False).normalized
     except EmailNotValidError as exc:
