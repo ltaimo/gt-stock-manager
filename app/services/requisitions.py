@@ -49,6 +49,12 @@ def issue_requisition(
             raise StockError("A quantidade aprovada não pode ser negativa.")
         if approved > requested:
             raise StockError(f"A quantidade aprovada para {item.product.code} excede a quantidade requisitada.")
+        rejected = requested - approved
+        observation = (notes.get(item.id) or "").strip()
+        if rejected > 0 and not observation:
+            raise StockError(
+                f"Indique o motivo da rejeição total ou parcial do item {item.product.code} - {item.product.name}."
+            )
         quantities[item.id] = approved
 
     if action == "SAÍDA":
@@ -62,21 +68,19 @@ def issue_requisition(
     for item in req.items:
         requested = float(item.quantity_requested or 0)
         approved = quantities[item.id]
+        rejected = requested - approved
         item.quantity_issued = approved
+        item.quantity_rejected = rejected
         item.review_observation = (notes.get(item.id) or "").strip() or None
 
         if approved <= 0:
             item.review_status = "Rejeitado"
             partially_issued = True
-            if not item.review_observation:
-                item.review_observation = "Item não aprovado."
             continue
 
         if approved < requested:
             item.review_status = "Parcial"
             partially_issued = True
-            if not item.review_observation:
-                item.review_observation = f"Parcialmente aprovado. Quantidade não aprovada: {requested - approved:g}."
         else:
             item.review_status = "Aprovado"
 

@@ -7,7 +7,7 @@
   <p class="muted">Carregue o ficheiro Excel antigo. O sistema lê as folhas ECONOMATO, USERS e MOVIMENTO, valida os dados e mostra uma pré-visualização antes de gravar qualquer coisa na base de dados.</p>
   <form method="post" action="/importar/preview" enctype="multipart/form-data" class="form-stack">
     <label>Ficheiro Excel/CSV<input type="file" name="file" accept=".xls,.xlsx,.csv" required></label>
-    <button>Validar e pré-visualizar</button>
+    <div class="actions"><a class="button secondary" href="/dashboard">Voltar</a><button>Validar e pré-visualizar</button></div>
   </form>
 </section>
 <section class="grid-two">

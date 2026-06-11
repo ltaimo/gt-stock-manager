@@ -30,3 +30,5 @@ services:
         value: /tmp/outputs/email_outbox
       - key: SECRET_KEY
         generateValue: true
+      - key: RESET_STOCK_SECURITY_CODE
+        sync: false

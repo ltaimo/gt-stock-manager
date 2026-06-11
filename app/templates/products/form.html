@@ -18,7 +18,7 @@
     </label>
     <label>Stock mínimo<input name="minimum_stock" type="number" step="0.01" value="{{ product.minimum_stock if product else 0 }}"></label>
     {% if product %}<label>Estado<select name="status"><option value="active" {% if product.status=='active' %}selected{% endif %}>Ativo</option><option value="inactive" {% if product.status=='inactive' %}selected{% endif %}>Inativo</option></select></label>{% endif %}
-    <button>Guardar</button>
+    <div class="actions"><a class="button secondary" href="/produtos">Cancelar</a><button>Guardar</button></div>
   </form>
 </section>
 {% endblock %}

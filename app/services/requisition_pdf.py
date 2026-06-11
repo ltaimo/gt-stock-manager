@@ -123,7 +123,7 @@ def requisition_to_pdf(req: Requisition, generated_by: User | None = None, clien
     info.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))
     story.extend([info, Spacer(1, 0.8 * cm)])
 
-    headers = ["Código", "Item", "Qtde", "Aprov.", "Destino", "Obs"]
+    headers = ["Código", "Item", "Pedido", "Aprov.", "Rejeit.", "Estado", "Obs"]
     rows = [headers]
     for item in req.items:
         item_obs = item.review_observation or item.observation or ""
@@ -133,12 +133,17 @@ def requisition_to_pdf(req: Requisition, generated_by: User | None = None, clien
                 Paragraph(item.product.name, normal),
                 fmt_qty(item.quantity_requested),
                 fmt_qty(item.quantity_issued),
-                item.destination or (req.department.name if req.department else "N/A"),
+                fmt_qty(item.quantity_rejected),
+                item.review_status,
                 Paragraph(item_obs, small),
             ]
         )
 
-    table = Table(rows, colWidths=[2.3 * cm, 4.9 * cm, 1.7 * cm, 1.8 * cm, 2.6 * cm, 5.8 * cm], repeatRows=1)
+    table = Table(
+        rows,
+        colWidths=[2.1 * cm, 4.4 * cm, 1.4 * cm, 1.4 * cm, 1.4 * cm, 2.1 * cm, 6.3 * cm],
+        repeatRows=1,
+    )
     table.setStyle(
         TableStyle(
             [
@@ -149,7 +154,7 @@ def requisition_to_pdf(req: Requisition, generated_by: User | None = None, clien
                 ("FONTNAME", (0, 0), (-1, 0), "Courier-Bold"),
                 ("FONTNAME", (0, 1), (-1, -1), "Courier"),
                 ("FONTSIZE", (0, 0), (-1, -1), 8),
-                ("ALIGN", (2, 1), (4, -1), "CENTER"),
+                ("ALIGN", (2, 1), (5, -1), "CENTER"),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("GRID", (0, 0), (-1, -1), 0.5, LINE),
                 ("LEFTPADDING", (0, 0), (-1, -1), 4),

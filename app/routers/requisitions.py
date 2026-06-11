@@ -34,6 +34,60 @@ def default_manager_id(user: User, managers: list[User]) -> int | None:
     return managers[0].id if managers else None
 
 
+def requisition_form_context(
+    request: Request,
+    db: Session,
+    user: User,
+    error: str | None = None,
+) -> dict:
+    managers = manager_options(db)
+    return {
+        "request": request,
+        "user": user,
+        "products": db.scalars(select(Product).where(Product.status == "active").order_by(Product.name)).all(),
+        "managers": managers,
+        "default_manager_id": default_manager_id(user, managers),
+        "authorization_person": "Gestor de Estoque",
+        "error": error,
+    }
+
+
+def validate_requisition_items(
+    db: Session,
+    req_type: str,
+    product_ids: list[int],
+    quantities: list[float],
+) -> list[tuple[int, Product, float]]:
+    validated: list[tuple[int, Product, float]] = []
+    requested_totals: dict[int, float] = {}
+    is_stock_request = "REQUISI" in (req_type or "").upper()
+
+    for idx, product_id in enumerate(product_ids):
+        quantity = float(quantities[idx]) if idx < len(quantities) else 0
+        if quantity <= 0:
+            continue
+        product = db.get(Product, product_id)
+        if not product or product.status != "active":
+            raise StockError("Um dos produtos selecionados não está disponível.")
+        requested_totals[product.id] = requested_totals.get(product.id, 0) + quantity
+        validated.append((idx, product, quantity))
+
+    if not validated:
+        raise StockError("Adicione pelo menos um item com quantidade válida.")
+
+    if is_stock_request:
+        for _idx, product, _quantity in validated:
+            requested = requested_totals[product.id]
+            available = float(product.current_stock or 0)
+            if available <= 0:
+                raise StockError(f"O item {product.code} - {product.name} não tem stock disponível.")
+            if requested > available:
+                raise StockError(
+                    f"A quantidade pedida para {product.code} - {product.name} excede o stock disponível ({available:g})."
+                )
+    return validated
+
+
 @router.get("")
 def list_requisitions(request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
     stmt = select(Requisition).order_by(Requisition.request_date.desc())
@@ -44,19 +98,7 @@ def list_requisitions(request: Request, db: Session = Depends(get_db), user: Use
 
 @router.get("/nova")
 def new_requisition(request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
-    managers = manager_options(db)
-    return templates.TemplateResponse(
-        "requisitions/form.html",
-        {
-            "request": request,
-            "user": user,
-            "products": db.scalars(select(Product).where(Product.status == "active").order_by(Product.name)).all(),
-            "managers": managers,
-            "default_manager_id": default_manager_id(user, managers),
-            "authorization_person": "Gestor de Estoque",
-            "error": None,
-        },
-    )
+    return templates.TemplateResponse("requisitions/form.html", requisition_form_context(request, db, user))
 
 
 @router.post("/nova")
@@ -72,34 +114,40 @@ def create_requisition(
     user: User = Depends(current_user),
 ):
     manager = db.get(User, operational_manager_id) if operational_manager_id else None
-    with atomic(db):
-        req = Requisition(
-            number=next_requisition_number(db),
-            requesting_user_id=user.id,
-            department_id=user.department_id,
-            operational_manager=manager.full_name if manager else None,
-            authorization_person="Gestor de Estoque",
-            req_type=req_type,
-            status=RequisitionStatus.submitted.value if submit else RequisitionStatus.draft.value,
-        )
-        db.add(req)
-        db.flush()
-        department_name = req.department.name if req.department else None
-        for idx, pid in enumerate(product_id):
-            if quantity[idx] <= 0:
-                continue
-            db.add(
-                RequisitionItem(
-                    requisition_id=req.id,
-                    product_id=pid,
-                    quantity_requested=quantity[idx],
-                    destination=department_name,
-                    observation=observation[idx] if idx < len(observation) else None,
-                )
+    try:
+        validated_items = validate_requisition_items(db, req_type, product_id, quantity)
+        with atomic(db):
+            req = Requisition(
+                number=next_requisition_number(db),
+                requesting_user_id=user.id,
+                department_id=user.department_id,
+                operational_manager=manager.full_name if manager else None,
+                authorization_person="Gestor de Estoque",
+                req_type=req_type,
+                status=RequisitionStatus.submitted.value if submit else RequisitionStatus.draft.value,
             )
-        if submit:
-            notify_requisition_pending(db, req)
-        audit_log(db, user, "Criou requisição", "Requisições", req.number, request=request)
+            db.add(req)
+            db.flush()
+            department_name = req.department.name if req.department else None
+            for source_idx, product, item_quantity in validated_items:
+                db.add(
+                    RequisitionItem(
+                        requisition_id=req.id,
+                        product_id=product.id,
+                        quantity_requested=item_quantity,
+                        destination=department_name,
+                        observation=observation[source_idx] if source_idx < len(observation) else None,
+                    )
+                )
+            if submit:
+                notify_requisition_pending(db, req)
+            audit_log(db, user, "Criou requisição", "Requisições", req.number, request=request)
+    except StockError as exc:
+        return templates.TemplateResponse(
+            "requisitions/form.html",
+            requisition_form_context(request, db, user, str(exc)),
+            status_code=400,
+        )
     return RedirectResponse(f"/requisicoes/{req.id}", status_code=303)
 
 
@@ -118,10 +166,45 @@ def submit_requisition(req_id: int, request: Request, db: Session = Depends(get_
     req = db.get(Requisition, req_id)
     if not req or (user.role.name == "User" and req.requesting_user_id != user.id):
         raise HTTPException(404)
+    try:
+        validate_requisition_items(
+            db,
+            req.req_type,
+            [item.product_id for item in req.items],
+            [float(item.quantity_requested) for item in req.items],
+        )
+        with atomic(db):
+            req.status = RequisitionStatus.submitted.value
+            notify_requisition_pending(db, req)
+            audit_log(db, user, "Submeteu requisição", "Requisições", req.number, request=request)
+    except StockError as exc:
+        return templates.TemplateResponse(
+            "requisitions/detail.html",
+            {"request": request, "user": user, "req": req, "error": str(exc)},
+            status_code=400,
+        )
+    return RedirectResponse(f"/requisicoes/{req.id}", status_code=303)
+
+
+@router.post("/{req_id}/cancel")
+def cancel_requisition(
+    req_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    req = db.get(Requisition, req_id)
+    if not req:
+        raise HTTPException(404)
+    can_manage = user.role.name in operational_roles()
+    if req.requesting_user_id != user.id and not can_manage:
+        raise HTTPException(403)
+    if req.status not in {RequisitionStatus.draft.value, RequisitionStatus.submitted.value}:
+        raise HTTPException(400, detail="Apenas requisições em rascunho ou submetidas podem ser canceladas.")
+
     with atomic(db):
-        req.status = RequisitionStatus.submitted.value
-        notify_requisition_pending(db, req)
-        audit_log(db, user, "Submeteu requisição", "Requisições", req.number, request=request)
+        req.status = RequisitionStatus.cancelled.value
+        audit_log(db, user, "Cancelou requisição", "Requisições", req.number, request=request)
     return RedirectResponse(f"/requisicoes/{req.id}", status_code=303)
 
 
@@ -146,12 +229,16 @@ def review_requisition(
             req.reviewed_at = datetime.now(timezone.utc)
 
             if decision == "reject":
+                reason = (rejection_reason or "").strip()
+                if not reason:
+                    raise StockError("Indique o motivo da rejeição da requisição.")
                 req.status = RequisitionStatus.rejected.value
-                req.notes = rejection_reason or req.notes
+                req.notes = reason
                 for item in req.items:
                     item.quantity_issued = 0
+                    item.quantity_rejected = item.quantity_requested
                     item.review_status = "Rejeitado"
-                    item.review_observation = rejection_reason or "Requisição rejeitada."
+                    item.review_observation = reason
                 notify_requisition_decision(db, req, user, "Rejeitada")
             elif decision == "approve":
                 req.status = RequisitionStatus.approved.value
@@ -162,7 +249,7 @@ def review_requisition(
                 quantities = {item_id[idx]: approved_quantity[idx] for idx in range(min(len(item_id), len(approved_quantity)))}
                 notes = {item_id[idx]: review_observation[idx] for idx in range(min(len(item_id), len(review_observation)))}
                 issue_requisition(db, req, user, approved_quantities=quantities, review_notes=notes)
-                req.notes = rejection_reason or req.notes
+                req.notes = (rejection_reason or "").strip() or req.notes
                 notify_requisition_decision(db, req, user, req.status)
 
             audit_log(
@@ -200,4 +287,9 @@ def requisition_pdf(req_id: int, request: Request, db: Session = Depends(get_db)
         raise HTTPException(404)
     forwarded_for = request.headers.get("x-forwarded-for", "")
     client_ip = forwarded_for.split(",")[0].strip() if forwarded_for else (request.client.host if request.client else "")
-    return Response(requisition_to_pdf(req, user, client_ip), media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{req.number}.pdf"'})
+    disposition = "attachment" if request.query_params.get("download") == "1" else "inline"
+    return Response(
+        requisition_to_pdf(req, user, client_ip),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'{disposition}; filename="{req.number}.pdf"'},
+    )

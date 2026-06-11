@@ -16,6 +16,7 @@ class Settings:
     app_short_name = os.getenv("APP_SHORT_NAME", "GT Stock Manager")
     environment = os.getenv("ENVIRONMENT", "development")
     secret_key = os.getenv("SECRET_KEY", "change-me-in-production")
+    reset_stock_security_code = os.getenv("RESET_STOCK_SECURITY_CODE", "")
     database_url = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR / 'stock_manager.db'}")
     uploads_dir = env_path("UPLOADS_DIR", BASE_DIR / "uploads")
     outputs_dir = env_path("OUTPUTS_DIR", BASE_DIR / "outputs")

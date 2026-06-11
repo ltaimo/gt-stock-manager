@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.core import Notification, User
+from app.models.core import Notification, Requisition, User
 from app.routers.common import templates
 from app.security import current_user
 from app.services.transactions import atomic
@@ -29,4 +29,21 @@ def mark_read(notification_id: int, db: Session = Depends(get_db), user: User = 
         with atomic(db):
             notification.is_read = True
             notification.read_at = datetime.now(timezone.utc)
+    return RedirectResponse("/notificacoes", status_code=303)
+
+
+@router.get("/{notification_id}/abrir")
+def open_notification(notification_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    notification = db.get(Notification, notification_id)
+    if not notification or notification.user_id != user.id:
+        return RedirectResponse("/notificacoes", status_code=303)
+
+    with atomic(db):
+        notification.is_read = True
+        notification.read_at = datetime.now(timezone.utc)
+
+    if notification.module == "Requisições" and notification.record_id:
+        requisition = db.scalar(select(Requisition).where(Requisition.number == notification.record_id))
+        if requisition:
+            return RedirectResponse(f"/requisicoes/{requisition.id}", status_code=303)
     return RedirectResponse("/notificacoes", status_code=303)

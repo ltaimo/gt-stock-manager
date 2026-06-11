@@ -2,22 +2,39 @@
 {% block content %}
 <header class="page-header"><h1>Notificações</h1></header>
 <section class="panel">
+  {% if notifications %}
   <table>
-    <thead><tr><th>Data</th><th>Título</th><th>Mensagem</th><th>Módulo</th><th>Estado</th><th></th></tr></thead>
+    <thead>
+      <tr><th>Data</th><th>Notificação</th><th>Estado</th><th></th></tr>
+    </thead>
     <tbody>
-    {% for n in notifications %}
+      {% for notification in notifications %}
       <tr>
-        <td>{{ n.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-        <td>{{ n.title }}</td>
-        <td>{{ n.message }}</td>
-        <td>{{ n.module }}</td>
-        <td><span class="badge {{ 'grey' if n.is_read else 'orange' }}">{{ 'Lida' if n.is_read else 'Pendente' }}</span></td>
-        <td>{% if not n.is_read %}<form method="post" action="/notificacoes/{{ n.id }}/ler"><button class="secondary">Marcar lida</button></form>{% endif %}</td>
+        <td>{{ notification.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>
+          <strong>{{ notification.title }}</strong>
+          <div class="notification-message">{{ notification.message }}</div>
+        </td>
+        <td>
+          <span class="badge {{ 'grey' if notification.is_read else 'orange' }}">
+            {{ 'Lida' if notification.is_read else 'Nova' }}
+          </span>
+        </td>
+        <td>
+          {% if notification.module == 'Requisições' and notification.record_id %}
+            <a class="button" href="/notificacoes/{{ notification.id }}/abrir">Ver requisição</a>
+          {% elif not notification.is_read %}
+            <form method="post" action="/notificacoes/{{ notification.id }}/ler">
+              <button class="secondary">Marcar como lida</button>
+            </form>
+          {% endif %}
+        </td>
       </tr>
-    {% else %}
-      <tr><td colspan="6"><div class="empty-state">Sem notificações.</div></td></tr>
-    {% endfor %}
+      {% endfor %}
     </tbody>
   </table>
+  {% else %}
+    <div class="empty-state">Não existem notificações.</div>
+  {% endif %}
 </section>
 {% endblock %}

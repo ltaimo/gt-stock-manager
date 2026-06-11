@@ -16,7 +16,16 @@ def seed() -> None:
                 db.add(Role(name=name))
         db.flush()
 
-        departments = ["Geral", "Operações", "Administração", "Manutenção", "Economato"]
+        departments = [
+            "Geral",
+            "Operações",
+            "Administração",
+            "Manutenção",
+            "Economato",
+            "Faturação",
+            "Armazém",
+            "NEMCHEN",
+        ]
         for name in departments:
             if not db.scalar(select(Department).where(Department.name == name)):
                 db.add(Department(name=name))

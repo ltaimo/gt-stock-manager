@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
 <header class="page-header"><h1>Configurações</h1></header>
+{% if reset_message %}<div class="alert green">{{ reset_message }}</div>{% endif %}
+{% if reset_error %}<div class="alert red">{{ reset_error }}</div>{% endif %}
 <section class="quick-links">
   <a href="/utilizadores">Utilizadores</a>
 </section>
@@ -8,4 +10,28 @@
   <div class="panel"><h2>Categorias</h2><form method="post" action="/produtos/categorias" class="inline-form"><input name="name" required><button>Adicionar</button></form><ul>{% for c in categories %}<li>{{ c.name }}</li>{% endfor %}</ul></div>
   <div class="panel"><h2>Departamentos</h2><form method="post" action="/produtos/departamentos" class="inline-form"><input name="name" required><button>Adicionar</button></form><ul>{% for d in departments %}<li>{{ d.name }}</li>{% endfor %}</ul></div>
 </section>
+{% if user.role.name == 'SuperAdmin' %}
+<section class="panel danger-zone">
+  <h2>Zona de perigo</h2>
+  <p>
+    O reset leva o stock atual de todos os produtos a zero. O histórico não é apagado:
+    são criados movimentos de acerto e a ação fica registada na auditoria.
+  </p>
+  {% if reset_enabled %}
+  <form method="post" action="/produtos/stock/reset" class="form-stack" data-confirm="Confirmar o reset total do stock? Todos os saldos atuais serão levados a zero.">
+    <label>Confirmação
+      <input name="confirmation" placeholder="Escreva RESETAR STOCK" autocomplete="off" required>
+    </label>
+    <label>Código de segurança
+      <input name="security_code" type="password" autocomplete="off" required>
+    </label>
+    <div class="actions">
+      <button class="danger">Resetar todo o stock</button>
+    </div>
+  </form>
+  {% else %}
+    <div class="alert red">A ação está desativada porque o código de segurança não foi configurado.</div>
+  {% endif %}
+</section>
+{% endif %}
 {% endblock %}

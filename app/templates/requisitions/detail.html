@@ -2,7 +2,11 @@
 {% block content %}
 <header class="page-header">
   <h1>{{ req.number }}</h1>
-  <a class="button secondary" href="/requisicoes/{{ req.id }}/pdf">PDF</a>
+  <div class="actions">
+    <a class="button secondary" href="/requisicoes">Voltar</a>
+    <a class="button secondary" href="/requisicoes/{{ req.id }}/pdf" target="_blank">Visualizar PDF</a>
+    <a class="button" href="/requisicoes/{{ req.id }}/pdf?download=1">Baixar PDF</a>
+  </div>
 </header>
 
 {% if error %}<div class="alert red">{{ error }}</div>{% endif %}
@@ -26,7 +30,8 @@
         <th>Código</th>
         <th>Item</th>
         <th>Qtde pedida</th>
-        <th>Qtde emitida</th>
+        <th>Qtde aprovada</th>
+        <th>Qtde rejeitada</th>
         <th>Disponível</th>
         <th>Estado do item</th>
         <th>Obs</th>
@@ -39,6 +44,7 @@
         <td>{{ i.product.name }}</td>
         <td>{{ i.quantity_requested }} {{ i.product.unit }}</td>
         <td>{{ i.quantity_issued or 0 }} {{ i.product.unit }}</td>
+        <td>{{ i.quantity_rejected or 0 }} {{ i.product.unit }}</td>
         <td>{{ i.product.current_stock }} {{ i.product.unit }}</td>
         <td><span class="badge {{ 'green' if i.review_status == 'Aprovado' else 'orange' if i.review_status == 'Parcial' else 'red' if i.review_status == 'Rejeitado' else 'grey' }}">{{ i.review_status or 'Pendente' }}</span></td>
         <td>{{ i.review_observation or i.observation or '' }}</td>
@@ -51,12 +57,20 @@
     {% if req.status == 'Draft' and req.requesting_user_id == user.id %}
       <form method="post" action="/requisicoes/{{ req.id }}/submit"><button>Submeter</button></form>
     {% endif %}
+    {% if req.status in ['Draft', 'Submitted'] and (req.requesting_user_id == user.id or role_in(user, 'SuperAdmin', 'Admin', 'Editor', 'Gestor de Estoque', 'Chefe do Terminal')) %}
+      <form method="post" action="/requisicoes/{{ req.id }}/cancel" data-confirm="Cancelar esta requisição? Esta ação não movimenta stock.">
+        <button class="danger">Cancelar requisição</button>
+      </form>
+    {% endif %}
   </div>
 
   {% if role_in(user, 'SuperAdmin', 'Admin', 'Editor', 'Gestor de Estoque', 'Chefe do Terminal') and req.status == 'Submitted' %}
   <form method="post" action="/requisicoes/{{ req.id }}/review" class="form-stack">
     <h2>Decisão da Requisição</h2>
-    <p class="muted">Pode aprovar tudo, rejeitar tudo, ou ajustar as quantidades abaixo para emitir parcialmente.</p>
+    <p class="muted">
+      Defina quanto aprovar em cada item. O restante será rejeitado automaticamente.
+      Sempre que existir quantidade rejeitada, indique o respetivo motivo.
+    </p>
 
     <table>
       <thead>
@@ -65,7 +79,8 @@
           <th>Pedido</th>
           <th>Disponível</th>
           <th>Qtde a aprovar</th>
-          <th>Observação do item</th>
+          <th>Qtde a rejeitar</th>
+          <th>Motivo da rejeição</th>
         </tr>
       </thead>
       <tbody>
@@ -73,27 +88,30 @@
         {% set requested = i.quantity_requested|float %}
         {% set available = i.product.current_stock|float %}
         {% set suggested = requested if req.req_type != 'REQUISIÇÃO' or available >= requested else available %}
-        <tr>
+        <tr data-review-row data-requested="{{ requested }}">
           <td>
             <input type="hidden" name="item_id" value="{{ i.id }}">
             <strong>{{ i.product.code }}</strong><br>{{ i.product.name }}
           </td>
           <td>{{ i.quantity_requested }} {{ i.product.unit }}</td>
           <td>{{ i.product.current_stock }} {{ i.product.unit }}</td>
-          <td><input type="number" name="approved_quantity" min="0" max="{{ i.quantity_requested }}" step="0.01" value="{{ suggested if suggested > 0 else 0 }}"></td>
-          <td><input name="review_observation" placeholder="Motivo se parcial/rejeitado"></td>
+          <td>
+            <input class="approved-quantity" type="number" name="approved_quantity" min="0" max="{{ i.quantity_requested }}" step="0.01" value="{{ suggested if suggested > 0 else 0 }}">
+          </td>
+          <td><output class="rejected-quantity">0</output> {{ i.product.unit }}</td>
+          <td><input class="review-observation" name="review_observation" placeholder="Obrigatório se rejeitar total ou parcialmente"></td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
 
-    <label>Observação geral / motivo de rejeição
-      <input name="rejection_reason" placeholder="Obrigatório quando rejeitar; opcional na aprovação parcial">
+    <label>Observação geral da decisão
+      <input name="rejection_reason" placeholder="Obrigatória para rejeitar toda a requisição">
     </label>
 
     <div class="actions">
-      <button name="decision" value="approve">Aprovar tudo e movimentar stock</button>
-      <button name="decision" value="partial" class="secondary">Aprovar parcialmente</button>
+      <button name="decision" value="approve">Aprovar todos os itens</button>
+      <button name="decision" value="partial" class="secondary">Confirmar seleção / aprovação parcial</button>
       <button name="decision" value="reject" class="danger">Rejeitar requisição</button>
     </div>
   </form>

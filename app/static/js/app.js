@@ -1,13 +1,172 @@
 document.addEventListener("click", (event) => {
-  if (!event.target.matches("[data-add-row]")) return;
-  const table = document.querySelector("#items-table tbody");
-  if (!table || !table.rows.length) return;
-  const clone = table.rows[0].cloneNode(true);
-  clone.querySelectorAll("input").forEach((input) => {
-    input.value = input.name === "quantity" ? "1" : "";
-  });
-  table.appendChild(clone);
+  if (event.target.matches("[data-add-row]")) {
+    const table = document.querySelector("#items-table tbody");
+    if (!table || !table.rows.length) return;
+    const clone = table.rows[0].cloneNode(true);
+    clone.querySelectorAll("input").forEach((input) => {
+      input.value = input.name === "quantity" ? "1" : "";
+    });
+    table.appendChild(clone);
+    initRequisitionItemRow(clone);
+    updateRequisitionProductAvailability();
+    return;
+  }
+
+  if (event.target.matches("[data-remove-row]")) {
+    const row = event.target.closest("[data-requisition-item]");
+    const rows = document.querySelectorAll("[data-requisition-item]");
+    if (row && rows.length > 1) row.remove();
+    validateRequisitionTotals();
+  }
 });
+
+document.addEventListener("submit", (event) => {
+  const message = event.target.dataset.confirm;
+  if (message && !window.confirm(message)) event.preventDefault();
+});
+
+function isStockRequisition() {
+  const type = document.getElementById("requisition-type");
+  return type && type.value.toUpperCase().includes("REQUISI");
+}
+
+function selectedProductData(row) {
+  const select = row.querySelector("select[name='product_id']");
+  const option = select ? select.options[select.selectedIndex] : null;
+  return {
+    select,
+    stock: Number(option?.dataset.stock || 0),
+    unit: option?.dataset.unit || "",
+    productId: option?.value || "",
+  };
+}
+
+function updateRequisitionItemRow(row) {
+  const { stock, unit } = selectedProductData(row);
+  const quantity = row.querySelector("input[name='quantity']");
+  const hint = row.querySelector(".stock-hint");
+  if (!quantity) return;
+
+  quantity.max = isStockRequisition() ? String(stock) : "";
+  if (isStockRequisition() && Number(quantity.value || 0) > stock) quantity.value = String(stock);
+  if (hint) hint.textContent = isStockRequisition() ? `Máximo disponível: ${stock} ${unit}` : "";
+}
+
+function validateRequisitionTotals() {
+  const rows = document.querySelectorAll("[data-requisition-item]");
+  const totals = new Map();
+  rows.forEach((row) => {
+    const { productId, stock } = selectedProductData(row);
+    const quantity = row.querySelector("input[name='quantity']");
+    if (!quantity) return;
+    quantity.setCustomValidity("");
+    const current = totals.get(productId) || { total: 0, stock, quantity };
+    current.total += Number(quantity.value || 0);
+    totals.set(productId, current);
+  });
+
+  if (!isStockRequisition()) return true;
+  let valid = true;
+  totals.forEach(({ total, stock, quantity }) => {
+    if (stock <= 0) {
+      quantity.setCustomValidity("Este item não tem stock disponível.");
+      valid = false;
+    } else if (total > stock) {
+      quantity.setCustomValidity(`A quantidade total pedida excede o stock disponível (${stock}).`);
+      valid = false;
+    }
+  });
+  return valid;
+}
+
+function initRequisitionItemRow(row) {
+  const select = row.querySelector("select[name='product_id']");
+  const quantity = row.querySelector("input[name='quantity']");
+  if (select) select.addEventListener("change", () => {
+    updateRequisitionItemRow(row);
+    validateRequisitionTotals();
+  });
+  if (quantity) quantity.addEventListener("input", validateRequisitionTotals);
+  updateRequisitionItemRow(row);
+}
+
+function updateRequisitionProductAvailability() {
+  const stockRequest = isStockRequisition();
+  document.querySelectorAll("select[name='product_id']").forEach((select) => {
+    Array.from(select.options).forEach((option) => {
+      option.disabled = stockRequest && Number(option.dataset.stock || 0) <= 0;
+    });
+    if (select.selectedOptions[0]?.disabled) {
+      const available = Array.from(select.options).find((option) => !option.disabled);
+      if (available) select.value = available.value;
+    }
+    const row = select.closest("[data-requisition-item]");
+    if (row) updateRequisitionItemRow(row);
+  });
+  validateRequisitionTotals();
+}
+
+function initRequisitionForm() {
+  const type = document.getElementById("requisition-type");
+  if (!type) return;
+  document.querySelectorAll("[data-requisition-item]").forEach(initRequisitionItemRow);
+  type.addEventListener("change", updateRequisitionProductAvailability);
+  type.closest("form")?.addEventListener("submit", (event) => {
+    if (!validateRequisitionTotals()) event.preventDefault();
+  });
+  updateRequisitionProductAvailability();
+}
+
+function updateRequisitionReviewRow(row) {
+  const requested = Number(row.dataset.requested || 0);
+  const approvedInput = row.querySelector(".approved-quantity");
+  const rejectedOutput = row.querySelector(".rejected-quantity");
+  const observation = row.querySelector(".review-observation");
+  if (!approvedInput || !rejectedOutput || !observation) return;
+
+  const approved = Math.min(requested, Math.max(0, Number(approvedInput.value || 0)));
+  const rejected = Math.max(0, requested - approved);
+  rejectedOutput.textContent = rejected.toFixed(2).replace(/\.00$/, "");
+  observation.required = rejected > 0;
+}
+
+function initRequisitionReview() {
+  document.querySelectorAll("[data-review-row]").forEach((row) => {
+    updateRequisitionReviewRow(row);
+    const input = row.querySelector(".approved-quantity");
+    if (input) input.addEventListener("input", () => updateRequisitionReviewRow(row));
+  });
+}
+
+function initMovementForm() {
+  const actionGroup = document.getElementById("movement-action");
+  if (!actionGroup) return;
+
+  const updateFields = () => {
+    const action = actionGroup.querySelector("input[name='action_type']:checked")?.value || "ENTRADA";
+    const isEntry = action === "ENTRADA";
+    document.querySelectorAll("[data-movement-entry]").forEach((element) => {
+      element.hidden = !isEntry;
+      element.querySelectorAll("input, select").forEach((field) => {
+        field.required = isEntry;
+      });
+    });
+    document.querySelectorAll("[data-movement-exit]").forEach((element) => {
+      element.hidden = isEntry;
+      element.querySelectorAll("select[name='department_id']").forEach((field) => {
+        field.required = !isEntry;
+      });
+      element.querySelectorAll("input[name='responsible_person']").forEach((field) => {
+        field.required = action === "SAÍDA";
+      });
+    });
+  };
+
+  actionGroup.querySelectorAll("input[name='action_type']").forEach((input) => {
+    input.addEventListener("change", updateFields);
+  });
+  updateFields();
+}
 
 function drawBarLineChart(canvas, labels, bars, line) {
   if (!canvas) return;
@@ -118,7 +277,12 @@ function initDashboardCharts() {
   drawDonutChart(document.getElementById("unitChart"), data.units.labels, data.units.values);
 }
 
-window.addEventListener("load", initDashboardCharts);
+window.addEventListener("load", () => {
+  initDashboardCharts();
+  initRequisitionForm();
+  initRequisitionReview();
+  initMovementForm();
+});
 window.addEventListener("resize", () => {
   window.clearTimeout(window.__chartResize);
   window.__chartResize = window.setTimeout(initDashboardCharts, 120);

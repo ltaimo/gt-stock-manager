@@ -1,4 +1,6 @@
 import re
+import secrets
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -6,13 +8,16 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.config import get_settings
 from app.models.core import Category, Department, Product, StockMovement, User
 from app.routers.common import templates
 from app.security import current_user, require_roles
 from app.services.audit import audit_log
 from app.services.transactions import atomic
+from app.services.stock_reset import reset_all_stock
 
 router = APIRouter(prefix="/produtos", tags=["produtos"])
+settings = get_settings()
 
 
 def next_product_code(db: Session) -> str:
@@ -127,7 +132,18 @@ def deactivate_product(product_id: int, request: Request, db: Session = Depends(
 
 @router.get("/categorias")
 def categories(request: Request, db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin"))):
-    return templates.TemplateResponse("products/categories.html", {"request": request, "user": user, "categories": db.scalars(select(Category).order_by(Category.name)).all(), "departments": db.scalars(select(Department).order_by(Department.name)).all()})
+    return templates.TemplateResponse(
+        "products/categories.html",
+        {
+            "request": request,
+            "user": user,
+            "categories": db.scalars(select(Category).order_by(Category.name)).all(),
+            "departments": db.scalars(select(Department).order_by(Department.name)).all(),
+            "reset_message": request.query_params.get("reset_message"),
+            "reset_error": request.query_params.get("reset_error"),
+            "reset_enabled": bool(settings.reset_stock_security_code),
+        },
+    )
 
 
 @router.post("/categorias")
@@ -151,3 +167,41 @@ def add_department(name: str = Form(...), db: Session = Depends(get_db), user: U
             db.flush()
             audit_log(db, user, "Criou departamento", "Configurações", department.id, new_value={"name": department.name})
     return RedirectResponse("/produtos/categorias", status_code=303)
+
+
+@router.post("/stock/reset")
+def reset_stock(
+    request: Request,
+    security_code: str = Form(...),
+    confirmation: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles("SuperAdmin")),
+):
+    configured_code = settings.reset_stock_security_code
+    if not configured_code:
+        message = quote("O código de segurança para reset de stock não está configurado.")
+        return RedirectResponse(f"/produtos/categorias?reset_error={message}", status_code=303)
+    if confirmation.strip().upper() != "RESETAR STOCK":
+        message = quote('Escreva exatamente "RESETAR STOCK" para confirmar.')
+        return RedirectResponse(f"/produtos/categorias?reset_error={message}", status_code=303)
+    if not secrets.compare_digest(security_code.strip(), configured_code):
+        message = quote("Código de segurança inválido.")
+        return RedirectResponse(f"/produtos/categorias?reset_error={message}", status_code=303)
+
+    with atomic(db):
+        result = reset_all_stock(db, user)
+        audit_log(
+            db,
+            user,
+            "Resetou todo o stock",
+            "Stock",
+            "RESET-STOCK",
+            new_value=result,
+            request=request,
+        )
+
+    message = quote(
+        f"Stock resetado com sucesso. Produtos afetados: {result['products_affected']}; "
+        f"quantidade removida: {result['quantity_removed']:g}."
+    )
+    return RedirectResponse(f"/produtos/categorias?reset_message={message}", status_code=303)
