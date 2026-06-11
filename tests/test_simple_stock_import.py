@@ -69,6 +69,20 @@ class SimpleStockImportTests(unittest.TestCase):
         self.assertEqual(self.db.scalar(select(func.count()).select_from(Product)), 2)
         self.assertEqual(self.db.scalar(select(func.count()).select_from(StockMovement)), 1)
 
+    def test_preview_rejects_workbook_without_recognized_rows(self):
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append(["Descrição", "Saldo"])
+        sheet.append(["Produto desconhecido", 5])
+        with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as handle:
+            path = Path(handle.name)
+        try:
+            workbook.save(path)
+            with self.assertRaisesRegex(ValueError, "Nenhuma linha reconhecida"):
+                build_import_preview(self.db, "invalido.xlsx", path.read_bytes())
+        finally:
+            path.unlink(missing_ok=True)
+
 
 if __name__ == "__main__":
     unittest.main()

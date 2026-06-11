@@ -202,6 +202,11 @@ def error(module: str, row: dict, message: str) -> dict:
 
 def build_import_preview(db: Session, filename: str, content: bytes) -> dict:
     parsed = parse_old_stock_manager(filename, content)
+    if not any(parsed[module] for module in ("products", "users", "movements")):
+        raise ValueError(
+            "Nenhuma linha reconhecida. Use um ficheiro com as colunas Item e Quantidade "
+            "ou com as folhas ECONOMATO, USERS e MOVIMENTO."
+        )
     errors: list[dict] = []
     warnings: list[dict] = parsed.get("warnings", [])
 
