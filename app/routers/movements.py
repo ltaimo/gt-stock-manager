@@ -9,6 +9,7 @@ from app.routers.common import templates
 from app.security import operational_roles, require_roles
 from app.services.audit import audit_log
 from app.services.documents import save_stock_document
+from app.services.forms import optional_int
 from app.services.inventory import StockError, post_movement
 from app.services.transactions import atomic
 
@@ -43,7 +44,7 @@ async def create_movement(
     product_id: int = Form(...),
     action_type: str = Form(...),
     quantity: float = Form(...),
-    department_id: int | None = Form(None),
+    department_id: str | None = Form(None),
     origin: str | None = Form(None),
     responsible_person: str | None = Form(None),
     requesting_user_id: int | None = Form(None),
@@ -55,12 +56,13 @@ async def create_movement(
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(*operational_roles())),
 ):
+    parsed_department_id = optional_int(department_id, "Departamento")
     product = db.get(Product, product_id)
     if not product:
         raise HTTPException(404)
     try:
         with atomic(db):
-            department = db.get(Department, department_id) if department_id else None
+            department = db.get(Department, parsed_department_id) if parsed_department_id else None
             if action_type == MovementAction.entrada.value:
                 destination = (origin or "").strip()
                 if not destination:
