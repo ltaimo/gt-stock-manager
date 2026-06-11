@@ -3,7 +3,7 @@ import io
 import json
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.models.core import Category, Department, Product, Role, User
 from app.security import hash_password
+from app.services.categorization import infer_category, normalize_text
 from app.services.inventory import StockError, post_movement
 
 
@@ -126,11 +127,72 @@ def parse_old_stock_manager(filename: str, content: bytes) -> dict[str, list[dic
         if {"usuarios", "usuários", "nome"} <= headers:
             return {"products": [], "users": rows, "movements": []}
         return {"products": [], "users": [], "movements": rows}
-    return {
-        "products": parse_table(filename, content, "ECONOMATO"),
-        "users": parse_table(filename, content, "USERS"),
-        "movements": parse_table(filename, content, "MOVIMENTO"),
-    }
+    workbook = load_workbook(io.BytesIO(content), data_only=True, read_only=True)
+    sheet_names = {normalize_key(name): name for name in workbook.sheetnames}
+    economato = sheet_names.get("economato")
+    users = sheet_names.get("users")
+    movements = sheet_names.get("movimento")
+    if economato or users or movements:
+        return {
+            "products": parse_table(filename, content, economato) if economato else [],
+            "users": parse_table(filename, content, users) if users else [],
+            "movements": parse_table(filename, content, movements) if movements else [],
+            "warnings": [],
+        }
+
+    rows = parse_table(filename, content)
+    headers = {normalize_key(key) for key in rows[0].keys()} if rows else set()
+    if not {"item", "quantidade"} <= headers:
+        return {"products": [], "users": [], "movements": [], "warnings": []}
+
+    consolidated: dict[str, dict] = {}
+    warnings: list[dict] = []
+    for row in rows:
+        name = as_text(row, "Item", "item")
+        if not name:
+            continue
+        key = normalize_text(name)
+        quantity_value = first_present(row, "Quantidade", "quantidade")
+        quantity = as_number(quantity_value)
+        if quantity_value in (None, ""):
+            quantity = 0
+            warnings.append(error("Produtos", row, f"Quantidade vazia para '{name}'; assumido stock zero."))
+        if quantity is None:
+            quantity = -1
+
+        if key in consolidated:
+            consolidated[key]["Quantidade"] += quantity
+            consolidated[key]["_source_rows"].append(row.get("_row_number", ""))
+            warnings.append(
+                error(
+                    "Produtos",
+                    row,
+                    f"Item duplicado '{name}' consolidado numa única linha.",
+                )
+            )
+            continue
+
+        consolidated[key] = {
+            "Item": name,
+            "Quantidade": quantity,
+            "_row_number": row.get("_row_number", ""),
+            "_source_rows": [row.get("_row_number", "")],
+        }
+
+    products = []
+    for index, item in enumerate(consolidated.values(), start=1):
+        products.append(
+            {
+                "Codigo": f"STK-{index:04d}",
+                "Produto": item["Item"],
+                "Categoria": infer_category(item["Item"]),
+                "Unidade": "un",
+                "Quantidade": item["Quantidade"],
+                "Minimo": 0,
+                "_row_number": item["_row_number"],
+            }
+        )
+    return {"products": products, "users": [], "movements": [], "warnings": warnings}
 
 
 def error(module: str, row: dict, message: str) -> dict:
@@ -141,7 +203,7 @@ def error(module: str, row: dict, message: str) -> dict:
 def build_import_preview(db: Session, filename: str, content: bytes) -> dict:
     parsed = parse_old_stock_manager(filename, content)
     errors: list[dict] = []
-    warnings: list[dict] = []
+    warnings: list[dict] = parsed.get("warnings", [])
 
     existing_codes = {code for (code,) in db.execute(select(Product.code)).all()}
     existing_usernames = {username.casefold() for (username,) in db.execute(select(User.username)).all()}
@@ -152,7 +214,7 @@ def build_import_preview(db: Session, filename: str, content: bytes) -> dict:
     for row in parsed["products"]:
         row_has_error = False
         code = as_text(row, "Código", "Codigo", "code")
-        name = as_text(row, "Produto/Marca", "Produto", "name")
+        name = as_text(row, "Produto/Marca", "Produto", "Item", "name")
         category = as_text(row, "Categoria", "category")
         stock = as_number(first_present(row, "Qtde", "Quantidade", "current_stock"))
         minimum = as_number(first_present(row, "Mínimo", "Minimo", "minimum_stock")) or 0
@@ -276,7 +338,7 @@ def build_import_preview(db: Session, filename: str, content: bytes) -> dict:
     preview = {
         "batch_id": batch_id,
         "filename": filename,
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "counts": {
             "products_total": len(parsed["products"]),
             "users_total": len(parsed["users"]),
@@ -319,9 +381,10 @@ def import_preview(db: Session, preview: dict, actor: User) -> ImportResult:
     imported = 0
     product_by_name = {p.name.casefold(): p for p in db.scalars(select(Product)).all()}
     for item in preview["products"]:
-        category = db.scalar(select(Category).where(Category.normalized_name == item["category"].lower()))
+        normalized_category = normalize_text(item["category"])
+        category = db.scalar(select(Category).where(Category.normalized_name == normalized_category))
         if not category:
-            category = Category(name=item["category"], normalized_name=item["category"].lower())
+            category = Category(name=item["category"], normalized_name=normalized_category)
             db.add(category)
             db.flush()
         product = Product(

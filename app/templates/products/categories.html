@@ -3,6 +3,8 @@
 <header class="page-header"><h1>Configurações</h1></header>
 {% if reset_message %}<div class="alert green">{{ reset_message }}</div>{% endif %}
 {% if reset_error %}<div class="alert red">{{ reset_error }}</div>{% endif %}
+{% if cleanup_message %}<div class="alert green">{{ cleanup_message }}</div>{% endif %}
+{% if cleanup_error %}<div class="alert red">{{ cleanup_error }}</div>{% endif %}
 <section class="quick-links">
   <a href="/utilizadores">Utilizadores</a>
 </section>
@@ -31,6 +33,25 @@
   </form>
   {% else %}
     <div class="alert red">A ação está desativada porque o código de segurança não foi configurado.</div>
+  {% endif %}
+  <hr>
+  <h3>Preparar dados para produção</h3>
+  <p>
+    Esta ação elimina produtos, movimentos, requisições, documentos, notificações,
+    auditoria e utilizadores secundários. Apenas o superadmin e as configurações base são mantidos.
+  </p>
+  {% if reset_enabled %}
+  <form method="post" action="/produtos/dados/limpar" class="form-stack" data-confirm="Confirmar a limpeza dos dados? Esta ação não pode ser desfeita.">
+    <label>Confirmação
+      <input name="confirmation" placeholder="Escreva LIMPAR DADOS" autocomplete="off" required>
+    </label>
+    <label>Código de segurança
+      <input name="security_code" type="password" autocomplete="off" required>
+    </label>
+    <div class="actions">
+      <button class="danger">Limpar dados para produção</button>
+    </div>
+  </form>
   {% endif %}
 </section>
 {% endif %}

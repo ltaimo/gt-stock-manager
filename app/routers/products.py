@@ -15,6 +15,7 @@ from app.security import current_user, require_roles
 from app.services.audit import audit_log
 from app.services.transactions import atomic
 from app.services.stock_reset import reset_all_stock
+from app.services.production_cleanup import clean_for_production
 
 router = APIRouter(prefix="/produtos", tags=["produtos"])
 settings = get_settings()
@@ -141,6 +142,8 @@ def categories(request: Request, db: Session = Depends(get_db), user: User = Dep
             "departments": db.scalars(select(Department).order_by(Department.name)).all(),
             "reset_message": request.query_params.get("reset_message"),
             "reset_error": request.query_params.get("reset_error"),
+            "cleanup_message": request.query_params.get("cleanup_message"),
+            "cleanup_error": request.query_params.get("cleanup_error"),
             "reset_enabled": bool(settings.reset_stock_security_code),
         },
     )
@@ -205,3 +208,38 @@ def reset_stock(
         f"quantidade removida: {result['quantity_removed']:g}."
     )
     return RedirectResponse(f"/produtos/categorias?reset_message={message}", status_code=303)
+
+
+@router.post("/dados/limpar")
+def cleanup_production_data(
+    request: Request,
+    security_code: str = Form(...),
+    confirmation: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles("SuperAdmin")),
+):
+    configured_code = settings.reset_stock_security_code
+    if not configured_code:
+        message = quote("O código de segurança para limpeza não está configurado.")
+        return RedirectResponse(f"/produtos/categorias?cleanup_error={message}", status_code=303)
+    if confirmation.strip().upper() != "LIMPAR DADOS":
+        message = quote('Escreva exatamente "LIMPAR DADOS" para confirmar.')
+        return RedirectResponse(f"/produtos/categorias?cleanup_error={message}", status_code=303)
+    if not secrets.compare_digest(security_code.strip(), configured_code):
+        message = quote("Código de segurança inválido.")
+        return RedirectResponse(f"/produtos/categorias?cleanup_error={message}", status_code=303)
+
+    with atomic(db):
+        superadmin = clean_for_production(db)
+        audit_log(
+            db,
+            superadmin,
+            "Limpou dados para produção",
+            "Configurações",
+            "PRODUCTION-CLEANUP",
+            new_value={"kept_user": superadmin.username},
+            request=request,
+        )
+
+    message = quote("Dados operacionais removidos. Apenas o superadmin foi mantido.")
+    return RedirectResponse(f"/produtos/categorias?cleanup_message={message}", status_code=303)
