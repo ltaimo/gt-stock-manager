@@ -19,7 +19,7 @@ services:
       - key: APP_SHORT_NAME
         value: GT Stock Manager
       - key: DATABASE_URL
-        value: sqlite:////tmp/stock_manager.db
+        sync: false
       - key: UPLOADS_DIR
         value: /tmp/uploads
       - key: OUTPUTS_DIR
