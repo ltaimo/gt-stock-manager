@@ -1,6 +1,7 @@
 from sqlalchemy import or_, select
 
 from app.database import Base, SessionLocal, engine
+from app.maintenance.migrate_schema import ensure_schema
 from app.models.core import Category, Department, Role, User
 from app.security import hash_password
 from app.services.categorization import normalize_text
@@ -8,6 +9,7 @@ from app.services.categorization import normalize_text
 
 def seed() -> None:
     Base.metadata.create_all(bind=engine)
+    ensure_schema()
     db = SessionLocal()
     try:
         for name in ["SuperAdmin", "Admin", "Editor", "User", "Gestor de Estoque", "Chefe do Terminal"]:
