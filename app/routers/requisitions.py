@@ -8,29 +8,25 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.core import Product, Requisition, RequisitionItem, RequisitionStatus, Role, User
 from app.routers.common import templates
-from app.security import current_user, operational_roles, require_roles
+from app.security import current_user, has_permission, require_permission
 from app.services.audit import audit_log
 from app.services.forms import optional_int, parse_float_list, parse_int_list
 from app.services.inventory import StockError
 from app.services.notifications import notify_requisition_decision, notify_requisition_pending
 from app.services.requisition_pdf import requisition_to_pdf
-from app.services.requisitions import issue_requisition, next_requisition_number
+from app.services.requisitions import approve_requisition, issue_requisition, next_requisition_number
 from app.services.transactions import atomic
 
 router = APIRouter(prefix="/requisicoes", tags=["requisicoes"])
 
 
-MANAGER_ROLES = ("SuperAdmin", "Admin", "Editor", "Gestor de Estoque", "Chefe do Terminal")
-
-
 def manager_options(db: Session) -> list[User]:
-    return db.scalars(
-        select(User).where(User.is_active == True, User.role.has(Role.name.in_(MANAGER_ROLES))).order_by(User.full_name)
-    ).all()
+    users = db.scalars(select(User).where(User.is_active == True).order_by(User.full_name)).all()
+    return [user for user in users if has_permission(user, "requisitions_review")]
 
 
 def default_manager_id(user: User, managers: list[User]) -> int | None:
-    if user.role.name in MANAGER_ROLES:
+    if has_permission(user, "requisitions_review"):
         return user.id
     return managers[0].id if managers else None
 
@@ -92,7 +88,7 @@ def validate_requisition_items(
 @router.get("")
 def list_requisitions(request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
     stmt = select(Requisition).order_by(Requisition.request_date.desc())
-    if user.role.name == "User":
+    if not has_permission(user, "requisitions_all"):
         stmt = stmt.where(Requisition.requesting_user_id == user.id)
     return templates.TemplateResponse("requisitions/index.html", {"request": request, "user": user, "requisitions": db.scalars(stmt).all()})
 
@@ -166,7 +162,7 @@ def view_requisition(req_id: int, request: Request, db: Session = Depends(get_db
     req = db.get(Requisition, req_id)
     if not req:
         raise HTTPException(404)
-    if user.role.name == "User" and req.requesting_user_id != user.id:
+    if not has_permission(user, "requisitions_all") and req.requesting_user_id != user.id:
         raise HTTPException(403)
     return templates.TemplateResponse("requisitions/detail.html", {"request": request, "user": user, "req": req, "error": None})
 
@@ -174,7 +170,7 @@ def view_requisition(req_id: int, request: Request, db: Session = Depends(get_db
 @router.post("/{req_id}/submit")
 def submit_requisition(req_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
     req = db.get(Requisition, req_id)
-    if not req or (user.role.name == "User" and req.requesting_user_id != user.id):
+    if not req or (not has_permission(user, "requisitions_all") and req.requesting_user_id != user.id):
         raise HTTPException(404)
     if req.status != RequisitionStatus.draft.value:
         raise HTTPException(400, "Apenas requisições em rascunho podem ser submetidas.")
@@ -208,7 +204,7 @@ def cancel_requisition(
     req = db.get(Requisition, req_id)
     if not req:
         raise HTTPException(404)
-    can_manage = user.role.name in operational_roles()
+    can_manage = has_permission(user, "requisitions_review")
     if req.requesting_user_id != user.id and not can_manage:
         raise HTTPException(403)
     if req.status not in {RequisitionStatus.draft.value, RequisitionStatus.submitted.value}:
@@ -230,7 +226,7 @@ def review_requisition(
     approved_quantity: list[str] = Form([]),
     review_observation: list[str] = Form([]),
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(*operational_roles())),
+    user: User = Depends(require_permission("requisitions_review")),
 ):
     req = db.get(Requisition, req_id)
     if not req:
@@ -265,16 +261,14 @@ def review_requisition(
                     item.review_observation = reason
                 notify_requisition_decision(db, req, user, "Rejeitada")
             elif decision == "approve":
-                req.status = RequisitionStatus.approved.value
-                issue_requisition(db, req, user)
-                notify_requisition_decision(db, req, user, "Emitida")
+                approve_requisition(req)
+                notify_requisition_decision(db, req, user, "Aprovada")
             else:
-                req.status = RequisitionStatus.approved.value
                 quantities = {parsed_item_ids[idx]: parsed_quantities[idx] for idx in range(min(len(parsed_item_ids), len(parsed_quantities)))}
                 notes = {parsed_item_ids[idx]: review_observation[idx] for idx in range(min(len(parsed_item_ids), len(review_observation)))}
-                issue_requisition(db, req, user, approved_quantities=quantities, review_notes=notes)
+                approve_requisition(req, approved_quantities=quantities, review_notes=notes)
                 req.notes = (rejection_reason or "").strip() or req.notes
-                notify_requisition_decision(db, req, user, req.status)
+                notify_requisition_decision(db, req, user, "Aprovada parcialmente")
 
             audit_log(
                 db,
@@ -291,7 +285,7 @@ def review_requisition(
 
 
 @router.post("/{req_id}/issue")
-def issue(req_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(require_roles(*operational_roles()))):
+def issue(req_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("requisitions_issue"))):
     req = db.get(Requisition, req_id)
     if not req:
         raise HTTPException(404)
@@ -309,6 +303,8 @@ def requisition_pdf(req_id: int, request: Request, db: Session = Depends(get_db)
     req = db.get(Requisition, req_id)
     if not req:
         raise HTTPException(404)
+    if not has_permission(user, "requisitions_all") and req.requesting_user_id != user.id:
+        raise HTTPException(403)
     forwarded_for = request.headers.get("x-forwarded-for", "")
     client_ip = forwarded_for.split(",")[0].strip() if forwarded_for else (request.client.host if request.client else "")
     disposition = "attachment" if request.query_params.get("download") == "1" else "inline"

@@ -8,14 +8,14 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.core import Department, Product, Requisition, StockMovement, User
 from app.routers.common import templates
-from app.security import require_roles
+from app.security import require_permission
 from app.services.exports import rows_to_csv, rows_to_pdf, rows_to_xlsx
 
 router = APIRouter(prefix="/relatorios", tags=["relatorios"])
 
 
 @router.get("")
-def reports_home(request: Request, db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin", "Editor"))):
+def reports_home(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("reports"))):
     return templates.TemplateResponse("reports/index.html", {"request": request, "user": user})
 
 
@@ -25,7 +25,7 @@ def stock_rows(db: Session):
 
 
 @router.get("/stock")
-def stock_report(request: Request, export: str = "", db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin", "Editor"))):
+def stock_report(request: Request, export: str = "", db: Session = Depends(get_db), user: User = Depends(require_permission("reports"))):
     headers = ["Código", "Produto", "Categoria", "Unidade", "Stock Atual", "Stock Mínimo", "Entradas", "Saídas", "Alerta"]
     rows = stock_rows(db)
     if export == "xlsx":
@@ -48,7 +48,7 @@ def movement_report(
     date_to: str = "",
     export: str = "",
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles("SuperAdmin", "Admin", "Editor")),
+    user: User = Depends(require_permission("reports")),
 ):
     stmt = select(StockMovement).order_by(StockMovement.posted_at.desc())
     if action:
@@ -94,7 +94,7 @@ def movement_report(
 
 
 @router.get("/requisicoes")
-def requisition_report(request: Request, status: str = "", department_id: int | None = None, requester_id: int | None = None, export: str = "", db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin", "Editor"))):
+def requisition_report(request: Request, status: str = "", department_id: int | None = None, requester_id: int | None = None, export: str = "", db: Session = Depends(get_db), user: User = Depends(require_permission("reports"))):
     stmt = select(Requisition).order_by(Requisition.request_date.desc())
     if status:
         stmt = stmt.where(Requisition.status == status)
@@ -125,6 +125,6 @@ def requisition_report(request: Request, status: str = "", department_id: int | 
 
 
 @router.get("/critico")
-def critical_report(request: Request, db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin", "Editor"))):
+def critical_report(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("reports"))):
     products = [p for p in db.scalars(select(Product).order_by(Product.name)).all() if p.alert_status != "Stock Adequado"]
     return templates.TemplateResponse("reports/critical.html", {"request": request, "user": user, "products": products})

@@ -29,6 +29,12 @@ def ensure_schema() -> None:
             additions.append("ALTER TABLE requisition_items ADD COLUMN review_status VARCHAR(30) DEFAULT 'Pendente'")
         if "review_observation" not in columns:
             additions.append("ALTER TABLE requisition_items ADD COLUMN review_observation TEXT")
+    if "roles" in tables:
+        columns = {column["name"] for column in inspector.get_columns("roles")}
+        if "permissions" not in columns:
+            additions.append("ALTER TABLE roles ADD COLUMN permissions TEXT")
+        if "is_system" not in columns:
+            additions.append("ALTER TABLE roles ADD COLUMN is_system BOOLEAN DEFAULT false")
 
     with engine.begin() as connection:
         for statement in additions:

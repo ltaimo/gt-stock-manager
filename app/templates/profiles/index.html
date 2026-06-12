@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header"><h1>Perfis e Permissões</h1><a class="button" href="/perfis/novo">Novo Perfil</a></header>
+<div class="panel">
+  <table>
+    <thead><tr><th>Perfil / Função</th><th>Utilizadores</th><th>Permissões</th><th></th></tr></thead>
+    <tbody>
+    {% for role in roles %}
+      <tr>
+        <td><strong>{{ role.name }}</strong></td>
+        <td>{{ role.users|length }}</td>
+        <td>{{ role_permissions(role)|length if role.name != 'SuperAdmin' else 'Todas' }}</td>
+        <td>
+          <div class="actions">
+            <a href="/perfis/{{ role.id }}/editar">Editar</a>
+            {% if role.name != 'SuperAdmin' and not role.users %}
+            <form method="post" action="/perfis/{{ role.id }}/remover" data-confirm="Remover este perfil?">
+              <button class="link-button danger">Remover</button>
+            </form>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

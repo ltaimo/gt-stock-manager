@@ -2,7 +2,7 @@
 {% block content %}
 <header class="page-header">
   <h1>Economato / Produtos</h1>
-  {% if role_in(user, 'SuperAdmin', 'Admin') %}<a class="button" href="/produtos/novo">Novo Produto</a>{% endif %}
+  {% if can(user, 'products_manage') %}<a class="button" href="/produtos/novo">Novo Produto</a>{% endif %}
 </header>
 <form class="filters">
   <input name="q" value="{{ q }}" placeholder="Pesquisar código, produto ou categoria">
@@ -30,7 +30,7 @@
         <td>{{ p.total_exits }}</td>
         <td><span class="badge {{ p.alert_badge }}">{{ p.alert_status }}</span></td>
         <td><span class="badge grey">{{ p.status }}</span></td>
-        <td>{% if role_in(user, 'SuperAdmin', 'Admin') %}<a href="/produtos/{{ p.id }}/editar">Editar</a>{% endif %}</td>
+        <td>{% if can(user, 'products_manage') %}<a href="/produtos/{{ p.id }}/editar">Editar</a>{% endif %}</td>
       </tr>
     {% endfor %}
     </tbody>

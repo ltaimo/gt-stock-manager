@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.core import AuditLog, User
 from app.routers.common import templates
-from app.security import require_roles
+from app.security import require_permission
 
 router = APIRouter(prefix="/auditoria", tags=["auditoria"])
 
@@ -16,7 +16,7 @@ def audit_index(
     module: str = "",
     action: str = "",
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles("SuperAdmin", "Admin")),
+    user: User = Depends(require_permission("audit")),
 ):
     stmt = select(AuditLog).order_by(AuditLog.created_at.desc()).limit(500)
     if module:

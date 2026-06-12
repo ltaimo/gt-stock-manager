@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.core import Department, Role, User
 from app.routers.common import templates
-from app.security import can_manage_user, current_user, hash_password, require_roles
+from app.security import can_manage_user, hash_password, require_permission
 from app.services.audit import audit_log
 from app.services.forms import optional_email, optional_int, required_int, required_text
 from app.services.transactions import atomic
@@ -15,13 +15,13 @@ router = APIRouter(prefix="/utilizadores", tags=["utilizadores"])
 
 
 @router.get("")
-def list_users(request: Request, db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin"))):
+def list_users(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("users_manage"))):
     users = db.scalars(select(User).order_by(User.full_name)).all()
     return templates.TemplateResponse("users/index.html", {"request": request, "user": user, "users": users})
 
 
 @router.get("/novo")
-def new_user(request: Request, db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin"))):
+def new_user(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("users_manage"))):
     return templates.TemplateResponse("users/form.html", {"request": request, "user": user, "target": None, "roles": db.scalars(select(Role)).all(), "departments": db.scalars(select(Department)).all()})
 
 
@@ -35,7 +35,7 @@ def create_user(
     role_id: str | None = Form(None),
     department_id: str | None = Form(None),
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles("SuperAdmin", "Admin")),
+    user: User = Depends(require_permission("users_manage")),
 ):
     clean_name = required_text(full_name, "Nome completo", 160)
     clean_username = required_text(username, "Utilizador", 80)
@@ -68,7 +68,7 @@ def create_user(
 
 
 @router.get("/{target_id}/editar")
-def edit_user(target_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin"))):
+def edit_user(target_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("users_manage"))):
     target = db.get(User, target_id)
     if not target or not can_manage_user(user, target):
         raise HTTPException(403)
@@ -76,7 +76,7 @@ def edit_user(target_id: int, request: Request, db: Session = Depends(get_db), u
 
 
 @router.post("/{target_id}/editar")
-def update_user(target_id: int, request: Request, full_name: str | None = Form(None), email: str | None = Form(None), role_id: str | None = Form(None), department_id: str | None = Form(None), is_active: bool = Form(False), db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin"))):
+def update_user(target_id: int, request: Request, full_name: str | None = Form(None), email: str | None = Form(None), role_id: str | None = Form(None), department_id: str | None = Form(None), is_active: bool = Form(False), db: Session = Depends(get_db), user: User = Depends(require_permission("users_manage"))):
     clean_name = required_text(full_name, "Nome completo", 160)
     parsed_role_id = required_int(role_id, "Perfil")
     parsed_department_id = optional_int(department_id, "Departamento")
@@ -96,4 +96,24 @@ def update_user(target_id: int, request: Request, full_name: str | None = Form(N
         target.department_id = parsed_department_id
         target.is_active = is_active
         audit_log(db, user, "Atualizou utilizador", "Utilizadores", target.id, old_value=old, new_value={"role": role.name, "active": is_active}, request=request)
+    return RedirectResponse("/utilizadores", status_code=303)
+
+
+@router.post("/{target_id}/remover")
+def remove_user_access(
+    target_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("users_manage")),
+):
+    target = db.get(User, target_id)
+    if not target or not can_manage_user(user, target):
+        raise HTTPException(403)
+    if target.id == user.id:
+        raise HTTPException(400, "Não pode remover o seu próprio acesso.")
+    if target.role.name == "SuperAdmin":
+        raise HTTPException(400, "O acesso do SuperAdmin não pode ser removido.")
+    with atomic(db):
+        target.is_active = False
+        audit_log(db, user, "Removeu acesso do utilizador", "Utilizadores", target.id, old_value={"active": True}, new_value={"active": False}, request=request)
     return RedirectResponse("/utilizadores", status_code=303)

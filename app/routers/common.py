@@ -2,6 +2,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.config import get_settings
 from app.services.notifications import unread_count
+from app.security import has_permission, role_permissions
 
 templates = Jinja2Templates(directory="app/templates")
 settings = get_settings()
@@ -12,6 +13,8 @@ def role_in(user, *roles: str) -> bool:
 
 
 templates.env.globals["role_in"] = role_in
+templates.env.globals["can"] = has_permission
+templates.env.globals["role_permissions"] = role_permissions
 templates.env.globals["app_name"] = settings.app_name
 templates.env.globals["app_subtitle"] = settings.app_subtitle
 templates.env.globals["app_short_name"] = settings.app_short_name

@@ -11,7 +11,7 @@ from app.database import get_db
 from app.config import get_settings
 from app.models.core import Category, Department, Product, StockMovement, User
 from app.routers.common import templates
-from app.security import current_user, require_roles
+from app.security import current_user, require_permission
 from app.services.audit import audit_log
 from app.services.forms import optional_float, optional_int, required_text
 from app.services.transactions import atomic
@@ -44,7 +44,7 @@ def list_products(request: Request, q: str = "", status: str = "", db: Session =
 
 
 @router.get("/novo")
-def new_product(request: Request, db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin"))):
+def new_product(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("products_manage"))):
     return templates.TemplateResponse("products/form.html", {"request": request, "user": user, "product": None, "categories": db.scalars(select(Category).order_by(Category.name)).all(), "next_code": next_product_code(db), "error": None, "duplicate": None})
 
 
@@ -56,7 +56,7 @@ def create_product(
     unit: str = Form("un"),
     minimum_stock: str | None = Form("0"),
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles("SuperAdmin", "Admin")),
+    user: User = Depends(require_permission("products_manage")),
 ):
     clean_name = required_text(name, "Nome do produto", 220)
     parsed_category_id = optional_int(category_id, "Categoria")
@@ -93,7 +93,7 @@ def create_product(
 
 
 @router.get("/{product_id}/editar")
-def edit_product(product_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin"))):
+def edit_product(product_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("products_manage"))):
     product = db.get(Product, product_id)
     if not product:
         raise HTTPException(404)
@@ -110,7 +110,7 @@ def update_product(
     minimum_stock: str | None = Form("0"),
     status: str = Form("active"),
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles("SuperAdmin", "Admin")),
+    user: User = Depends(require_permission("products_manage")),
 ):
     product = db.get(Product, product_id)
     if not product:
@@ -144,7 +144,7 @@ def update_product(
 
 
 @router.post("/{product_id}/desativar")
-def deactivate_product(product_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin"))):
+def deactivate_product(product_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("products_manage"))):
     product = db.get(Product, product_id)
     if not product:
         raise HTTPException(404)
@@ -159,7 +159,7 @@ def deactivate_product(product_id: int, request: Request, db: Session = Depends(
 
 
 @router.get("/categorias")
-def categories(request: Request, db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin"))):
+def categories(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("settings_manage"))):
     return templates.TemplateResponse(
         "products/categories.html",
         {
@@ -175,7 +175,7 @@ def categories(request: Request, db: Session = Depends(get_db), user: User = Dep
 
 
 @router.post("/categorias")
-def add_category(name: str | None = Form(None), db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin"))):
+def add_category(name: str | None = Form(None), db: Session = Depends(get_db), user: User = Depends(require_permission("settings_manage"))):
     clean_name = required_text(name, "Nome da categoria", 120)
     normalized = clean_name.lower()
     if not db.scalar(select(Category).where(Category.normalized_name == normalized)):
@@ -188,7 +188,7 @@ def add_category(name: str | None = Form(None), db: Session = Depends(get_db), u
 
 
 @router.post("/departamentos")
-def add_department(name: str | None = Form(None), db: Session = Depends(get_db), user: User = Depends(require_roles("SuperAdmin", "Admin"))):
+def add_department(name: str | None = Form(None), db: Session = Depends(get_db), user: User = Depends(require_permission("settings_manage"))):
     clean_name = required_text(name, "Nome do departamento", 120)
     if not db.scalar(select(Department).where(Department.name == clean_name.title())):
         with atomic(db):
@@ -205,7 +205,7 @@ def reset_stock(
     security_code: str = Form(...),
     confirmation: str = Form(...),
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles("SuperAdmin")),
+    user: User = Depends(require_permission("stock_reset")),
 ):
     configured_code = settings.reset_stock_security_code
     if not configured_code:

@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from app.models.core import RequisitionStatus
 from app.services.inventory import StockError
-from app.services.requisitions import issue_requisition
+from app.services.requisitions import approve_requisition, issue_requisition
 
 
 def make_item(item_id: int, requested: float, stock: float = 20) -> SimpleNamespace:
@@ -49,9 +49,7 @@ class RequisitionReviewTests(unittest.TestCase):
         requisition = make_requisition([item])
 
         issue_requisition(
-            self.db,
-            requisition,
-            self.actor,
+            self.db, requisition, self.actor,
             approved_quantities={item.id: 6},
             review_notes={item.id: "Quantidade ajustada à necessidade confirmada."},
         )
@@ -82,13 +80,55 @@ class RequisitionReviewTests(unittest.TestCase):
     def test_full_approval_does_not_require_rejection_reason(self, post_movement):
         item = make_item(1, requested=10)
         requisition = make_requisition([item])
+        requisition.status = RequisitionStatus.submitted.value
 
+        approve_requisition(requisition)
+        self.assertEqual(float(item.quantity_issued), 10)
+        self.assertEqual(requisition.status, RequisitionStatus.approved.value)
+        post_movement.assert_not_called()
         issue_requisition(self.db, requisition, self.actor)
 
         self.assertEqual(float(item.quantity_issued), 10)
         self.assertEqual(float(item.quantity_rejected), 0)
         self.assertEqual(item.review_status, "Aprovado")
         self.assertEqual(requisition.status, RequisitionStatus.issued.value)
+        post_movement.assert_called_once()
+
+    @patch("app.services.requisitions.post_movement")
+    def test_approval_does_not_change_stock_and_issue_happens_once(self, post_movement):
+        item = make_item(1, requested=2, stock=10)
+        requisition = make_requisition([item])
+        requisition.status = RequisitionStatus.submitted.value
+
+        approve_requisition(requisition)
+
+        self.assertEqual(requisition.status, RequisitionStatus.approved.value)
+        post_movement.assert_not_called()
+
+        issue_requisition(self.db, requisition, self.actor)
+        self.assertEqual(requisition.status, RequisitionStatus.issued.value)
+        post_movement.assert_called_once()
+
+        with self.assertRaisesRegex(StockError, "Apenas requisições aprovadas"):
+            issue_requisition(self.db, requisition, self.actor)
+        post_movement.assert_called_once()
+
+    @patch("app.services.requisitions.post_movement")
+    def test_partial_approval_reason_is_preserved_until_issue(self, post_movement):
+        item = make_item(1, requested=5, stock=10)
+        requisition = make_requisition([item])
+        requisition.status = RequisitionStatus.submitted.value
+
+        approve_requisition(
+            requisition,
+            approved_quantities={item.id: 3},
+            review_notes={item.id: "Apenas três unidades autorizadas."},
+        )
+        issue_requisition(self.db, requisition, self.actor)
+
+        self.assertEqual(float(item.quantity_issued), 3)
+        self.assertEqual(float(item.quantity_rejected), 2)
+        self.assertEqual(item.review_observation, "Apenas três unidades autorizadas.")
         post_movement.assert_called_once()
 
 

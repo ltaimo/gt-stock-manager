@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.core import Department, MovementAction, Product, StockMovement, User
 from app.routers.common import templates
-from app.security import operational_roles, require_roles
+from app.security import require_permission
 from app.services.audit import audit_log
 from app.services.documents import save_stock_document
 from app.services.forms import optional_int, required_float, required_int
@@ -28,13 +28,13 @@ def movement_form_context(request: Request, db: Session, user: User, error: str 
 
 
 @router.get("")
-def list_movements(request: Request, db: Session = Depends(get_db), user: User = Depends(require_roles(*operational_roles()))):
+def list_movements(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("movements"))):
     movements = db.scalars(select(StockMovement).order_by(StockMovement.posted_at.desc()).limit(300)).all()
     return templates.TemplateResponse("movements/index.html", {"request": request, "user": user, "movements": movements})
 
 
 @router.get("/novo")
-def new_movement(request: Request, db: Session = Depends(get_db), user: User = Depends(require_roles(*operational_roles()))):
+def new_movement(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("movements"))):
     return templates.TemplateResponse("movements/form.html", movement_form_context(request, db, user))
 
 
@@ -54,7 +54,7 @@ async def create_movement(
     document_number: str | None = Form(None),
     document_file: UploadFile | None = File(None),
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(*operational_roles())),
+    user: User = Depends(require_permission("movements")),
 ):
     parsed_product_id = required_int(product_id, "Produto")
     parsed_quantity = required_float(quantity, "Quantidade")

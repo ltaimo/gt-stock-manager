@@ -57,14 +57,14 @@
     {% if req.status == 'Draft' and req.requesting_user_id == user.id %}
       <form method="post" action="/requisicoes/{{ req.id }}/submit"><button>Submeter</button></form>
     {% endif %}
-    {% if req.status in ['Draft', 'Submitted'] and (req.requesting_user_id == user.id or role_in(user, 'SuperAdmin', 'Admin', 'Editor', 'Gestor de Estoque', 'Chefe do Terminal')) %}
+    {% if req.status in ['Draft', 'Submitted'] and (req.requesting_user_id == user.id or can(user, 'requisitions_review')) %}
       <form method="post" action="/requisicoes/{{ req.id }}/cancel" data-confirm="Cancelar esta requisição? Esta ação não movimenta stock.">
         <button class="danger">Cancelar requisição</button>
       </form>
     {% endif %}
   </div>
 
-  {% if role_in(user, 'SuperAdmin', 'Admin', 'Editor', 'Gestor de Estoque', 'Chefe do Terminal') and req.status == 'Submitted' %}
+  {% if can(user, 'requisitions_review') and req.status == 'Submitted' %}
   <form method="post" action="/requisicoes/{{ req.id }}/review" class="form-stack">
     <h2>Decisão da Requisição</h2>
     <p class="muted">
@@ -115,6 +115,15 @@
       <button name="decision" value="reject" class="danger">Rejeitar requisição</button>
     </div>
   </form>
+  {% endif %}
+  {% if can(user, 'requisitions_issue') and req.status == 'Approved' %}
+  <div class="panel">
+    <h2>Emissão dos itens aprovados</h2>
+    <p class="muted">A aprovação não altera o stock. A saída será registada uma única vez ao confirmar esta emissão.</p>
+    <form method="post" action="/requisicoes/{{ req.id }}/issue" data-confirm="Confirmar a entrega e retirar do stock apenas as quantidades aprovadas?">
+      <button>Emitir itens aprovados</button>
+    </form>
+  </div>
   {% endif %}
 </section>
 {% endblock %}

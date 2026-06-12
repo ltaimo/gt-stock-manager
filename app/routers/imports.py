@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.core import User
 from app.routers.common import templates
-from app.security import require_roles
+from app.security import require_permission
 from app.services.audit import audit_log
 from app.services.exports import rows_to_csv
 from app.services.imports import build_import_preview, import_preview, load_preview
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/importar", tags=["importar"])
 
 
 @router.get("")
-def import_home(request: Request, user: User = Depends(require_roles("SuperAdmin", "Admin"))):
+def import_home(request: Request, user: User = Depends(require_permission("imports"))):
     return templates.TemplateResponse("imports/index.html", {"request": request, "user": user})
 
 
@@ -25,7 +25,7 @@ async def preview_import(
     request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles("SuperAdmin", "Admin")),
+    user: User = Depends(require_permission("imports")),
 ):
     content = await file.read()
     try:
@@ -40,7 +40,7 @@ async def preview_import(
 
 
 @router.get("/preview/{batch_id}")
-def preview_page(batch_id: str, request: Request, user: User = Depends(require_roles("SuperAdmin", "Admin"))):
+def preview_page(batch_id: str, request: Request, user: User = Depends(require_permission("imports"))):
     try:
         preview = load_preview(batch_id)
     except FileNotFoundError:
@@ -53,7 +53,7 @@ def confirm_import(
     batch_id: str,
     request: Request,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles("SuperAdmin", "Admin")),
+    user: User = Depends(require_permission("imports")),
 ):
     try:
         preview = load_preview(batch_id)
@@ -83,7 +83,7 @@ def confirm_import(
 
 
 @router.get("/falhas/{batch_id}.csv")
-def failed_rows(batch_id: str, user: User = Depends(require_roles("SuperAdmin", "Admin"))):
+def failed_rows(batch_id: str, user: User = Depends(require_permission("imports"))):
     try:
         preview = load_preview(batch_id)
     except FileNotFoundError:

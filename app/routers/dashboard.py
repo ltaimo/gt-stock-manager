@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.core import Product, Requisition, RequisitionStatus, StockMovement, User
 from app.routers.common import templates
-from app.security import current_user
+from app.security import current_user, has_permission
 
 router = APIRouter()
 
@@ -20,8 +20,17 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
     elapsed_days = max(now.day, 1)
 
     products = db.scalars(select(Product).order_by(Product.name)).all()
-    movements = db.scalars(select(StockMovement).order_by(StockMovement.posted_at.desc()).limit(8)).all()
-    pending = db.scalars(select(Requisition).where(Requisition.status == RequisitionStatus.submitted.value).limit(8)).all()
+    can_view_movements = has_permission(user, "movements")
+    can_review_requisitions = has_permission(user, "requisitions_review")
+    movements = (
+        db.scalars(select(StockMovement).order_by(StockMovement.posted_at.desc()).limit(8)).all()
+        if can_view_movements
+        else []
+    )
+    pending_stmt = select(Requisition).where(Requisition.status == RequisitionStatus.submitted.value)
+    if not can_review_requisitions:
+        pending_stmt = pending_stmt.where(Requisition.requesting_user_id == user.id)
+    pending = db.scalars(pending_stmt.limit(8)).all()
 
     active_products = [p for p in products if p.status == "active"]
     attention_statuses = {"Sem Stock", "Stock Crítico", "Stock em Atenção", "Erro: Stock Negativo"}
@@ -121,5 +130,6 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
             "month_chart": month_chart,
             "movement_type_chart": movement_type_chart,
             "unit_chart": unit_chart,
+            "can_view_movements": can_view_movements,
         },
     )

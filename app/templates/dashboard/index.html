@@ -13,12 +13,12 @@
   <div><strong>{{ total_products }}</strong><span>Total de produtos</span><small>{{ active_products }} ativos</small></div>
   <div><strong>{{ stockout }}</strong><span>Sem Stock</span><small>{{ critical }} itens requerem atenção</small></div>
   <div><strong>{{ warning }}</strong><span>Stock em Atenção</span><small>{{ negative }} stock negativo</small></div>
-  <div><strong>{{ entries_month }}</strong><span>Entradas do mês</span><small>Proj. {{ projected_entries }}</small></div>
-  <div><strong>{{ exits_month }}</strong><span>Saídas do mês</span><small>Proj. {{ projected_exits }}</small></div>
+  {% if can_view_movements %}<div><strong>{{ entries_month }}</strong><span>Entradas do mês</span><small>Proj. {{ projected_entries }}</small></div>
+  <div><strong>{{ exits_month }}</strong><span>Saídas do mês</span><small>Proj. {{ projected_exits }}</small></div>{% endif %}
   <div><strong>{{ stock_health }}%</strong><span>Saúde do stock</span><small>Stock adequado</small></div>
 </section>
 
-<section class="dashboard-grid">
+{% if can_view_movements %}<section class="dashboard-grid">
   <div class="panel chart-panel wide">
     <div class="panel-heading">
       <h2>Entradas vs Saídas do Mês</h2>
@@ -41,13 +41,13 @@
     <div class="panel-heading"><h2>Produtos por Unidade</h2></div>
     <canvas id="unitChart" height="190"></canvas>
   </div>
-</section>
+</section>{% endif %}
 
 <section class="grid-two">
   <div class="panel">
     <div class="panel-heading">
       <h2>Itens que requerem atenção</h2>
-      <a href="/relatorios/critico">Ver relatório</a>
+      {% if can(user, 'reports') %}<a href="/relatorios/critico">Ver relatório</a>{% endif %}
     </div>
     <table>
       <thead><tr><th>Código</th><th>Produto</th><th>Un.</th><th>Atual</th><th>Estado</th></tr></thead>
@@ -61,13 +61,13 @@
     </table>
   </div>
 
-  <div class="panel">
+  {% if can_view_movements %}<div class="panel">
     <div class="panel-heading">
       <h2>Movimentos recentes</h2>
       <a href="/movimentos">Ver todos</a>
     </div>
     {% include "movements/_table.html" %}
-  </div>
+  </div>{% endif %}
 </section>
 
 <section class="grid-two">
@@ -85,7 +85,7 @@
     </table>
   </div>
 
-  <div class="panel">
+  {% if can_view_movements %}<div class="panel">
     <div class="panel-heading"><h2>Produtos mais requisitados</h2></div>
     <table>
       <thead><tr><th>Produto</th><th>Total requisitado</th></tr></thead>
@@ -97,9 +97,10 @@
       {% endfor %}
       </tbody>
     </table>
-  </div>
+  </div>{% endif %}
 </section>
 
+{% if can_view_movements %}
 <script id="dashboard-data" type="application/json">
 {{ {
   "month": month_chart,
@@ -107,4 +108,5 @@
   "units": unit_chart
 } | tojson }}
 </script>
+{% endif %}
 {% endblock %}

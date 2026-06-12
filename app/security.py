@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import json
 from typing import Iterable
 
 from fastapi import Depends, HTTPException, Request, status
@@ -10,6 +11,31 @@ from app.models.core import User
 
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+
+PERMISSIONS = {
+    "products_manage": "Criar e editar produtos",
+    "movements": "Consultar e registar movimentos",
+    "documents": "Consultar documentos de stock",
+    "requisitions_all": "Consultar todas as requisições",
+    "requisitions_review": "Aprovar ou rejeitar requisições",
+    "requisitions_issue": "Emitir itens aprovados",
+    "reports": "Consultar relatórios",
+    "users_manage": "Gerir utilizadores",
+    "profiles_manage": "Gerir perfis e permissões",
+    "settings_manage": "Gerir categorias e departamentos",
+    "stock_reset": "Resetar todo o stock",
+    "imports": "Importar dados",
+    "audit": "Consultar auditoria",
+}
+
+DEFAULT_ROLE_PERMISSIONS = {
+    "SuperAdmin": set(PERMISSIONS),
+    "Admin": set(PERMISSIONS) - {"profiles_manage", "stock_reset"},
+    "Editor": {"movements", "documents", "requisitions_all", "requisitions_review", "requisitions_issue", "reports"},
+    "Gestor de Estoque": {"movements", "documents", "requisitions_all", "requisitions_review", "requisitions_issue", "reports"},
+    "Chefe do Terminal": {"documents", "requisitions_all", "requisitions_review"},
+    "User": set(),
+}
 
 
 def hash_password(password: str) -> str:
@@ -47,6 +73,30 @@ def require_roles(*roles: str):
     return dependency
 
 
+def role_permissions(role) -> set[str]:
+    if role.name == "SuperAdmin":
+        return set(PERMISSIONS)
+    if role.permissions:
+        try:
+            return set(json.loads(role.permissions))
+        except (TypeError, ValueError):
+            pass
+    return set(DEFAULT_ROLE_PERMISSIONS.get(role.name, set()))
+
+
+def has_permission(user: User | None, permission: str) -> bool:
+    return bool(user and permission in role_permissions(user.role))
+
+
+def require_permission(permission: str):
+    def dependency(user: User = Depends(current_user)) -> User:
+        if not has_permission(user, permission):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sem permissão")
+        return user
+
+    return dependency
+
+
 def operational_roles() -> tuple[str, ...]:
     return ("SuperAdmin", "Admin", "Editor", "Gestor de Estoque", "Chefe do Terminal")
 
@@ -54,7 +104,7 @@ def operational_roles() -> tuple[str, ...]:
 def can_manage_user(actor: User, target: User | None, requested_role: str | None = None) -> bool:
     if actor.role.name == "SuperAdmin":
         return True
-    if actor.role.name != "Admin":
+    if not has_permission(actor, "users_manage"):
         return False
     if target and target.role.name == "SuperAdmin":
         return False

@@ -20,14 +20,16 @@
   <nav>
     <a href="/dashboard">Dashboard</a>
     <a href="/produtos">Economato / Produtos</a>
-    {% if role_in(user, 'SuperAdmin', 'Admin', 'Editor') %}<a href="/movimentos">Movimentos</a>{% endif %}
-    {% if role_in(user, 'SuperAdmin', 'Admin', 'Editor', 'Gestor de Estoque', 'Chefe do Terminal') %}<a href="/documentos">Documentos</a>{% endif %}
+    {% if can(user, 'movements') %}<a href="/movimentos">Movimentos</a>{% endif %}
+    {% if can(user, 'documents') %}<a href="/documentos">Documentos</a>{% endif %}
     <a href="/requisicoes/nova">Nova Requisição</a>
     <a href="/requisicoes">Requisições</a>
-    {% if role_in(user, 'SuperAdmin', 'Admin', 'Editor') %}<a href="/relatorios">Relatórios</a>{% endif %}
-    {% if role_in(user, 'SuperAdmin', 'Admin') %}<a href="/importar">Importar</a>{% endif %}
-    {% if role_in(user, 'SuperAdmin', 'Admin') %}<a href="/auditoria">Auditoria</a>{% endif %}
-    {% if role_in(user, 'SuperAdmin', 'Admin') %}<a href="/produtos/categorias">Configurações</a>{% endif %}
+    {% if can(user, 'reports') %}<a href="/relatorios">Relatórios</a>{% endif %}
+    {% if can(user, 'users_manage') %}<a href="/utilizadores">Utilizadores</a>{% endif %}
+    {% if can(user, 'profiles_manage') %}<a href="/perfis">Perfis e Permissões</a>{% endif %}
+    {% if can(user, 'imports') %}<a href="/importar">Importar</a>{% endif %}
+    {% if can(user, 'audit') %}<a href="/auditoria">Auditoria</a>{% endif %}
+    {% if can(user, 'settings_manage') %}<a href="/produtos/categorias">Configurações</a>{% endif %}
     <a href="/sobre">Sobre</a>
   </nav>
   <form method="post" action="/logout"><button class="link-button">Sair</button></form>

@@ -47,6 +47,8 @@ class Role(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(30), unique=True, nullable=False)
+    permissions: Mapped[str | None] = mapped_column(Text)
+    is_system: Mapped[bool] = mapped_column(Boolean, default=False)
     users: Mapped[list["User"]] = relationship(back_populates="role")
 
 

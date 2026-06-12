@@ -4,13 +4,14 @@
 {% if reset_message %}<div class="alert green">{{ reset_message }}</div>{% endif %}
 {% if reset_error %}<div class="alert red">{{ reset_error }}</div>{% endif %}
 <section class="quick-links">
-  <a href="/utilizadores">Utilizadores</a>
+  {% if can(user, 'users_manage') %}<a href="/utilizadores">Utilizadores</a>{% endif %}
+  {% if can(user, 'profiles_manage') %}<a href="/perfis">Perfis e Permissões</a>{% endif %}
 </section>
 <section class="grid-two">
   <div class="panel"><h2>Categorias</h2><form method="post" action="/produtos/categorias" class="inline-form"><input name="name" required><button>Adicionar</button></form><ul>{% for c in categories %}<li>{{ c.name }}</li>{% endfor %}</ul></div>
   <div class="panel"><h2>Departamentos</h2><form method="post" action="/produtos/departamentos" class="inline-form"><input name="name" required><button>Adicionar</button></form><ul>{% for d in departments %}<li>{{ d.name }}</li>{% endfor %}</ul></div>
 </section>
-{% if user.role.name == 'SuperAdmin' %}
+{% if can(user, 'stock_reset') %}
 <section class="panel danger-zone">
   <h2>Zona de perigo</h2>
   <p>
