@@ -64,6 +64,10 @@ def post_movement(
     adjustment_direction: str | None = None,
     override_authorized_by_id: int | None = None,
 ) -> StockMovement:
+    if hasattr(db, "scalar"):
+        product = db.scalar(select(Product).where(Product.id == product.id).with_for_update())
+        if not product:
+            raise StockError("O produto selecionado já não existe.")
     if action_type == MovementAction.acerto.value and not notes:
         raise StockError("Acertos manuais exigem justificação.")
 

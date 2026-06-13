@@ -20,6 +20,55 @@ document.addEventListener("click", (event) => {
   }
 });
 
+function initNavigation() {
+  const body = document.body;
+  const openButton = document.querySelector("[data-menu-open]");
+  const closeButtons = document.querySelectorAll("[data-menu-close]");
+  const sidebar = document.getElementById("app-sidebar");
+  if (!openButton || !sidebar) return;
+
+  const setOpen = (open) => {
+    body.classList.toggle("menu-open", open);
+    openButton.setAttribute("aria-expanded", String(open));
+  };
+  openButton.addEventListener("click", () => setOpen(true));
+  closeButtons.forEach((button) => button.addEventListener("click", () => setOpen(false)));
+  sidebar.querySelectorAll("a").forEach((link) => link.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setOpen(false);
+  });
+
+  const path = window.location.pathname;
+  let bestMatch = null;
+  sidebar.querySelectorAll("nav a").forEach((link) => {
+    const exact = link.dataset.navExact;
+    const prefix = link.dataset.navPrefix;
+    const matches = exact ? path === exact : prefix && (path === prefix || path.startsWith(`${prefix}/`));
+    if (matches && (!bestMatch || (exact || prefix.length > bestMatch.length))) {
+      bestMatch = { link, length: exact ? 1000 : prefix.length };
+    }
+  });
+  if (bestMatch) {
+    bestMatch.link.classList.add("active");
+    bestMatch.link.setAttribute("aria-current", "page");
+  }
+}
+
+function initResponsiveTables() {
+  document.querySelectorAll("table").forEach((table) => {
+    const headers = Array.from(table.querySelectorAll("thead th")).map((header) => header.textContent.trim());
+    if (!headers.length) return;
+    table.classList.add("responsive-table");
+    table.querySelectorAll("tbody tr").forEach((row) => {
+      Array.from(row.children).forEach((cell, index) => {
+        if (cell.tagName === "TD" && !cell.hasAttribute("colspan")) {
+          cell.dataset.label = headers[index] || "";
+        }
+      });
+    });
+  });
+}
+
 document.addEventListener("submit", (event) => {
   const message = event.target.dataset.confirm;
   if (message && !window.confirm(message)) event.preventDefault();
@@ -278,6 +327,8 @@ function initDashboardCharts() {
 }
 
 window.addEventListener("load", () => {
+  initNavigation();
+  initResponsiveTables();
   initDashboardCharts();
   initRequisitionForm();
   initRequisitionReview();

@@ -4,11 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=20260611-1">
+  <link rel="stylesheet" href="/static/css/app.css?v=20260613-1">
 </head>
 <body>
 {% if user %}
-<aside class="sidebar">
+<aside class="sidebar" id="app-sidebar" aria-label="Menu principal">
+  <div class="sidebar-mobile-heading">
+    <span>Menu</span>
+    <button class="icon-button sidebar-close" type="button" data-menu-close aria-label="Fechar menu">&times;</button>
+  </div>
   <a class="brand" href="/dashboard" aria-label="{{ app_name }}">
     {% if logo_available() %}
       <img src="/static/img/logo-gt.png" alt="Gestão de Terminais, SA">
@@ -18,30 +22,37 @@
     <span><strong>{{ app_name }}</strong><small>{{ app_subtitle }}</small></span>
   </a>
   <nav>
-    <a href="/dashboard">Dashboard</a>
-    <a href="/produtos">Economato / Produtos</a>
-    {% if can(user, 'movements') %}<a href="/movimentos">Movimentos</a>{% endif %}
-    {% if can(user, 'documents') %}<a href="/documentos">Documentos</a>{% endif %}
-    <a href="/requisicoes/nova">Nova Requisição</a>
-    <a href="/requisicoes">Requisições</a>
-    {% if can(user, 'reports') %}<a href="/relatorios">Relatórios</a>{% endif %}
-    {% if can(user, 'users_manage') %}<a href="/utilizadores">Utilizadores</a>{% endif %}
-    {% if can(user, 'profiles_manage') %}<a href="/perfis">Perfis e Permissões</a>{% endif %}
-    {% if can(user, 'imports') %}<a href="/importar">Importar</a>{% endif %}
-    {% if can(user, 'audit') %}<a href="/auditoria">Auditoria</a>{% endif %}
-    {% if can(user, 'settings_manage') %}<a href="/produtos/categorias">Configurações</a>{% endif %}
-    <a href="/sobre">Sobre</a>
+    <a href="/dashboard" data-nav-prefix="/dashboard">Dashboard</a>
+    <a href="/produtos" data-nav-prefix="/produtos">Economato / Produtos</a>
+    {% if can(user, 'movements') %}<a href="/movimentos" data-nav-prefix="/movimentos">Movimentos</a>{% endif %}
+    {% if can(user, 'documents') %}<a href="/documentos" data-nav-prefix="/documentos">Documentos</a>{% endif %}
+    <a href="/requisicoes/nova" data-nav-exact="/requisicoes/nova">Nova Requisição</a>
+    <a href="/requisicoes" data-nav-prefix="/requisicoes">Requisições</a>
+    {% if can(user, 'reports') %}<a href="/relatorios" data-nav-prefix="/relatorios">Relatórios</a>{% endif %}
+    {% if can(user, 'users_manage') %}<a href="/utilizadores" data-nav-prefix="/utilizadores">Utilizadores</a>{% endif %}
+    {% if can(user, 'profiles_manage') %}<a href="/perfis" data-nav-prefix="/perfis">Perfis e Permissões</a>{% endif %}
+    {% if can(user, 'imports') %}<a href="/importar" data-nav-prefix="/importar">Importar</a>{% endif %}
+    {% if can(user, 'audit') %}<a href="/auditoria" data-nav-prefix="/auditoria">Auditoria</a>{% endif %}
+    {% if can(user, 'settings_manage') %}<a href="/produtos/categorias" data-nav-exact="/produtos/categorias">Configurações</a>{% endif %}
+    <a href="/sobre" data-nav-prefix="/sobre">Sobre</a>
   </nav>
   <form method="post" action="/logout"><button class="link-button">Sair</button></form>
 </aside>
+<button class="menu-backdrop" type="button" data-menu-close aria-label="Fechar menu"></button>
 <div class="app-shell">
   <header class="topbar">
-    <div>
+    <button class="icon-button menu-toggle" type="button" data-menu-open aria-controls="app-sidebar" aria-expanded="false">
+      <span aria-hidden="true">&#9776;</span><span class="sr-only">Abrir menu</span>
+    </button>
+    <div class="topbar-brand">
       <strong>{{ app_short_name }}</strong>
       <span>{{ app_subtitle }}</span>
     </div>
     <div class="topbar-actions">
-      <a class="notification-link" href="/notificacoes">Notificações <span>{{ unread_notifications(user.id) }}</span></a>
+      <a class="notification-link" href="/notificacoes" aria-label="Notificações: {{ unread_notifications(user.id) }} não lidas">
+        <span class="notification-label">Notificações</span>
+        <span>{{ unread_notifications(user.id) }}</span>
+      </a>
       <div class="user-chip">{{ user.full_name }} · {{ user.role.name }}</div>
     </div>
   </header>
@@ -58,6 +69,6 @@
   <footer class="auth-footer">Designed by Layton Taimo</footer>
 </main>
 {% endif %}
-<script src="/static/js/app.js?v=20260611-1"></script>
+<script src="/static/js/app.js?v=20260613-1"></script>
 </body>
 </html>

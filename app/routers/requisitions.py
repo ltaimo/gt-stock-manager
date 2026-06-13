@@ -286,11 +286,11 @@ def review_requisition(
 
 @router.post("/{req_id}/issue")
 def issue(req_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("requisitions_issue"))):
-    req = db.get(Requisition, req_id)
-    if not req:
-        raise HTTPException(404)
     try:
         with atomic(db):
+            req = db.scalar(select(Requisition).where(Requisition.id == req_id).with_for_update())
+            if not req:
+                raise HTTPException(404)
             issue_requisition(db, req, user)
             audit_log(db, user, "Emitiu requisição", "Requisições", req.number, request=request)
     except StockError as exc:
