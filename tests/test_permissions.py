@@ -12,6 +12,7 @@ class PermissionTests(unittest.TestCase):
 
         self.assertIn("movements", DEFAULT_ROLE_PERMISSIONS["Gestor de Estoque"])
         self.assertTrue(has_permission(user, "movements"))
+        self.assertTrue(has_permission(user, "stock_adjust"))
 
     def test_custom_profile_uses_configured_permissions(self):
         role = SimpleNamespace(name="HSE Officer", permissions=json.dumps(["documents", "reports"]))
@@ -27,6 +28,12 @@ class PermissionTests(unittest.TestCase):
 
         self.assertTrue(has_permission(user, "profiles_manage"))
         self.assertTrue(has_permission(user, "stock_reset"))
+
+    def test_admin_does_not_adjust_stock_by_default(self):
+        role = SimpleNamespace(name="Admin", permissions=None)
+        user = SimpleNamespace(role=role)
+
+        self.assertFalse(has_permission(user, "stock_adjust"))
 
 
 if __name__ == "__main__":

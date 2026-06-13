@@ -11,8 +11,11 @@
     <label>Departamento<input value="{{ user.department.name if user.department else 'Sem departamento definido' }}" disabled></label>
     <label>Gestor Operacional em serviço
       <select name="operational_manager_id" required>
+        {% if not managers %}<option value="">Nenhum Gestor Operacional ou membro da Direção disponível</option>{% endif %}
         {% for manager in managers %}
-          <option value="{{ manager.id }}" {% if manager.id == default_manager_id %}selected{% endif %}>{{ manager.full_name }} · {{ manager.role.name }}</option>
+          <option value="{{ manager.id }}" {% if manager.id == default_manager_id %}selected{% endif %}>
+            {{ manager.full_name }} · {{ manager.role.name }}{% if manager.department %} · {{ manager.department.name }}{% endif %}
+          </option>
         {% endfor %}
       </select>
     </label>

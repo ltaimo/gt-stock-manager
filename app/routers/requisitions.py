@@ -22,11 +22,22 @@ router = APIRouter(prefix="/requisicoes", tags=["requisicoes"])
 
 def manager_options(db: Session) -> list[User]:
     users = db.scalars(select(User).where(User.is_active == True).order_by(User.full_name)).all()
-    return [user for user in users if has_permission(user, "requisitions_review")]
+    return [
+        user
+        for user in users
+        if "gestor operacional" in user.role.name.casefold()
+        or "direção" in user.role.name.casefold()
+        or "direccao" in user.role.name.casefold()
+        or "direcção" in user.role.name.casefold()
+        or "direcao" in user.role.name.casefold()
+        or "director" in user.role.name.casefold()
+        or "diretor" in user.role.name.casefold()
+        or (user.department and user.department.name.casefold() in {"direção", "direccao", "direcção", "direcao"})
+    ]
 
 
 def default_manager_id(user: User, managers: list[User]) -> int | None:
-    if has_permission(user, "requisitions_review"):
+    if any(manager.id == user.id for manager in managers):
         return user.id
     return managers[0].id if managers else None
 
@@ -115,9 +126,11 @@ def create_requisition(
         raise HTTPException(400, "Cada item deve ter uma quantidade correspondente.")
     parsed_product_ids = parse_int_list(product_id, "Produto")
     parsed_quantities = parse_float_list(quantity, "Quantidade")
+    managers = manager_options(db)
+    allowed_manager_ids = {candidate.id for candidate in managers}
     manager = db.get(User, parsed_manager_id) if parsed_manager_id else None
-    if parsed_manager_id and not manager:
-        raise HTTPException(400, "O gestor operacional selecionado não existe.")
+    if not manager or manager.id not in allowed_manager_ids:
+        raise HTTPException(400, "Escolha um Gestor Operacional ou um membro da Direção.")
     if req_type not in {"REQUISIÇÃO", "DEVOLUÇÃO", "OUTRO"}:
         raise HTTPException(400, "Tipo de requisição inválido.")
     try:

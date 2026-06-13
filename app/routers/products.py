@@ -13,7 +13,8 @@ from app.models.core import Category, Department, Product, StockMovement, User
 from app.routers.common import templates
 from app.security import current_user, require_permission
 from app.services.audit import audit_log
-from app.services.forms import optional_float, optional_int, required_text
+from app.services.forms import optional_float, optional_int, required_float, required_text
+from app.services.inventory import StockError, adjust_product_stock
 from app.services.transactions import atomic
 from app.services.stock_reset import reset_all_stock
 
@@ -141,6 +142,59 @@ def update_product(
         product.status = status
         audit_log(db, user, "Atualizou produto", "Produtos", product.id, old_value=old, new_value={"name": clean_name, "minimum_stock": parsed_minimum, "status": status}, request=request)
     return RedirectResponse("/produtos", status_code=303)
+
+
+@router.post("/{product_id}/ajustar-stock")
+def adjust_stock(
+    product_id: int,
+    request: Request,
+    target_quantity: str | None = Form(None),
+    reason: str | None = Form(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("stock_adjust")),
+):
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(404)
+    target = required_float(target_quantity, "Nova quantidade existente")
+    clean_reason = required_text(reason, "Motivo do ajuste", 500)
+    old_quantity = float(product.current_stock or 0)
+    try:
+        with atomic(db):
+            movement = adjust_product_stock(
+                db,
+                product=product,
+                target_quantity=target,
+                reason=clean_reason,
+                actor=user,
+            )
+            audit_log(
+                db,
+                user,
+                "Ajustou stock do produto",
+                "Stock",
+                product.id,
+                old_value={"quantity": old_quantity},
+                new_value={
+                    "quantity": target,
+                    "reason": clean_reason,
+                    "movement_id": movement.id,
+                },
+                request=request,
+            )
+    except StockError as exc:
+        return templates.TemplateResponse(
+            "products/form.html",
+            {
+                "request": request,
+                "user": user,
+                "product": product,
+                "categories": db.scalars(select(Category).order_by(Category.name)).all(),
+                "adjustment_error": str(exc),
+            },
+            status_code=400,
+        )
+    return RedirectResponse(f"/produtos/{product.id}/editar?stock_adjusted=1", status_code=303)
 
 
 @router.post("/{product_id}/desativar")

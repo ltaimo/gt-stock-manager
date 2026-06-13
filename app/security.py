@@ -23,6 +23,7 @@ PERMISSIONS = {
     "users_manage": "Gerir utilizadores",
     "profiles_manage": "Gerir perfis e permissões",
     "settings_manage": "Gerir categorias e departamentos",
+    "stock_adjust": "Ajustar quantidade existente com justificação",
     "stock_reset": "Resetar todo o stock",
     "imports": "Importar dados",
     "audit": "Consultar auditoria",
@@ -30,9 +31,9 @@ PERMISSIONS = {
 
 DEFAULT_ROLE_PERMISSIONS = {
     "SuperAdmin": set(PERMISSIONS),
-    "Admin": set(PERMISSIONS) - {"profiles_manage", "stock_reset"},
+    "Admin": set(PERMISSIONS) - {"profiles_manage", "stock_adjust", "stock_reset"},
     "Editor": {"movements", "documents", "requisitions_all", "requisitions_review", "requisitions_issue", "reports"},
-    "Gestor de Estoque": {"movements", "documents", "requisitions_all", "requisitions_review", "requisitions_issue", "reports"},
+    "Gestor de Estoque": {"movements", "documents", "requisitions_all", "requisitions_review", "requisitions_issue", "reports", "stock_adjust"},
     "Chefe do Terminal": {"documents", "requisitions_all", "requisitions_review"},
     "User": set(),
 }

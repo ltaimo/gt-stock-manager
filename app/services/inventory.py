@@ -48,6 +48,50 @@ def recalculate_product_stock(db: Session, product: Product) -> None:
     product.total_exits = exits or 0
 
 
+def adjust_product_stock(
+    db: Session,
+    *,
+    product: Product,
+    target_quantity: float,
+    reason: str,
+    actor: User,
+) -> StockMovement:
+    target = Decimal(str(target_quantity))
+    if target < 0:
+        raise StockError("A quantidade existente não pode ser negativa.")
+    clean_reason = " ".join((reason or "").strip().split())
+    if not clean_reason:
+        raise StockError("Indique o motivo obrigatório para ajustar o stock.")
+    if len(clean_reason) > 500:
+        raise StockError("O motivo do ajuste não pode exceder 500 caracteres.")
+
+    if hasattr(db, "scalar"):
+        product = db.scalar(
+            select(Product)
+            .where(Product.id == product.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if not product:
+            raise StockError("O produto selecionado já não existe.")
+
+    current = Decimal(str(product.current_stock or 0))
+    difference = target - current
+    if difference == 0:
+        raise StockError("A nova quantidade é igual à quantidade existente.")
+
+    return post_movement(
+        db,
+        product=product,
+        action_type=MovementAction.acerto.value,
+        quantity=abs(difference),
+        registered_by=actor,
+        notes=clean_reason,
+        reference_number=f"AJUSTE-{product.code}",
+        adjustment_direction="increase" if difference > 0 else "decrease",
+    )
+
+
 def post_movement(
     db: Session,
     *,
@@ -65,7 +109,12 @@ def post_movement(
     override_authorized_by_id: int | None = None,
 ) -> StockMovement:
     if hasattr(db, "scalar"):
-        product = db.scalar(select(Product).where(Product.id == product.id).with_for_update())
+        product = db.scalar(
+            select(Product)
+            .where(Product.id == product.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         if not product:
             raise StockError("O produto selecionado já não existe.")
     if action_type == MovementAction.acerto.value and not notes:

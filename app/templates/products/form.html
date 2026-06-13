@@ -3,6 +3,7 @@
 <section class="panel narrow">
   <h1>{{ 'Editar Produto' if product else 'Novo Produto' }}</h1>
   {% if error %}<div class="alert red">{{ error }} {% if duplicate %}<a href="/produtos?q={{ duplicate.code }}">Ver produto existente</a> ou <a href="/movimentos/novo">adicionar stock</a>.{% endif %}</div>{% endif %}
+  {% if request.query_params.get('stock_adjusted') %}<div class="alert green">Quantidade existente ajustada e movimento registado com sucesso.</div>{% endif %}
   <form method="post" class="form-stack">
     {% if not product %}
       <label>Código gerado automaticamente<input value="{{ next_code }}" disabled></label>
@@ -21,4 +22,29 @@
     <div class="actions"><a class="button secondary" href="/produtos">Cancelar</a><button>Guardar</button></div>
   </form>
 </section>
+{% if product and can(user, 'stock_adjust') %}
+<section class="panel narrow">
+  <h2>Ajustar quantidade existente</h2>
+  <p class="muted">
+    Esta operação cria um movimento de acerto e fica registada na auditoria.
+    A quantidade nunca pode ser negativa e o motivo é obrigatório.
+  </p>
+  {% if adjustment_error %}<div class="alert red">{{ adjustment_error }}</div>{% endif %}
+  <form method="post" action="/produtos/{{ product.id }}/ajustar-stock" class="form-stack" data-confirm="Confirmar o ajuste da quantidade existente? Esta ação ficará registada.">
+    <label>Quantidade atual
+      <input value="{{ product.current_stock }} {{ product.unit }}" disabled>
+    </label>
+    <label>Nova quantidade existente
+      <input name="target_quantity" type="number" min="0" step="0.01" value="{{ product.current_stock }}" required>
+    </label>
+    <label>Motivo obrigatório do ajuste
+      <textarea name="reason" maxlength="500" placeholder="Explique a contagem física, correção de registo ou outro motivo." required></textarea>
+    </label>
+    <div class="actions">
+      <a class="button secondary" href="/produtos">Cancelar</a>
+      <button class="orange">Registar ajuste de stock</button>
+    </div>
+  </form>
+</section>
+{% endif %}
 {% endblock %}
