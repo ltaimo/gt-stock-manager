@@ -1,28 +1,29 @@
 {% extends "base.html" %}
 {% block content %}
-<header class="page-header"><h1>Notificações</h1></header>
+<header class="page-header"><h1>Notificacoes</h1></header>
 <section class="panel">
   {% if notifications %}
-  <table>
+  <table class="responsive-table">
     <thead>
-      <tr><th>Data</th><th>Notificação</th><th>Estado</th><th></th></tr>
+      <tr><th>Data</th><th>Notificacao</th><th>Modulo</th><th>Estado</th><th></th></tr>
     </thead>
     <tbody>
       {% for notification in notifications %}
       <tr>
-        <td>{{ notification.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-        <td>
+        <td data-label="Data">{{ notification.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td data-label="Notificacao">
           <strong>{{ notification.title }}</strong>
           <div class="notification-message">{{ notification.message }}</div>
         </td>
-        <td>
+        <td data-label="Modulo">{{ notification.module }}</td>
+        <td data-label="Estado">
           <span class="badge {{ 'grey' if notification.is_read else 'orange' }}">
             {{ 'Lida' if notification.is_read else 'Nova' }}
           </span>
         </td>
-        <td>
-          {% if notification.module == 'Requisições' and notification.record_id %}
-            <a class="button" href="/notificacoes/{{ notification.id }}/abrir">Ver requisição</a>
+        <td data-label="Acao">
+          {% if notification.module in ['Requisicoes', 'Requisições', 'RequisiÃ§Ãµes', 'Procurement'] and notification.record_id %}
+            <a class="button" href="/notificacoes/{{ notification.id }}/abrir">Abrir</a>
           {% elif not notification.is_read %}
             <form method="post" action="/notificacoes/{{ notification.id }}/ler">
               <button class="secondary">Marcar como lida</button>
@@ -34,7 +35,7 @@
     </tbody>
   </table>
   {% else %}
-    <div class="empty-state">Não existem notificações.</div>
+    <div class="empty-state">Nao existem notificacoes.</div>
   {% endif %}
 </section>
 {% endblock %}

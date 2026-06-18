@@ -11,6 +11,7 @@ from app.routers.common import templates
 from app.security import current_user, has_permission, require_permission
 from app.services.audit import audit_log
 from app.services.forms import optional_float, optional_int, required_float, required_text
+from app.services.notifications import notify_procurement_budget_pending, notify_procurement_classification_pending
 from app.services.procurement import classify_procurement, days_open, next_non_stock_number
 from app.services.transactions import atomic
 
@@ -103,14 +104,14 @@ def create_non_stock(
         )
         db.add(case)
         db.flush()
+        notify_procurement_budget_pending(db, req)
         audit_log(db, user, "Criou requisicao non-stock", "Procurement", req.number, request=request)
     return RedirectResponse(f"/procurement/{case.id}", status_code=303)
 
 
 @router.get("/matriz")
 def matrix(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("procurement_settings"))):
-    rules = db.scalars(select(ApprovalMatrixRule).order_by(ApprovalMatrixRule.sort_order, ApprovalMatrixRule.min_value)).all()
-    return templates.TemplateResponse("procurement/matrix.html", {"request": request, "user": user, "rules": rules, "error": None})
+    return RedirectResponse("/configuracoes/matriz", status_code=303)
 
 
 @router.post("/matriz")
@@ -184,6 +185,7 @@ def verify_budget(
         if decision == "confirm":
             case.status = "Pending Procurement Classification"
             case.requisition.status = RequisitionStatus.submitted.value
+            notify_procurement_classification_pending(db, case.requisition)
         else:
             case.status = "Returned - No Budget"
             case.requisition.status = RequisitionStatus.rejected.value

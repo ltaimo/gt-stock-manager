@@ -13,6 +13,7 @@ class PermissionTests(unittest.TestCase):
         self.assertIn("movements", DEFAULT_ROLE_PERMISSIONS["Gestor de Estoque"])
         self.assertTrue(has_permission(user, "movements"))
         self.assertTrue(has_permission(user, "stock_adjust"))
+        self.assertFalse(has_permission(user, "requisitions_review"))
 
     def test_custom_profile_uses_configured_permissions(self):
         role = SimpleNamespace(name="HSE Officer", permissions=json.dumps(["documents", "reports"]))

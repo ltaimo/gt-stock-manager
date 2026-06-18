@@ -36,6 +36,16 @@ def ensure_schema() -> None:
             additions.append("ALTER TABLE roles ADD COLUMN permissions TEXT")
         if "is_system" not in columns:
             additions.append("ALTER TABLE roles ADD COLUMN is_system BOOLEAN DEFAULT false")
+    if "users" in tables:
+        columns = {column["name"] for column in inspector.get_columns("users")}
+        if "phone" not in columns:
+            additions.append("ALTER TABLE users ADD COLUMN phone VARCHAR(40)")
+        if "notify_email" not in columns:
+            additions.append("ALTER TABLE users ADD COLUMN notify_email BOOLEAN DEFAULT true")
+        if "notify_whatsapp" not in columns:
+            additions.append("ALTER TABLE users ADD COLUMN notify_whatsapp BOOLEAN DEFAULT false")
+        if "preferred_language" not in columns:
+            additions.append("ALTER TABLE users ADD COLUMN preferred_language VARCHAR(5) DEFAULT 'pt'")
 
     with engine.begin() as connection:
         for statement in additions:

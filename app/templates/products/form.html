@@ -9,7 +9,7 @@
       <label>Código gerado automaticamente<input value="{{ next_code }}" disabled></label>
     {% endif %}
     <label>Produto/Marca<input name="name" value="{{ product.name if product else '' }}" required></label>
-    <label>Categoria<select name="category_id"><option value="">Sem Categoria</option>{% for c in categories %}<option value="{{ c.id }}" {% if product and product.category_id==c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></label>
+    <label>Categoria de produto<select name="category_id"><option value="">Sem categoria</option>{% for c in categories %}<option value="{{ c.id }}" {% if product and product.category_id==c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></label>
     <label>Unidade de medida
       <select name="unit">
         {% for u in ['un','caixa','embalagem','rolo','par','garrafa','resma','kg','g','L','ml','m'] %}

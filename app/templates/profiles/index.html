@@ -1,16 +1,17 @@
 {% extends "base.html" %}
 {% block content %}
-<header class="page-header"><h1>Perfis e Permissões</h1><a class="button" href="/perfis/novo">Novo Perfil</a></header>
+<header class="page-header"><h1>Perfis de acesso</h1><a class="button" href="/perfis/novo">Novo perfil</a></header>
+<p class="muted">Perfis definem acessos e funcoes do utilizador. Categorias de produto ficam em Configuracoes.</p>
 <div class="panel">
-  <table>
-    <thead><tr><th>Perfil / Função</th><th>Utilizadores</th><th>Permissões</th><th></th></tr></thead>
+  <table class="responsive-table">
+    <thead><tr><th>Perfil / Funcao</th><th>Utilizadores</th><th>Permissoes</th><th></th></tr></thead>
     <tbody>
     {% for role in roles %}
       <tr>
-        <td><strong>{{ role.name }}</strong></td>
-        <td>{{ role.users|length }}</td>
-        <td>{{ role_permissions(role)|length if role.name != 'SuperAdmin' else 'Todas' }}</td>
-        <td>
+        <td data-label="Perfil / Funcao"><strong>{{ role.name }}</strong></td>
+        <td data-label="Utilizadores">{{ role.users|length }}</td>
+        <td data-label="Permissoes">{{ role_permissions(role)|length if role.name != 'SuperAdmin' else 'Todas' }}</td>
+        <td data-label="Acao">
           <div class="actions">
             <a href="/perfis/{{ role.id }}/editar">Editar</a>
             {% if role.name != 'SuperAdmin' and not role.users %}

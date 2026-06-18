@@ -4,7 +4,7 @@
   <h1>{{ case.requisition.number }}</h1>
   <div class="actions">
     <a class="button secondary" href="/procurement">Voltar</a>
-    {% if can(user, 'procurement_settings') %}<a class="button secondary" href="/procurement/matriz">Matriz</a>{% endif %}
+    {% if can(user, 'procurement_settings') %}<a class="button secondary" href="/configuracoes/matriz">Matriz</a>{% endif %}
   </div>
 </header>
 

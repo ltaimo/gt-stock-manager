@@ -22,7 +22,7 @@ def list_users(request: Request, db: Session = Depends(get_db), user: User = Dep
 
 @router.get("/novo")
 def new_user(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("users_manage"))):
-    return templates.TemplateResponse("users/form.html", {"request": request, "user": user, "target": None, "roles": db.scalars(select(Role)).all(), "departments": db.scalars(select(Department)).all()})
+    return templates.TemplateResponse("users/form.html", {"request": request, "user": user, "target": None, "roles": db.scalars(select(Role).order_by(Role.name)).all(), "departments": db.scalars(select(Department).where(Department.is_active == True).order_by(Department.name)).all()})
 
 
 @router.post("/novo")
@@ -31,9 +31,13 @@ def create_user(
     full_name: str | None = Form(None),
     username: str | None = Form(None),
     email: str | None = Form(None),
+    phone: str | None = Form(None),
     password: str | None = Form(None),
     role_id: str | None = Form(None),
     department_id: str | None = Form(None),
+    notify_email: str | None = Form(None),
+    notify_whatsapp: str | None = Form(None),
+    preferred_language: str = Form("pt"),
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("users_manage")),
 ):
@@ -44,6 +48,8 @@ def create_user(
         raise HTTPException(400, "A senha inicial deve ter pelo menos 8 caracteres.")
     parsed_role_id = required_int(role_id, "Perfil")
     parsed_department_id = optional_int(department_id, "Departamento")
+    if preferred_language not in {"pt", "en"}:
+        raise HTTPException(400, "Idioma invalido.")
     role = db.get(Role, parsed_role_id)
     if not role or not can_manage_user(user, None, role.name):
         raise HTTPException(403)
@@ -57,9 +63,13 @@ def create_user(
             full_name=clean_name,
             username=clean_username,
             email=clean_email,
+            phone=(phone or "").strip() or None,
             password_hash=hash_password(clean_password),
             role_id=parsed_role_id,
             department_id=parsed_department_id,
+            notify_email=notify_email == "1",
+            notify_whatsapp=notify_whatsapp == "1",
+            preferred_language=preferred_language,
         )
         db.add(target)
         db.flush()
@@ -72,14 +82,30 @@ def edit_user(target_id: int, request: Request, db: Session = Depends(get_db), u
     target = db.get(User, target_id)
     if not target or not can_manage_user(user, target):
         raise HTTPException(403)
-    return templates.TemplateResponse("users/form.html", {"request": request, "user": user, "target": target, "roles": db.scalars(select(Role)).all(), "departments": db.scalars(select(Department)).all()})
+    return templates.TemplateResponse("users/form.html", {"request": request, "user": user, "target": target, "roles": db.scalars(select(Role).order_by(Role.name)).all(), "departments": db.scalars(select(Department).where(Department.is_active == True).order_by(Department.name)).all()})
 
 
 @router.post("/{target_id}/editar")
-def update_user(target_id: int, request: Request, full_name: str | None = Form(None), email: str | None = Form(None), role_id: str | None = Form(None), department_id: str | None = Form(None), is_active: bool = Form(False), db: Session = Depends(get_db), user: User = Depends(require_permission("users_manage"))):
+def update_user(
+    target_id: int,
+    request: Request,
+    full_name: str | None = Form(None),
+    email: str | None = Form(None),
+    phone: str | None = Form(None),
+    role_id: str | None = Form(None),
+    department_id: str | None = Form(None),
+    is_active: bool = Form(False),
+    notify_email: str | None = Form(None),
+    notify_whatsapp: str | None = Form(None),
+    preferred_language: str = Form("pt"),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("users_manage")),
+):
     clean_name = required_text(full_name, "Nome completo", 160)
     parsed_role_id = required_int(role_id, "Perfil")
     parsed_department_id = optional_int(department_id, "Departamento")
+    if preferred_language not in {"pt", "en"}:
+        raise HTTPException(400, "Idioma invalido.")
     target = db.get(User, target_id)
     role = db.get(Role, parsed_role_id)
     if not target or not role or not can_manage_user(user, target, role.name):
@@ -92,9 +118,13 @@ def update_user(target_id: int, request: Request, full_name: str | None = Form(N
     with atomic(db):
         target.full_name = clean_name
         target.email = clean_email
+        target.phone = (phone or "").strip() or None
         target.role_id = parsed_role_id
         target.department_id = parsed_department_id
         target.is_active = is_active
+        target.notify_email = notify_email == "1"
+        target.notify_whatsapp = notify_whatsapp == "1"
+        target.preferred_language = preferred_language
         audit_log(db, user, "Atualizou utilizador", "Utilizadores", target.id, old_value=old, new_value={"role": role.name, "active": is_active}, request=request)
     return RedirectResponse("/utilizadores", status_code=303)
 

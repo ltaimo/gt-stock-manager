@@ -4,7 +4,7 @@
   <h1>Procurement / Non-Stock</h1>
   <div class="actions">
     {% if can(user, 'non_stock_requisitions_create') %}<a class="button" href="/procurement/nova">Nova requisicao NS</a>{% endif %}
-    {% if can(user, 'procurement_settings') %}<a class="button secondary" href="/procurement/matriz">Matriz de aprovacao</a>{% endif %}
+    {% if can(user, 'procurement_settings') %}<a class="button secondary" href="/configuracoes/matriz">Matriz de aprovacao</a>{% endif %}
   </div>
 </header>
 

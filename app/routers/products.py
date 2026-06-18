@@ -46,7 +46,7 @@ def list_products(request: Request, q: str = "", status: str = "", db: Session =
 
 @router.get("/novo")
 def new_product(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("products_manage"))):
-    return templates.TemplateResponse("products/form.html", {"request": request, "user": user, "product": None, "categories": db.scalars(select(Category).order_by(Category.name)).all(), "next_code": next_product_code(db), "error": None, "duplicate": None})
+    return templates.TemplateResponse("products/form.html", {"request": request, "user": user, "product": None, "categories": db.scalars(select(Category).where(Category.is_active == True).order_by(Category.name)).all(), "next_code": next_product_code(db), "error": None, "duplicate": None})
 
 
 @router.post("/novo")
@@ -77,7 +77,7 @@ def create_product(
                 "request": request,
                 "user": user,
                 "product": None,
-                "categories": db.scalars(select(Category).order_by(Category.name)).all(),
+                "categories": db.scalars(select(Category).where(Category.is_active == True).order_by(Category.name)).all(),
                 "next_code": next_product_code(db),
                 "error": "Este produto já existe. Para aumentar o stock, registe uma Entrada em Movimentos.",
                 "duplicate": duplicate,
@@ -98,7 +98,7 @@ def edit_product(product_id: int, request: Request, db: Session = Depends(get_db
     product = db.get(Product, product_id)
     if not product:
         raise HTTPException(404)
-    return templates.TemplateResponse("products/form.html", {"request": request, "user": user, "product": product, "categories": db.scalars(select(Category).order_by(Category.name)).all()})
+    return templates.TemplateResponse("products/form.html", {"request": request, "user": user, "product": product, "categories": db.scalars(select(Category).where((Category.is_active == True) | (Category.id == product.category_id)).order_by(Category.name)).all()})
 
 
 @router.post("/{product_id}/editar")
@@ -189,7 +189,7 @@ def adjust_stock(
                 "request": request,
                 "user": user,
                 "product": product,
-                "categories": db.scalars(select(Category).order_by(Category.name)).all(),
+                "categories": db.scalars(select(Category).where((Category.is_active == True) | (Category.id == product.category_id)).order_by(Category.name)).all(),
                 "adjustment_error": str(exc),
             },
             status_code=400,
@@ -214,18 +214,7 @@ def deactivate_product(product_id: int, request: Request, db: Session = Depends(
 
 @router.get("/categorias")
 def categories(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("settings_manage"))):
-    return templates.TemplateResponse(
-        "products/categories.html",
-        {
-            "request": request,
-            "user": user,
-            "categories": db.scalars(select(Category).order_by(Category.name)).all(),
-            "departments": db.scalars(select(Department).order_by(Department.name)).all(),
-            "reset_message": request.query_params.get("reset_message"),
-            "reset_error": request.query_params.get("reset_error"),
-            "reset_enabled": bool(settings.reset_stock_security_code),
-        },
-    )
+    return RedirectResponse("/configuracoes", status_code=303)
 
 
 @router.post("/categorias")

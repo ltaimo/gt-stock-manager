@@ -23,12 +23,14 @@ class Settings:
     logo_path = env_path("LOGO_PATH", BASE_DIR / "app" / "static" / "img" / "logo-gt.png")
     documents_dir = env_path("DOCUMENTS_DIR", uploads_dir / "stock_documents")
     email_outbox_dir = env_path("EMAIL_OUTBOX_DIR", outputs_dir / "email_outbox")
+    whatsapp_outbox_dir = env_path("WHATSAPP_OUTBOX_DIR", outputs_dir / "whatsapp_outbox")
     smtp_host = os.getenv("SMTP_HOST", "")
     smtp_port = int(os.getenv("SMTP_PORT", "587"))
     smtp_user = os.getenv("SMTP_USER", "")
     smtp_password = os.getenv("SMTP_PASSWORD", "")
     smtp_from = os.getenv("SMTP_FROM", "stock@gtsa.local")
-    default_language = "pt"
+    whatsapp_webhook_url = os.getenv("WHATSAPP_WEBHOOK_URL", "")
+    default_language = os.getenv("DEFAULT_LANGUAGE", "pt")
 
     @property
     def secure_cookies(self) -> bool:
@@ -42,4 +44,5 @@ def get_settings() -> Settings:
     settings.outputs_dir.mkdir(parents=True, exist_ok=True)
     settings.documents_dir.mkdir(parents=True, exist_ok=True)
     settings.email_outbox_dir.mkdir(parents=True, exist_ok=True)
+    settings.whatsapp_outbox_dir.mkdir(parents=True, exist_ok=True)
     return settings

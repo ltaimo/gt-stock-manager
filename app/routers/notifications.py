@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.core import Notification, Requisition, User
+from app.models.core import Notification, ProcurementCase, Requisition, User
 from app.routers.common import templates
 from app.security import current_user
 from app.services.transactions import atomic
@@ -42,8 +42,14 @@ def open_notification(notification_id: int, db: Session = Depends(get_db), user:
         notification.is_read = True
         notification.read_at = datetime.now(timezone.utc)
 
-    if notification.module == "Requisições" and notification.record_id:
+    if notification.module in {"Requisicoes", "Requisições", "RequisiÃ§Ãµes"} and notification.record_id:
         requisition = db.scalar(select(Requisition).where(Requisition.number == notification.record_id))
         if requisition:
             return RedirectResponse(f"/requisicoes/{requisition.id}", status_code=303)
+    if notification.module == "Procurement" and notification.record_id:
+        requisition = db.scalar(select(Requisition).where(Requisition.number == notification.record_id))
+        if requisition:
+            case = db.scalar(select(ProcurementCase).where(ProcurementCase.requisition_id == requisition.id))
+            if case:
+                return RedirectResponse(f"/procurement/{case.id}", status_code=303)
     return RedirectResponse("/notificacoes", status_code=303)

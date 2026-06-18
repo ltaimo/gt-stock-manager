@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header">
+  <h1>Configuracoes</h1>
+  <div class="actions">
+    {% if can(user, 'users_manage') %}<a class="button secondary" href="/utilizadores">Utilizadores</a>{% endif %}
+    {% if can(user, 'profiles_manage') %}<a class="button secondary" href="/perfis">Perfis de acesso</a>{% endif %}
+    {% if can(user, 'procurement_settings') %}<a class="button secondary" href="/configuracoes/matriz">Matriz de aprovacoes</a>{% endif %}
+  </div>
+</header>
+
+{% if reset_message %}<div class="alert green">{{ reset_message }}</div>{% endif %}
+{% if reset_error %}<div class="alert red">{{ reset_error }}</div>{% endif %}
+
+<section class="grid-two">
+  <div class="panel">
+    <h2>Categorias de produto</h2>
+    <p class="muted">Usadas apenas para organizar produtos/economato. Nao sao perfis de acesso.</p>
+    <form method="post" action="/configuracoes/categorias" class="inline-form">
+      <input name="name" placeholder="Nova categoria" required>
+      <button>Adicionar</button>
+    </form>
+    <table class="responsive-table">
+      <thead><tr><th>Categoria</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+        {% for c in categories %}
+        <tr>
+          <td data-label="Categoria">{{ c.name }}</td>
+          <td data-label="Estado"><span class="badge {{ 'green' if c.is_active else 'grey' }}">{{ 'Ativa' if c.is_active else 'Inativa' }}</span></td>
+          <td data-label="Acao">
+            {% if c.is_active %}
+            <form method="post" action="/configuracoes/categorias/{{ c.id }}/remover" data-confirm="Remover/desativar esta categoria? Produtos existentes serao preservados.">
+              <button class="danger compact">Remover</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3">Sem categorias.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>Departamentos</h2>
+    <p class="muted">Usados em utilizadores, requisicoes, movimentos e relatorios.</p>
+    <form method="post" action="/configuracoes/departamentos" class="inline-form">
+      <input name="name" placeholder="Novo departamento" required>
+      <button>Adicionar</button>
+    </form>
+    <table class="responsive-table">
+      <thead><tr><th>Departamento</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+        {% for d in departments %}
+        <tr>
+          <td data-label="Departamento">{{ d.name }}</td>
+          <td data-label="Estado"><span class="badge {{ 'green' if d.is_active else 'grey' }}">{{ 'Ativo' if d.is_active else 'Inativo' }}</span></td>
+          <td data-label="Acao">
+            {% if d.is_active %}
+            <form method="post" action="/configuracoes/departamentos/{{ d.id }}/remover" data-confirm="Remover/desativar este departamento? Historico existente sera preservado.">
+              <button class="danger compact">Remover</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3">Sem departamentos.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% if can(user, 'stock_reset') %}
+<section class="panel danger-zone">
+  <h2>Zona de perigo</h2>
+  <p>
+    O reset leva o stock atual de todos os produtos a zero. O historico nao e apagado:
+    sao criados movimentos de acerto e a acao fica registada na auditoria.
+  </p>
+  {% if reset_enabled %}
+  <form method="post" action="/configuracoes/stock/reset" class="form-stack" data-confirm="Confirmar o reset total do stock? Todos os saldos atuais serao levados a zero.">
+    <label>Confirmacao
+      <input name="confirmation" placeholder="Escreva RESETAR STOCK" autocomplete="off" required>
+    </label>
+    <label>Codigo de seguranca
+      <input name="security_code" type="password" autocomplete="off" required>
+    </label>
+    <div class="actions">
+      <button class="danger">Resetar todo o stock</button>
+    </div>
+  </form>
+  {% else %}
+    <div class="alert red">A acao esta desativada porque o codigo de seguranca nao foi configurado.</div>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

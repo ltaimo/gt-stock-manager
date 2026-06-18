@@ -12,7 +12,7 @@ def seed() -> None:
     ensure_schema()
     db = SessionLocal()
     try:
-        for name in ["SuperAdmin", "Admin", "Editor", "User", "Gestor de Estoque", "Chefe do Terminal"]:
+        for name in ["SuperAdmin", "Admin", "Editor", "User", "Gestor Operacional", "Gestor de Estoque", "Chefe do Terminal"]:
             if not db.scalar(select(Role).where(Role.name == name)):
                 db.add(Role(name=name))
         db.flush()

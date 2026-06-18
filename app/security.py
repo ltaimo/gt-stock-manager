@@ -53,7 +53,6 @@ DEFAULT_ROLE_PERMISSIONS = {
         "documents",
         "requisitions_all",
         "stock_requisitions_create",
-        "requisitions_review",
         "requisitions_issue",
         "reports",
         "stock_adjust",
@@ -65,6 +64,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "non_stock_requisitions_create",
         "requisitions_review",
     },
+    "Gestor Operacional": {"stock_requisitions_create", "non_stock_requisitions_create"},
     "User": {"stock_requisitions_create", "non_stock_requisitions_create"},
 }
 
@@ -129,7 +129,7 @@ def require_permission(permission: str):
 
 
 def operational_roles() -> tuple[str, ...]:
-    return ("SuperAdmin", "Admin", "Editor", "Gestor de Estoque", "Chefe do Terminal")
+    return ("SuperAdmin", "Admin", "Editor", "Gestor Operacional", "Gestor de Estoque", "Chefe do Terminal")
 
 
 def can_manage_user(actor: User, target: User | None, requested_role: str | None = None) -> bool:

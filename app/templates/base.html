@@ -22,22 +22,22 @@
     <span><strong>{{ app_name }}</strong><small>{{ app_subtitle }}</small></span>
   </a>
   <nav>
-    <a href="/dashboard" data-nav-prefix="/dashboard">Dashboard</a>
-    <a href="/produtos" data-nav-prefix="/produtos">Economato / Produtos</a>
-    {% if can(user, 'movements') %}<a href="/movimentos" data-nav-prefix="/movimentos">Movimentos</a>{% endif %}
-    {% if can(user, 'documents') %}<a href="/documentos" data-nav-prefix="/documentos">Documentos</a>{% endif %}
-    {% if can(user, 'stock_requisitions_create') %}<a href="/requisicoes/nova" data-nav-exact="/requisicoes/nova">Nova Requisicao SR</a>{% endif %}
-    <a href="/requisicoes" data-nav-prefix="/requisicoes">Requisicoes SR</a>
+    <a href="/dashboard" data-nav-prefix="/dashboard">{{ t('dashboard', user) }}</a>
+    <a href="/produtos" data-nav-prefix="/produtos">{{ t('products', user) }}</a>
+    {% if can(user, 'movements') %}<a href="/movimentos" data-nav-prefix="/movimentos">{{ t('movements', user) }}</a>{% endif %}
+    {% if can(user, 'documents') %}<a href="/documentos" data-nav-prefix="/documentos">{{ t('documents', user) }}</a>{% endif %}
+    {% if can(user, 'stock_requisitions_create') %}<a href="/requisicoes/nova" data-nav-exact="/requisicoes/nova">{{ t('new_sr', user) }}</a>{% endif %}
+    <a href="/requisicoes" data-nav-prefix="/requisicoes">{{ t('sr_requests', user) }}</a>
     {% if can(user, 'non_stock_requisitions_create') or can(user, 'procurement_manage') or can(user, 'budget_verify') %}
-      <a href="/procurement" data-nav-prefix="/procurement">Procurement / NS</a>
+      <a href="/procurement" data-nav-prefix="/procurement">{{ t('procurement', user) }}</a>
     {% endif %}
-    {% if can(user, 'reports') %}<a href="/relatorios" data-nav-prefix="/relatorios">Relatorios</a>{% endif %}
-    {% if can(user, 'users_manage') %}<a href="/utilizadores" data-nav-prefix="/utilizadores">Utilizadores</a>{% endif %}
-    {% if can(user, 'profiles_manage') %}<a href="/perfis" data-nav-prefix="/perfis">Perfis e Permissoes</a>{% endif %}
-    {% if can(user, 'imports') %}<a href="/importar" data-nav-prefix="/importar">Importar</a>{% endif %}
-    {% if can(user, 'audit') %}<a href="/auditoria" data-nav-prefix="/auditoria">Auditoria</a>{% endif %}
-    {% if can(user, 'settings_manage') %}<a href="/produtos/categorias" data-nav-exact="/produtos/categorias">Configuracoes</a>{% endif %}
-    <a href="/sobre" data-nav-prefix="/sobre">Sobre</a>
+    {% if can(user, 'reports') %}<a href="/relatorios" data-nav-prefix="/relatorios">{{ t('reports', user) }}</a>{% endif %}
+    {% if can(user, 'users_manage') %}<a href="/utilizadores" data-nav-prefix="/utilizadores">{{ t('users', user) }}</a>{% endif %}
+    {% if can(user, 'profiles_manage') %}<a href="/perfis" data-nav-prefix="/perfis">{{ t('profiles', user) }}</a>{% endif %}
+    {% if can(user, 'imports') %}<a href="/importar" data-nav-prefix="/importar">{{ t('imports', user) }}</a>{% endif %}
+    {% if can(user, 'audit') %}<a href="/auditoria" data-nav-prefix="/auditoria">{{ t('audit', user) }}</a>{% endif %}
+    {% if can(user, 'settings_manage') %}<a href="/configuracoes" data-nav-prefix="/configuracoes">{{ t('settings', user) }}</a>{% endif %}
+    <a href="/sobre" data-nav-prefix="/sobre">{{ t('about', user) }}</a>
   </nav>
   <form method="post" action="/logout"><button class="link-button">Sair</button></form>
 </aside>
@@ -53,9 +53,15 @@
     </div>
     <div class="topbar-actions">
       <a class="notification-link" href="/notificacoes" aria-label="Notificacoes: {{ unread_notifications(user.id) }} nao lidas">
-        <span class="notification-label">Notificacoes</span>
+        <span class="notification-label">{{ t('notifications', user) }}</span>
         <span>{{ unread_notifications(user.id) }}</span>
       </a>
+      <form method="post" action="/preferencias/idioma" class="language-form">
+        <select name="language" onchange="this.form.submit()" aria-label="Idioma">
+          <option value="pt" {% if current_language(user) == 'pt' %}selected{% endif %}>PT</option>
+          <option value="en" {% if current_language(user) == 'en' %}selected{% endif %}>EN</option>
+        </select>
+      </form>
       <div class="user-chip">{{ user.full_name }} &middot; {{ user.role.name }}</div>
     </div>
   </header>
