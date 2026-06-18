@@ -30,6 +30,7 @@ class Settings:
     smtp_password = os.getenv("SMTP_PASSWORD", "")
     smtp_from = os.getenv("SMTP_FROM", "stock@gtsa.local")
     whatsapp_webhook_url = os.getenv("WHATSAPP_WEBHOOK_URL", "")
+    whatsapp_sender = os.getenv("WHATSAPP_SENDER", "+258844231830")
     default_language = os.getenv("DEFAULT_LANGUAGE", "pt")
 
     @property

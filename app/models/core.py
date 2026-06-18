@@ -102,6 +102,7 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String(220), nullable=False, index=True)
     category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id"))
     unit: Mapped[str] = mapped_column(String(30), default="un")
+    unit_price: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
     current_stock: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     minimum_stock: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     total_entries: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
@@ -174,6 +175,7 @@ class Requisition(Base):
     department_id: Mapped[int | None] = mapped_column(ForeignKey("departments.id"))
     operational_manager: Mapped[str | None] = mapped_column(String(160))
     authorization_person: Mapped[str | None] = mapped_column(String(160))
+    estimated_value: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
     req_type: Mapped[str] = mapped_column(String(40), default="REQUISIÇÃO")
     status: Mapped[str] = mapped_column(String(30), default=RequisitionStatus.draft.value, index=True)
     reviewed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
@@ -230,9 +232,12 @@ class ApprovalMatrixRule(Base):
     max_value: Mapped[float | None] = mapped_column(Numeric(14, 2))
     modality: Mapped[str] = mapped_column(String(80), nullable=False)
     final_approval: Mapped[str] = mapped_column(String(160), nullable=False)
+    approver_role_id: Mapped[int | None] = mapped_column(ForeignKey("roles.id"))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    approver_role: Mapped[Role | None] = relationship()
 
 
 class ProcurementCase(Base):

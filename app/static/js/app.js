@@ -86,6 +86,7 @@ function selectedProductData(row) {
     select,
     stock: Number(option?.dataset.stock || 0),
     unit: option?.dataset.unit || "",
+    price: Number(option?.dataset.price || 0),
     productId: option?.value || "",
   };
 }
@@ -338,3 +339,52 @@ window.addEventListener("resize", () => {
   window.clearTimeout(window.__chartResize);
   window.__chartResize = window.setTimeout(initDashboardCharts, 120);
 });
+
+function updateRequisitionItemRow(row) {
+  const { stock, unit, price } = selectedProductData(row);
+  const quantity = row.querySelector("input[name='quantity']");
+  const hint = row.querySelector(".stock-hint");
+  const priceEl = row.querySelector(".unit-price");
+  const totalEl = row.querySelector(".line-total");
+  if (!quantity) return;
+
+  quantity.max = isStockRequisition() ? String(stock) : "";
+  if (isStockRequisition() && Number(quantity.value || 0) > stock) quantity.value = String(stock);
+  if (hint) hint.textContent = isStockRequisition() ? `Máximo disponível: ${stock} ${unit}` : "";
+  if (priceEl) priceEl.textContent = price.toFixed(2);
+  if (totalEl) totalEl.textContent = (price * Number(quantity.value || 0)).toFixed(2);
+}
+
+function validateRequisitionTotals() {
+  const rows = document.querySelectorAll("[data-requisition-item]");
+  const totals = new Map();
+  let requestValue = 0;
+  rows.forEach((row) => {
+    const { productId, stock, price } = selectedProductData(row);
+    const quantity = row.querySelector("input[name='quantity']");
+    if (!quantity) return;
+    quantity.setCustomValidity("");
+    const current = totals.get(productId) || { total: 0, stock, quantity };
+    const qty = Number(quantity.value || 0);
+    current.total += qty;
+    requestValue += qty * price;
+    totals.set(productId, current);
+    updateRequisitionItemRow(row);
+  });
+
+  const totalEl = document.getElementById("requisition-total");
+  if (totalEl) totalEl.textContent = requestValue.toFixed(2);
+
+  if (!isStockRequisition()) return true;
+  let valid = true;
+  totals.forEach(({ total, stock, quantity }) => {
+    if (stock <= 0) {
+      quantity.setCustomValidity("Este item não tem stock disponível.");
+      valid = false;
+    } else if (total > stock) {
+      quantity.setCustomValidity(`A quantidade total pedida excede o stock disponível (${stock}).`);
+      valid = false;
+    }
+  });
+  return valid;
+}

@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.core import Department, Product, Requisition, StockMovement, User
+from app.models.core import Department, ProcurementCase, Product, Requisition, StockMovement, User
 from app.routers.common import templates
 from app.security import require_permission
 from app.services.exports import rows_to_csv, rows_to_pdf, rows_to_xlsx
@@ -21,12 +21,26 @@ def reports_home(request: Request, db: Session = Depends(get_db), user: User = D
 
 def stock_rows(db: Session):
     products = db.scalars(select(Product).order_by(Product.name)).all()
-    return [(p.code, p.name, p.category.name if p.category else "Sem Categoria", p.unit, p.current_stock, p.minimum_stock, p.total_entries, p.total_exits, p.alert_status) for p in products]
+    return [
+        (
+            p.code,
+            p.name,
+            p.category.name if p.category else "Sem Categoria",
+            p.unit,
+            p.unit_price,
+            p.current_stock,
+            p.minimum_stock,
+            p.total_entries,
+            p.total_exits,
+            p.alert_status,
+        )
+        for p in products
+    ]
 
 
 @router.get("/stock")
 def stock_report(request: Request, export: str = "", db: Session = Depends(get_db), user: User = Depends(require_permission("reports"))):
-    headers = ["Código", "Produto", "Categoria", "Unidade", "Stock Atual", "Stock Mínimo", "Entradas", "Saídas", "Alerta"]
+    headers = ["Código", "Produto", "Categoria", "Unidade", "Preço Unit.", "Stock Atual", "Stock Mínimo", "Entradas", "Saídas", "Alerta"]
     rows = stock_rows(db)
     if export == "xlsx":
         return Response(rows_to_xlsx(headers, rows, "Stock"), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": 'attachment; filename="stock.xlsx"'})
@@ -67,7 +81,7 @@ def movement_report(
     except ValueError as exc:
         raise HTTPException(400, "Informe datas válidas no formato AAAA-MM-DD.") from exc
     movements = db.scalars(stmt).all()
-    headers = ["Data", "Acção", "Código", "Item", "Destino", "Quantidade", "Tipo", "Responsável", "Departamento"]
+    headers = ["Data", "Ação", "Código", "Item", "Destino", "Quantidade", "Tipo", "Responsável", "Departamento"]
     rows = [(m.posted_at, m.action_type, m.product.code, m.product.name, m.destination, m.quantity, m.reference_number, m.responsible_person, m.department.name if m.department else "") for m in movements]
     if export == "xlsx":
         return Response(rows_to_xlsx(headers, rows, "Movimentos"), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": 'attachment; filename="movimentos.xlsx"'})
@@ -103,8 +117,8 @@ def requisition_report(request: Request, status: str = "", department_id: int | 
     if requester_id:
         stmt = stmt.where(Requisition.requesting_user_id == requester_id)
     reqs = db.scalars(stmt).all()
-    headers = ["Nº", "Data", "Estado", "Departamento", "Requisitante"]
-    rows = [(r.number, r.request_date, r.status, r.department.name if r.department else "", r.requesting_user.full_name) for r in reqs]
+    headers = ["Nº", "Data", "Estado", "Departamento", "Requisitante", "Valor", "Aprovador"]
+    rows = [(r.number, r.request_date, r.status, r.department.name if r.department else "", r.requesting_user.full_name, r.estimated_value, r.authorization_person or "") for r in reqs]
     if export == "xlsx":
         return Response(rows_to_xlsx(headers, rows, "Requisições"), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": 'attachment; filename="requisicoes.xlsx"'})
     if export == "pdf":
@@ -122,6 +136,33 @@ def requisition_report(request: Request, status: str = "", department_id: int | 
             "users": db.scalars(select(User).order_by(User.full_name)).all(),
         },
     )
+
+
+@router.get("/procurement")
+def procurement_report(request: Request, export: str = "", db: Session = Depends(get_db), user: User = Depends(require_permission("reports"))):
+    cases = db.scalars(select(ProcurementCase).order_by(ProcurementCase.created_at.desc())).all()
+    headers = ["Nº", "Requisitante", "Departamento", "Budget estimado", "Budget confirmado", "Modalidade", "Aprovação", "Estado", "Fornecedor", "PO", "Valor PO"]
+    rows = [
+        (
+            case.requisition.number,
+            case.requisition.requesting_user.full_name,
+            case.requisition.department.name if case.requisition.department else "",
+            case.estimated_budget,
+            "Sim" if case.budget_confirmed else "Não" if case.budget_confirmed is False else "Pendente",
+            case.modality or "",
+            case.approval_route or "",
+            case.status,
+            case.selected_supplier or "",
+            case.po_number or "",
+            case.po_value or "",
+        )
+        for case in cases
+    ]
+    if export == "xlsx":
+        return Response(rows_to_xlsx(headers, rows, "Procurement"), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": 'attachment; filename="procurement.xlsx"'})
+    if export == "pdf":
+        return Response(rows_to_pdf(headers, rows, "Relatório de Procurement", user.full_name), media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="procurement.pdf"'})
+    return templates.TemplateResponse("reports/procurement.html", {"request": request, "user": user, "headers": headers, "rows": rows})
 
 
 @router.get("/critico")

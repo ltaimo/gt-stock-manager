@@ -30,6 +30,14 @@ def ensure_schema() -> None:
             additions.append("ALTER TABLE requisition_items ADD COLUMN review_status VARCHAR(30) DEFAULT 'Pendente'")
         if "review_observation" not in columns:
             additions.append("ALTER TABLE requisition_items ADD COLUMN review_observation TEXT")
+    if "products" in tables:
+        columns = {column["name"] for column in inspector.get_columns("products")}
+        if "unit_price" not in columns:
+            additions.append("ALTER TABLE products ADD COLUMN unit_price NUMERIC(14, 2) DEFAULT 0")
+    if "requisitions" in tables:
+        columns = {column["name"] for column in inspector.get_columns("requisitions")}
+        if "estimated_value" not in columns:
+            additions.append("ALTER TABLE requisitions ADD COLUMN estimated_value NUMERIC(14, 2) DEFAULT 0")
     if "roles" in tables:
         columns = {column["name"] for column in inspector.get_columns("roles")}
         if "permissions" not in columns:
@@ -46,6 +54,10 @@ def ensure_schema() -> None:
             additions.append("ALTER TABLE users ADD COLUMN notify_whatsapp BOOLEAN DEFAULT false")
         if "preferred_language" not in columns:
             additions.append("ALTER TABLE users ADD COLUMN preferred_language VARCHAR(5) DEFAULT 'pt'")
+    if "approval_matrix_rules" in tables:
+        columns = {column["name"] for column in inspector.get_columns("approval_matrix_rules")}
+        if "approver_role_id" not in columns:
+            additions.append("ALTER TABLE approval_matrix_rules ADD COLUMN approver_role_id INTEGER REFERENCES roles(id)")
 
     with engine.begin() as connection:
         for statement in additions:
@@ -82,6 +94,19 @@ def ensure_schema() -> None:
                             "final_approval": final_approval,
                         },
                     )
+            connection.execute(
+                text(
+                    """
+                    UPDATE approval_matrix_rules
+                    SET approver_role_id = (
+                        SELECT roles.id FROM roles
+                        WHERE lower(roles.name) = lower(approval_matrix_rules.final_approval)
+                        LIMIT 1
+                    )
+                    WHERE approver_role_id IS NULL
+                    """
+                )
+            )
 
 
 if __name__ == "__main__":

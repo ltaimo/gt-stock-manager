@@ -15,7 +15,8 @@
           <th>Minimo</th>
           <th>Maximo</th>
           <th>Modalidade</th>
-          <th>Aprovacao final</th>
+          <th>Perfil aprovador</th>
+          <th>Aprovação final</th>
           <th>Ativa</th>
         </tr>
       </thead>
@@ -28,7 +29,15 @@
           </td>
           <td data-label="Maximo"><input name="max_value" type="number" min="0" step="0.01" value="{{ rule.max_value or '' }}" placeholder="Sem limite"></td>
           <td data-label="Modalidade"><input name="modality" value="{{ rule.modality }}" required></td>
-          <td data-label="Aprovacao final"><input name="final_approval" value="{{ rule.final_approval }}" required></td>
+          <td data-label="Perfil aprovador">
+            <select name="approver_role_id">
+              <option value="">Texto manual</option>
+              {% for role in roles %}
+                <option value="{{ role.id }}" {% if rule.approver_role_id == role.id %}selected{% endif %}>{{ role.name }}</option>
+              {% endfor %}
+            </select>
+          </td>
+          <td data-label="Aprovação final"><input name="final_approval" value="{{ rule.final_approval }}" placeholder="Usado se não escolher perfil"></td>
           <td data-label="Ativa"><label class="check"><input type="checkbox" name="is_active" value="{{ rule.id }}" {% if rule.is_active %}checked{% endif %}> Sim</label></td>
         </tr>
         {% endfor %}
@@ -39,7 +48,13 @@
           </td>
           <td data-label="Maximo"><input name="max_value" type="number" min="0" step="0.01" placeholder="Novo maximo"></td>
           <td data-label="Modalidade"><input name="modality" placeholder="Nova modalidade"></td>
-          <td data-label="Aprovacao final"><input name="final_approval" placeholder="Novo aprovador"></td>
+          <td data-label="Perfil aprovador">
+            <select name="approver_role_id">
+              <option value="">Texto manual</option>
+              {% for role in roles %}<option value="{{ role.id }}">{{ role.name }}</option>{% endfor %}
+            </select>
+          </td>
+          <td data-label="Aprovação final"><input name="final_approval" placeholder="Novo aprovador"></td>
           <td data-label="Ativa"><span class="muted">Ativa ao guardar</span></td>
         </tr>
       </tbody>

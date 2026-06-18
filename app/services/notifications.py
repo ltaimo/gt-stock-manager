@@ -59,7 +59,7 @@ def send_whatsapp(phone: str, subject: str, body: str) -> None:
     settings = get_settings()
     if not phone:
         return
-    payload = {"to": phone, "subject": subject, "message": body}
+    payload = {"from": settings.whatsapp_sender, "to": phone, "subject": subject, "message": body}
     if settings.whatsapp_webhook_url:
         data = json.dumps(payload).encode("utf-8")
         req = urlrequest.Request(

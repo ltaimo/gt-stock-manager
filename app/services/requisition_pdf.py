@@ -112,6 +112,7 @@ def requisition_to_pdf(req: Requisition, generated_by: User | None = None, clien
     info_box = box_table(
         [
             ["Por Autorizar:", req.authorization_person or "Gestor de Estoque"],
+            ["Valor estimado:", f"{float(req.estimated_value or 0):.2f} MZN"],
             ["Requisitante", req.requesting_user.full_name],
             ["Departamento", req.department.name if req.department else ""],
             ["Gestor Operacional", req.operational_manager or ""],

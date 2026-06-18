@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import get_db
-from app.models.core import ApprovalMatrixRule, Category, Department, Product, Requisition, StockMovement, User
+from app.models.core import ApprovalMatrixRule, Category, Department, Product, Requisition, Role, StockMovement, User
 from app.routers.common import templates
 from app.security import require_permission
 from app.services.audit import audit_log
@@ -125,7 +125,8 @@ def remove_department(department_id: int, request: Request, db: Session = Depend
 @router.get("/matriz")
 def matrix(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("procurement_settings"))):
     rules = db.scalars(select(ApprovalMatrixRule).order_by(ApprovalMatrixRule.sort_order, ApprovalMatrixRule.min_value)).all()
-    return templates.TemplateResponse("settings/matrix.html", {"request": request, "user": user, "rules": rules, "error": None})
+    roles = db.scalars(select(Role).order_by(Role.name)).all()
+    return templates.TemplateResponse("settings/matrix.html", {"request": request, "user": user, "rules": rules, "roles": roles, "error": None})
 
 
 @router.post("/matriz")
@@ -136,12 +137,13 @@ def save_matrix(
     max_value: list[str] = Form([]),
     modality: list[str] = Form([]),
     final_approval: list[str] = Form([]),
+    approver_role_id: list[str] = Form([]),
     is_active: list[str] = Form([]),
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("procurement_settings")),
 ):
     active_ids = {int(value) for value in is_active if str(value).strip().isdigit()}
-    if not (len(rule_id) == len(min_value) == len(max_value) == len(modality) == len(final_approval)):
+    if not (len(rule_id) == len(min_value) == len(max_value) == len(modality) == len(final_approval) == len(approver_role_id)):
         raise HTTPException(400, "A matriz enviada esta incompleta.")
     with atomic(db):
         for idx, raw_id in enumerate(rule_id):
@@ -159,7 +161,10 @@ def save_matrix(
             rule.min_value = min_amount
             rule.max_value = max_amount
             rule.modality = required_text(modality[idx], "Modalidade", 80)
-            rule.final_approval = required_text(final_approval[idx], "Aprovacao final", 160)
+            parsed_role_id = optional_int(approver_role_id[idx], "Perfil aprovador")
+            approver_role = db.get(Role, parsed_role_id) if parsed_role_id else None
+            rule.approver_role_id = approver_role.id if approver_role else None
+            rule.final_approval = approver_role.name if approver_role else required_text(final_approval[idx], "Aprovação final", 160)
             rule.sort_order = idx
             rule.is_active = bool(parsed_id and parsed_id in active_ids) or not parsed_id
             db.add(rule)

@@ -5,7 +5,7 @@
   {% if can(user, 'products_manage') %}<a class="button" href="/produtos/novo">Novo Produto</a>{% endif %}
 </header>
 <form class="filters">
-  <input name="q" value="{{ q }}" placeholder="Pesquisar código, produto ou categoria">
+  <input name="q" value="{{ q }}" placeholder="Pesquisar código, produto ou categoria" spellcheck="true">
   <select name="status">
     <option value="">Todos</option>
     <option value="active" {% if status=='active' %}selected{% endif %}>Ativo</option>
@@ -16,7 +16,7 @@
 <div class="panel">
   <table>
     <thead>
-      <tr><th>Código</th><th>Produto/Marca</th><th>Categoria</th><th>Unidade</th><th>Qtde</th><th>Entrada</th><th>Saída</th><th>Alerta</th><th>Estado</th><th></th></tr>
+      <tr><th>Código</th><th>Produto/Marca</th><th>Categoria</th><th>Unidade</th><th>Preço Unit.</th><th>Qtde</th><th>Entrada</th><th>Saída</th><th>Alerta</th><th>Estado</th><th></th></tr>
     </thead>
     <tbody>
     {% for p in products %}
@@ -25,6 +25,7 @@
         <td>{{ p.name }}</td>
         <td>{{ p.category.name if p.category else 'Sem Categoria' }}</td>
         <td>{{ p.unit }}</td>
+        <td>{{ "%.2f"|format(p.unit_price|float) }} MZN</td>
         <td>{{ p.current_stock }}</td>
         <td>{{ p.total_entries }}</td>
         <td>{{ p.total_exits }}</td>

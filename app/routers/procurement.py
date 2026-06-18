@@ -1,18 +1,20 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.core import ApprovalMatrixRule, ProcurementCase, Requisition, RequisitionStatus, User
+from app.models.core import ProcurementCase, Requisition, RequisitionStatus, User
 from app.routers.common import templates
 from app.security import current_user, has_permission, require_permission
 from app.services.audit import audit_log
 from app.services.forms import optional_float, optional_int, required_float, required_text
 from app.services.notifications import notify_procurement_budget_pending, notify_procurement_classification_pending
 from app.services.procurement import classify_procurement, days_open, next_non_stock_number
+from app.services.procurement import approval_label
+from app.services.procurement_pdf import procurement_form_to_pdf
 from app.services.transactions import atomic
 
 router = APIRouter(prefix="/procurement", tags=["procurement"])
@@ -115,44 +117,8 @@ def matrix(request: Request, db: Session = Depends(get_db), user: User = Depends
 
 
 @router.post("/matriz")
-def save_matrix(
-    request: Request,
-    rule_id: list[str] = Form([]),
-    min_value: list[str] = Form([]),
-    max_value: list[str] = Form([]),
-    modality: list[str] = Form([]),
-    final_approval: list[str] = Form([]),
-    is_active: list[str] = Form([]),
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("procurement_settings")),
-):
-    active_ids = {int(value) for value in is_active if str(value).strip().isdigit()}
-    if not (len(rule_id) == len(min_value) == len(max_value) == len(modality) == len(final_approval)):
-        raise HTTPException(400, "A matriz enviada esta incompleta.")
-    with atomic(db):
-        for idx, raw_id in enumerate(rule_id):
-            parsed_id = optional_int(raw_id, "Regra")
-            row_values = [min_value[idx], max_value[idx], modality[idx], final_approval[idx]]
-            if not parsed_id and not any(str(value or "").strip() for value in row_values):
-                continue
-            min_amount = required_float(min_value[idx], "Valor minimo")
-            max_amount = optional_float(max_value[idx], "Valor maximo")
-            if min_amount < 0 or (max_amount is not None and max_amount < min_amount):
-                raise HTTPException(400, "Intervalo de valor invalido na matriz.")
-            clean_modality = required_text(modality[idx], "Modalidade", 80)
-            clean_approval = required_text(final_approval[idx], "Aprovacao final", 160)
-            rule = db.get(ApprovalMatrixRule, parsed_id) if parsed_id else ApprovalMatrixRule()
-            if not rule:
-                raise HTTPException(404)
-            rule.min_value = min_amount
-            rule.max_value = max_amount
-            rule.modality = clean_modality
-            rule.final_approval = clean_approval
-            rule.sort_order = idx
-            rule.is_active = bool(parsed_id and parsed_id in active_ids) or not parsed_id
-            db.add(rule)
-        audit_log(db, user, "Atualizou matriz de aprovacao", "Procurement", request=request)
-    return RedirectResponse("/procurement/matriz", status_code=303)
+def save_matrix(user: User = Depends(require_permission("procurement_settings"))):
+    return RedirectResponse("/configuracoes/matriz", status_code=303)
 
 
 @router.get("/{case_id}")
@@ -211,13 +177,24 @@ def classify_case(
     with atomic(db):
         case.procurement_officer_id = officer.id if officer else None
         case.modality = rule.modality
-        case.approval_route = rule.final_approval
+        case.approval_route = approval_label(rule)
         case.approval_status = "Pending"
         case.technical_evaluation_required = technical_evaluation_required == "1"
         case.technical_evaluation_status = "Pending" if case.technical_evaluation_required else "Not Required"
         case.status = "Pending Approval"
         audit_log(db, user, "Classificou procurement", "Procurement", case.requisition.number, new_value={"modality": case.modality, "approval": case.approval_route}, request=request)
     return RedirectResponse(f"/procurement/{case.id}", status_code=303)
+
+
+@router.get("/{case_id}/formulario")
+def procurement_form_pdf(case_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    case = case_or_404(db, case_id, user)
+    disposition = "attachment" if request.query_params.get("download") == "1" else "inline"
+    return Response(
+        procurement_form_to_pdf(case, user),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'{disposition}; filename="{case.requisition.number}-NS.pdf"'},
+    )
 
 
 @router.post("/{case_id}/tracker")

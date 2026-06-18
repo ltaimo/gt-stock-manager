@@ -37,6 +37,12 @@ def classify_procurement(db: Session, amount: float | Decimal) -> ApprovalMatrix
     return None
 
 
+def approval_label(rule: ApprovalMatrixRule | None) -> str:
+    if not rule:
+        return ""
+    return rule.approver_role.name if rule.approver_role else rule.final_approval
+
+
 def days_open(created_at, closure_date=None) -> int:
     end = closure_date or datetime.now(timezone.utc)
     if created_at.tzinfo is None:

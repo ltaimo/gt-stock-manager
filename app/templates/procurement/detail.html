@@ -4,6 +4,8 @@
   <h1>{{ case.requisition.number }}</h1>
   <div class="actions">
     <a class="button secondary" href="/procurement">Voltar</a>
+    <a class="button secondary" href="/procurement/{{ case.id }}/formulario" target="_blank">Visualizar formulário</a>
+    <a class="button" href="/procurement/{{ case.id }}/formulario?download=1">Baixar formulário</a>
     {% if can(user, 'procurement_settings') %}<a class="button secondary" href="/configuracoes/matriz">Matriz</a>{% endif %}
   </div>
 </header>

@@ -6,7 +6,7 @@ from sqlalchemy import extract, func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.core import Product, Requisition, RequisitionStatus, StockMovement, User
+from app.models.core import ProcurementCase, Product, Requisition, RequisitionStatus, StockMovement, User
 from app.routers.common import templates
 from app.security import current_user, has_permission
 
@@ -22,6 +22,7 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
     products = db.scalars(select(Product).order_by(Product.name)).all()
     can_view_movements = has_permission(user, "movements")
     can_review_requisitions = has_permission(user, "requisitions_review")
+    can_view_procurement = has_permission(user, "procurement_manage") or has_permission(user, "budget_verify")
     movements = (
         db.scalars(select(StockMovement).order_by(StockMovement.posted_at.desc()).limit(8)).all()
         if can_view_movements
@@ -31,6 +32,7 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
     if not can_review_requisitions:
         pending_stmt = pending_stmt.where(Requisition.requesting_user_id == user.id)
     pending = db.scalars(pending_stmt.limit(8)).all()
+    procurement_pending = db.scalars(select(ProcurementCase).where(ProcurementCase.status != "Closed").order_by(ProcurementCase.created_at.desc()).limit(8)).all() if can_view_procurement else []
 
     active_products = [p for p in products if p.status == "active"]
     attention_statuses = {"Sem Stock", "Stock Crítico", "Stock em Atenção", "Erro: Stock Negativo"}
@@ -118,6 +120,7 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
             "warning": len(warning_products),
             "negative": len(negative_products),
             "pending_count": len(pending),
+            "procurement_pending_count": len(procurement_pending),
             "entries_month": entries_month,
             "exits_month": exits_month,
             "projected_entries": projected_entries,
@@ -125,11 +128,13 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
             "stock_health": stock_health,
             "recent_movements": movements,
             "pending_requisitions": pending,
+            "pending_procurement": procurement_pending,
             "most_requested": most_requested,
             "critical_products": critical_products[:10],
             "month_chart": month_chart,
             "movement_type_chart": movement_type_chart,
             "unit_chart": unit_chart,
             "can_view_movements": can_view_movements,
+            "can_view_procurement": can_view_procurement,
         },
     )

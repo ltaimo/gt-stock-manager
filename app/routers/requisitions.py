@@ -13,6 +13,7 @@ from app.services.audit import audit_log
 from app.services.forms import optional_int, parse_float_list, parse_int_list
 from app.services.inventory import StockError
 from app.services.notifications import notify_requisition_decision, notify_requisition_pending
+from app.services.procurement import approval_label, classify_procurement
 from app.services.requisition_pdf import requisition_to_pdf
 from app.services.requisitions import approve_requisition, issue_requisition, next_requisition_number
 from app.services.transactions import atomic
@@ -96,6 +97,32 @@ def validate_requisition_items(
     return validated
 
 
+def requisition_value(validated_items: list[tuple[int, Product, float]]) -> float:
+    return round(sum(float(product.unit_price or 0) * quantity for _idx, product, quantity in validated_items), 2)
+
+
+def authorization_for_value(db: Session, total_value: float) -> str:
+    return approval_label(classify_procurement(db, total_value)) or "Chefe do Terminal"
+
+
+def can_review_by_matrix(req: Requisition, user: User) -> bool:
+    expected = (req.authorization_person or "").strip().casefold()
+    if not expected or user.role.name == "SuperAdmin":
+        return True
+    return user.role.name.casefold() == expected
+
+
+def normalize_req_type(req_type: str) -> str:
+    normalized = (req_type or "").strip().upper()
+    if normalized in {"REQUISIÇÃO", "REQUISIÃ‡ÃƒO"}:
+        return "REQUISIÇÃO"
+    if normalized in {"DEVOLUÇÃO", "DEVOLUÃ‡ÃƒO"}:
+        return "DEVOLUÇÃO"
+    if normalized == "OUTRO":
+        return "OUTRO"
+    raise HTTPException(400, "Tipo de requisição inválido.")
+
+
 @router.get("")
 def list_requisitions(request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
     stmt = select(Requisition).order_by(Requisition.request_date.desc())
@@ -131,17 +158,18 @@ def create_requisition(
     manager = db.get(User, parsed_manager_id) if parsed_manager_id else None
     if not manager or manager.id not in allowed_manager_ids:
         raise HTTPException(400, "Escolha um Gestor Operacional ou um membro da Direção.")
-    if req_type not in {"REQUISIÇÃO", "DEVOLUÇÃO", "OUTRO"}:
-        raise HTTPException(400, "Tipo de requisição inválido.")
+    req_type = normalize_req_type(req_type)
     try:
         validated_items = validate_requisition_items(db, req_type, parsed_product_ids, parsed_quantities)
         with atomic(db):
+            total_value = requisition_value(validated_items)
             req = Requisition(
                 number=next_requisition_number(db),
                 requesting_user_id=user.id,
                 department_id=user.department_id,
                 operational_manager=manager.full_name if manager else None,
-                authorization_person="Gestor de Estoque",
+                authorization_person=authorization_for_value(db, total_value),
+                estimated_value=total_value,
                 req_type=req_type,
                 status=RequisitionStatus.submitted.value if submit else RequisitionStatus.draft.value,
             )
@@ -188,13 +216,16 @@ def submit_requisition(req_id: int, request: Request, db: Session = Depends(get_
     if req.status != RequisitionStatus.draft.value:
         raise HTTPException(400, "Apenas requisições em rascunho podem ser submetidas.")
     try:
-        validate_requisition_items(
+        validated_items = validate_requisition_items(
             db,
             req.req_type,
             [item.product_id for item in req.items],
             [float(item.quantity_requested) for item in req.items],
         )
         with atomic(db):
+            total_value = requisition_value(validated_items)
+            req.estimated_value = total_value
+            req.authorization_person = authorization_for_value(db, total_value)
             req.status = RequisitionStatus.submitted.value
             notify_requisition_pending(db, req)
             audit_log(db, user, "Submeteu requisição", "Requisições", req.number, request=request)
@@ -246,6 +277,8 @@ def review_requisition(
         raise HTTPException(404)
     if req.status != RequisitionStatus.submitted.value:
         raise HTTPException(400, "Apenas requisições submetidas podem ser analisadas.")
+    if not can_review_by_matrix(req, user):
+        raise HTTPException(403, f"Esta requisição deve ser aprovada por {req.authorization_person}.")
     if decision not in {"approve", "partial", "reject"}:
         raise HTTPException(400, "Escolha uma decisão válida.")
     parsed_item_ids = parse_int_list(item_id, "Item") if decision == "partial" else []
@@ -326,3 +359,14 @@ def requisition_pdf(req_id: int, request: Request, db: Session = Depends(get_db)
         media_type="application/pdf",
         headers={"Content-Disposition": f'{disposition}; filename="{req.number}.pdf"'},
     )
+
+
+def normalize_req_type(req_type: str) -> str:
+    normalized = (req_type or "").strip().upper()
+    if "REQUISI" in normalized:
+        return "REQUISICAO"
+    if "DEVOL" in normalized:
+        return "DEVOLUCAO"
+    if normalized == "OUTRO":
+        return "OUTRO"
+    raise HTTPException(400, "Tipo de requisição inválido.")

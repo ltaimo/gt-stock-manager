@@ -24,6 +24,10 @@ TRANSLATIONS = {
         "settings": "Configuracoes",
         "about": "Sobre",
         "notifications": "Notificacoes",
+        "dashboard_intro": "Visão operacional de stock, movimentos, alertas, procurement e projeções do mês.",
+        "total_products": "Total de produtos",
+        "open_procurement": "Procurement aberto",
+        "pending_requests": "Requisições Pendentes",
     },
     "en": {
         "dashboard": "Dashboard",
@@ -41,6 +45,10 @@ TRANSLATIONS = {
         "settings": "Settings",
         "about": "About",
         "notifications": "Notifications",
+        "dashboard_intro": "Operational view of stock, movements, alerts, procurement, and monthly projections.",
+        "total_products": "Total products",
+        "open_procurement": "Open procurement",
+        "pending_requests": "Pending Requests",
     },
 }
 

@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="pt">
+<html lang="{{ current_language(user) if user else 'pt' }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=20260618-2">
+  <link rel="stylesheet" href="/static/css/app.css?v=20260618-3">
 </head>
-<body>
+<body spellcheck="true">
 {% if user %}
 <aside class="sidebar" id="app-sidebar" aria-label="Menu principal">
   <div class="sidebar-mobile-heading">
@@ -78,6 +78,6 @@
   <footer class="auth-footer">Designed by Layton Taimo</footer>
 </main>
 {% endif %}
-<script src="/static/js/app.js?v=20260618-2"></script>
+<script src="/static/js/app.js?v=20260618-3"></script>
 </body>
 </html>

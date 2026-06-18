@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header">
+  <h1>Relatório de Procurement / NS</h1>
+  <div>
+    <a class="button secondary" href="?export=xlsx">Excel</a>
+    <a class="button secondary" href="?export=pdf">PDF</a>
+  </div>
+</header>
+{% include "reports/table.html" %}
+{% endblock %}

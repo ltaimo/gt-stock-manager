@@ -4,21 +4,27 @@
 <header class="page-header">
   <div>
     <h1>Dashboard</h1>
-    <p class="muted">Visão operacional de stock, movimentos, alertas e projeções do mês.</p>
+    <p class="muted">{{ t('dashboard_intro', user) }}</p>
   </div>
   <span>{{ user.full_name }} · {{ user.role.name }}</span>
 </header>
 
 <section class="kpis dashboard-kpis">
-  <div><strong>{{ total_products }}</strong><span>Total de produtos</span><small>{{ active_products }} ativos</small></div>
+  <div><strong>{{ total_products }}</strong><span>{{ t('total_products', user) }}</span><small>{{ active_products }} ativos</small></div>
   <div><strong>{{ stockout }}</strong><span>Sem Stock</span><small>{{ critical }} itens requerem atenção</small></div>
   <div><strong>{{ warning }}</strong><span>Stock em Atenção</span><small>{{ negative }} stock negativo</small></div>
-  {% if can_view_movements %}<div><strong>{{ entries_month }}</strong><span>Entradas do mês</span><small>Proj. {{ projected_entries }}</small></div>
-  <div><strong>{{ exits_month }}</strong><span>Saídas do mês</span><small>Proj. {{ projected_exits }}</small></div>{% endif %}
+  {% if can_view_movements %}
+    <div><strong>{{ entries_month }}</strong><span>Entradas do mês</span><small>Proj. {{ projected_entries }}</small></div>
+    <div><strong>{{ exits_month }}</strong><span>Saídas do mês</span><small>Proj. {{ projected_exits }}</small></div>
+  {% endif %}
+  {% if can_view_procurement %}
+    <div><strong>{{ procurement_pending_count }}</strong><span>{{ t('open_procurement', user) }}</span><small>NS em acompanhamento</small></div>
+  {% endif %}
   <div><strong>{{ stock_health }}%</strong><span>Saúde do stock</span><small>Stock adequado</small></div>
 </section>
 
-{% if can_view_movements %}<section class="dashboard-grid">
+{% if can_view_movements %}
+<section class="dashboard-grid">
   <div class="panel chart-panel wide">
     <div class="panel-heading">
       <h2>Entradas vs Saídas do Mês</h2>
@@ -31,17 +37,16 @@
       <div><strong>{{ projected_entries - projected_exits }}</strong><span>Saldo projetado</span></div>
     </div>
   </div>
-
   <div class="panel chart-panel">
     <div class="panel-heading"><h2>Movimentos por Tipo</h2></div>
     <canvas id="movementTypeChart" height="190"></canvas>
   </div>
-
   <div class="panel chart-panel">
     <div class="panel-heading"><h2>Produtos por Unidade</h2></div>
     <canvas id="unitChart" height="190"></canvas>
   </div>
-</section>{% endif %}
+</section>
+{% endif %}
 
 <section class="grid-two">
   <div class="panel">
@@ -61,18 +66,20 @@
     </table>
   </div>
 
-  {% if can_view_movements %}<div class="panel">
+  {% if can_view_movements %}
+  <div class="panel">
     <div class="panel-heading">
       <h2>Movimentos recentes</h2>
       <a href="/movimentos">Ver todos</a>
     </div>
     {% include "movements/_table.html" %}
-  </div>{% endif %}
+  </div>
+  {% endif %}
 </section>
 
 <section class="grid-two">
   <div class="panel">
-    <div class="panel-heading"><h2>Requisições Pendentes</h2><span class="badge orange">{{ pending_count }}</span></div>
+    <div class="panel-heading"><h2>{{ t('pending_requests', user) }}</h2><span class="badge orange">{{ pending_count }}</span></div>
     <table>
       <thead><tr><th>Nº</th><th>Departamento</th><th>Estado</th></tr></thead>
       <tbody>
@@ -85,7 +92,22 @@
     </table>
   </div>
 
-  {% if can_view_movements %}<div class="panel">
+  {% if can_view_procurement %}
+  <div class="panel">
+    <div class="panel-heading"><h2>Procurement / NS aberto</h2><span class="badge orange">{{ procurement_pending_count }}</span></div>
+    <table>
+      <thead><tr><th>Nº</th><th>Budget</th><th>Estado</th></tr></thead>
+      <tbody>
+      {% for case in pending_procurement %}
+        <tr><td><a href="/procurement/{{ case.id }}">{{ case.requisition.number }}</a></td><td>{{ "%.2f"|format(case.estimated_budget|float) }} MZN</td><td><span class="badge orange">{{ case.status }}</span></td></tr>
+      {% else %}
+        <tr><td colspan="3"><div class="empty-state">Sem processos NS abertos.</div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% elif can_view_movements %}
+  <div class="panel">
     <div class="panel-heading"><h2>Produtos mais requisitados</h2></div>
     <table>
       <thead><tr><th>Produto</th><th>Total requisitado</th></tr></thead>
@@ -97,7 +119,8 @@
       {% endfor %}
       </tbody>
     </table>
-  </div>{% endif %}
+  </div>
+  {% endif %}
 </section>
 
 {% if can_view_movements %}
