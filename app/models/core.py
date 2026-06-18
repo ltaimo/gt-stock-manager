@@ -181,6 +181,7 @@ class Requisition(Base):
     requesting_user: Mapped[User] = relationship(foreign_keys=[requesting_user_id])
     department: Mapped[Department | None] = relationship()
     items: Mapped[list["RequisitionItem"]] = relationship(back_populates="requisition", cascade="all, delete-orphan")
+    procurement_case: Mapped["ProcurementCase | None"] = relationship(back_populates="requisition", cascade="all, delete-orphan")
 
 
 class RequisitionItem(Base):
@@ -215,6 +216,60 @@ class AuditLog(Base):
     ip_device: Mapped[str | None] = mapped_column(String(220))
 
     user: Mapped[User | None] = relationship()
+
+
+class ApprovalMatrixRule(Base):
+    __tablename__ = "approval_matrix_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    min_value: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
+    max_value: Mapped[float | None] = mapped_column(Numeric(14, 2))
+    modality: Mapped[str] = mapped_column(String(80), nullable=False)
+    final_approval: Mapped[str] = mapped_column(String(160), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class ProcurementCase(Base):
+    __tablename__ = "procurement_cases"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    requisition_id: Mapped[int] = mapped_column(ForeignKey("requisitions.id"), unique=True, nullable=False, index=True)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    justification: Mapped[str | None] = mapped_column(Text)
+    cost_center: Mapped[str | None] = mapped_column(String(120))
+    priority: Mapped[str] = mapped_column(String(30), default="Normal")
+    estimated_budget: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
+    required_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(80), default="Pending Budget Verification", index=True)
+    budget_confirmed: Mapped[bool | None] = mapped_column(Boolean)
+    budget_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    budget_verified_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    procurement_officer_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    modality: Mapped[str | None] = mapped_column(String(80))
+    approval_route: Mapped[str | None] = mapped_column(String(160))
+    approval_status: Mapped[str] = mapped_column(String(60), default="Pending")
+    rfq_rfp_tender_number: Mapped[str | None] = mapped_column(String(80))
+    suppliers_invited: Mapped[int] = mapped_column(Integer, default=0)
+    quotations_received: Mapped[int] = mapped_column(Integer, default=0)
+    technical_evaluation_required: Mapped[bool] = mapped_column(Boolean, default=False)
+    technical_evaluation_status: Mapped[str] = mapped_column(String(60), default="Not Required")
+    financial_evaluation_status: Mapped[str] = mapped_column(String(60), default="Pending")
+    bid_analysis_status: Mapped[str] = mapped_column(String(60), default="Pending")
+    selected_supplier: Mapped[str | None] = mapped_column(String(180))
+    po_number: Mapped[str | None] = mapped_column(String(80))
+    po_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    po_value: Mapped[float | None] = mapped_column(Numeric(14, 2))
+    receipt_status: Mapped[str] = mapped_column(String(60), default="Pending")
+    closure_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    comments: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    requisition: Mapped[Requisition] = relationship(back_populates="procurement_case")
+    budget_verified_by: Mapped[User | None] = relationship(foreign_keys=[budget_verified_by_id])
+    procurement_officer: Mapped[User | None] = relationship(foreign_keys=[procurement_officer_id])
 
 
 class Notification(Base):

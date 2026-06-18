@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header">
+  <h1>Matriz de aprovacao</h1>
+  <a class="button secondary" href="/procurement">Voltar</a>
+</header>
+
+<section class="panel">
+  <p class="muted">Estas regras classificam automaticamente a modalidade e a aprovacao final das requisicoes non-stock.</p>
+  {% if error %}<div class="alert red">{{ error }}</div>{% endif %}
+  <form method="post" class="form-stack">
+    <table class="responsive-table">
+      <thead>
+        <tr>
+          <th>Minimo</th>
+          <th>Maximo</th>
+          <th>Modalidade</th>
+          <th>Aprovacao final</th>
+          <th>Ativa</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rule in rules %}
+        <tr>
+          <td data-label="Minimo">
+            <input type="hidden" name="rule_id" value="{{ rule.id }}">
+            <input name="min_value" type="number" min="0" step="0.01" value="{{ rule.min_value }}">
+          </td>
+          <td data-label="Maximo"><input name="max_value" type="number" min="0" step="0.01" value="{{ rule.max_value or '' }}" placeholder="Sem limite"></td>
+          <td data-label="Modalidade"><input name="modality" value="{{ rule.modality }}" required></td>
+          <td data-label="Aprovacao final"><input name="final_approval" value="{{ rule.final_approval }}" required></td>
+          <td data-label="Ativa"><label class="check"><input type="checkbox" name="is_active" value="{{ rule.id }}" {% if rule.is_active %}checked{% endif %}> Sim</label></td>
+        </tr>
+        {% endfor %}
+        <tr>
+          <td data-label="Minimo">
+            <input type="hidden" name="rule_id" value="">
+            <input name="min_value" type="number" min="0" step="0.01" placeholder="Novo minimo">
+          </td>
+          <td data-label="Maximo"><input name="max_value" type="number" min="0" step="0.01" placeholder="Novo maximo"></td>
+          <td data-label="Modalidade"><input name="modality" placeholder="Nova modalidade"></td>
+          <td data-label="Aprovacao final"><input name="final_approval" placeholder="Novo aprovador"></td>
+          <td data-label="Ativa"><span class="muted">Ativa ao guardar</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="actions"><button>Guardar matriz</button></div>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel narrow">
+  <h1>Nova requisicao non-stock</h1>
+  <p class="muted">Use este fluxo para servicos, obras, contratados ou bens que nao existem no stock.</p>
+  {% if error %}<div class="alert red">{{ error }}</div>{% endif %}
+  <form method="post" class="form-stack">
+    <label>Descricao / escopo
+      <textarea name="description" required placeholder="Descreva o que precisa comprar ou contratar"></textarea>
+    </label>
+    <label>Justificacao
+      <textarea name="justification" placeholder="Explique o motivo e contexto do pedido"></textarea>
+    </label>
+    <div class="form-grid">
+      <label>Centro de custo
+        <input name="cost_center" placeholder="Opcional">
+      </label>
+      <label>Prioridade
+        <select name="priority">
+          <option>Normal</option>
+          <option>Baixa</option>
+          <option>Alta</option>
+          <option>Urgente</option>
+        </select>
+      </label>
+      <label>Budget estimado (MZN)
+        <input name="estimated_budget" type="number" min="0" step="0.01" required>
+      </label>
+      <label>Data requerida
+        <input name="required_date" type="date">
+      </label>
+    </div>
+    <div class="actions">
+      <a class="button secondary" href="/procurement">Cancelar</a>
+      <button>Submeter para verificacao de budget</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

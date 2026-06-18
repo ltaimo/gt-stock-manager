@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=20260613-1">
+  <link rel="stylesheet" href="/static/css/app.css?v=20260618-1">
 </head>
 <body>
 {% if user %}
@@ -15,7 +15,7 @@
   </div>
   <a class="brand" href="/dashboard" aria-label="{{ app_name }}">
     {% if logo_available() %}
-      <img src="/static/img/logo-gt.png" alt="Gestão de Terminais, SA">
+      <img src="/static/img/logo-gt.png" alt="Gestao de Terminais, SA">
     {% else %}
       <span class="brand-mark">GT</span>
     {% endif %}
@@ -26,14 +26,17 @@
     <a href="/produtos" data-nav-prefix="/produtos">Economato / Produtos</a>
     {% if can(user, 'movements') %}<a href="/movimentos" data-nav-prefix="/movimentos">Movimentos</a>{% endif %}
     {% if can(user, 'documents') %}<a href="/documentos" data-nav-prefix="/documentos">Documentos</a>{% endif %}
-    <a href="/requisicoes/nova" data-nav-exact="/requisicoes/nova">Nova Requisição</a>
-    <a href="/requisicoes" data-nav-prefix="/requisicoes">Requisições</a>
-    {% if can(user, 'reports') %}<a href="/relatorios" data-nav-prefix="/relatorios">Relatórios</a>{% endif %}
+    {% if can(user, 'stock_requisitions_create') %}<a href="/requisicoes/nova" data-nav-exact="/requisicoes/nova">Nova Requisicao SR</a>{% endif %}
+    <a href="/requisicoes" data-nav-prefix="/requisicoes">Requisicoes SR</a>
+    {% if can(user, 'non_stock_requisitions_create') or can(user, 'procurement_manage') or can(user, 'budget_verify') %}
+      <a href="/procurement" data-nav-prefix="/procurement">Procurement / NS</a>
+    {% endif %}
+    {% if can(user, 'reports') %}<a href="/relatorios" data-nav-prefix="/relatorios">Relatorios</a>{% endif %}
     {% if can(user, 'users_manage') %}<a href="/utilizadores" data-nav-prefix="/utilizadores">Utilizadores</a>{% endif %}
-    {% if can(user, 'profiles_manage') %}<a href="/perfis" data-nav-prefix="/perfis">Perfis e Permissões</a>{% endif %}
+    {% if can(user, 'profiles_manage') %}<a href="/perfis" data-nav-prefix="/perfis">Perfis e Permissoes</a>{% endif %}
     {% if can(user, 'imports') %}<a href="/importar" data-nav-prefix="/importar">Importar</a>{% endif %}
     {% if can(user, 'audit') %}<a href="/auditoria" data-nav-prefix="/auditoria">Auditoria</a>{% endif %}
-    {% if can(user, 'settings_manage') %}<a href="/produtos/categorias" data-nav-exact="/produtos/categorias">Configurações</a>{% endif %}
+    {% if can(user, 'settings_manage') %}<a href="/produtos/categorias" data-nav-exact="/produtos/categorias">Configuracoes</a>{% endif %}
     <a href="/sobre" data-nav-prefix="/sobre">Sobre</a>
   </nav>
   <form method="post" action="/logout"><button class="link-button">Sair</button></form>
@@ -49,11 +52,11 @@
       <span>{{ app_subtitle }}</span>
     </div>
     <div class="topbar-actions">
-      <a class="notification-link" href="/notificacoes" aria-label="Notificações: {{ unread_notifications(user.id) }} não lidas">
-        <span class="notification-label">Notificações</span>
+      <a class="notification-link" href="/notificacoes" aria-label="Notificacoes: {{ unread_notifications(user.id) }} nao lidas">
+        <span class="notification-label">Notificacoes</span>
         <span>{{ unread_notifications(user.id) }}</span>
       </a>
-      <div class="user-chip">{{ user.full_name }} · {{ user.role.name }}</div>
+      <div class="user-chip">{{ user.full_name }} &middot; {{ user.role.name }}</div>
     </div>
   </header>
   <main class="content">
@@ -69,6 +72,6 @@
   <footer class="auth-footer">Designed by Layton Taimo</footer>
 </main>
 {% endif %}
-<script src="/static/js/app.js?v=20260613-1"></script>
+<script src="/static/js/app.js?v=20260618-1"></script>
 </body>
 </html>

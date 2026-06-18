@@ -105,7 +105,7 @@ def list_requisitions(request: Request, db: Session = Depends(get_db), user: Use
 
 
 @router.get("/nova")
-def new_requisition(request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
+def new_requisition(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("stock_requisitions_create"))):
     return templates.TemplateResponse("requisitions/form.html", requisition_form_context(request, db, user))
 
 
@@ -119,7 +119,7 @@ def create_requisition(
     observation: list[str] = Form([]),
     submit: str | None = Form(None),
     db: Session = Depends(get_db),
-    user: User = Depends(current_user),
+    user: User = Depends(require_permission("stock_requisitions_create")),
 ):
     parsed_manager_id = optional_int(operational_manager_id, "Gestor operacional")
     if len(product_id) != len(quantity):

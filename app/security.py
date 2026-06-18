@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
 import json
-from typing import Iterable
 
 from fastapi import Depends, HTTPException, Request, status
 from passlib.context import CryptContext
@@ -16,14 +15,21 @@ PERMISSIONS = {
     "products_manage": "Criar e editar produtos",
     "movements": "Consultar e registar movimentos",
     "documents": "Consultar documentos de stock",
-    "requisitions_all": "Consultar todas as requisições",
-    "requisitions_review": "Aprovar ou rejeitar requisições",
+    "requisitions_all": "Consultar todas as requisicoes",
+    "stock_requisitions_create": "Criar requisicoes de stock",
+    "non_stock_requisitions_create": "Criar requisicoes non-stock",
+    "requisitions_review": "Aprovar ou rejeitar requisicoes",
     "requisitions_issue": "Emitir itens aprovados",
-    "reports": "Consultar relatórios",
+    "budget_verify": "Verificar disponibilidade orcamental",
+    "procurement_manage": "Gerir processos de procurement",
+    "procurement_settings": "Gerir matriz de aprovacao de procurement",
+    "procurement_technical_evaluate": "Registar avaliacao tecnica",
+    "procurement_financial_evaluate": "Registar avaliacao financeira",
+    "reports": "Consultar relatorios",
     "users_manage": "Gerir utilizadores",
-    "profiles_manage": "Gerir perfis e permissões",
+    "profiles_manage": "Gerir perfis e permissoes",
     "settings_manage": "Gerir categorias e departamentos",
-    "stock_adjust": "Ajustar quantidade existente com justificação",
+    "stock_adjust": "Ajustar quantidade existente com justificacao",
     "stock_reset": "Resetar todo o stock",
     "imports": "Importar dados",
     "audit": "Consultar auditoria",
@@ -32,10 +38,34 @@ PERMISSIONS = {
 DEFAULT_ROLE_PERMISSIONS = {
     "SuperAdmin": set(PERMISSIONS),
     "Admin": set(PERMISSIONS) - {"profiles_manage", "stock_adjust", "stock_reset"},
-    "Editor": {"movements", "documents", "requisitions_all", "requisitions_review", "requisitions_issue", "reports"},
-    "Gestor de Estoque": {"movements", "documents", "requisitions_all", "requisitions_review", "requisitions_issue", "reports", "stock_adjust"},
-    "Chefe do Terminal": {"documents", "requisitions_all", "requisitions_review"},
-    "User": set(),
+    "Editor": {
+        "movements",
+        "documents",
+        "requisitions_all",
+        "stock_requisitions_create",
+        "non_stock_requisitions_create",
+        "requisitions_review",
+        "requisitions_issue",
+        "reports",
+    },
+    "Gestor de Estoque": {
+        "movements",
+        "documents",
+        "requisitions_all",
+        "stock_requisitions_create",
+        "requisitions_review",
+        "requisitions_issue",
+        "reports",
+        "stock_adjust",
+    },
+    "Chefe do Terminal": {
+        "documents",
+        "requisitions_all",
+        "stock_requisitions_create",
+        "non_stock_requisitions_create",
+        "requisitions_review",
+    },
+    "User": {"stock_requisitions_create", "non_stock_requisitions_create"},
 }
 
 
@@ -68,7 +98,7 @@ def require_roles(*roles: str):
 
     def dependency(user: User = Depends(current_user)) -> User:
         if user.role.name not in allowed:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sem permissão")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sem permissao")
         return user
 
     return dependency
@@ -92,7 +122,7 @@ def has_permission(user: User | None, permission: str) -> bool:
 def require_permission(permission: str):
     def dependency(user: User = Depends(current_user)) -> User:
         if not has_permission(user, permission):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sem permissão")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sem permissao")
         return user
 
     return dependency

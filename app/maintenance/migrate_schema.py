@@ -1,6 +1,7 @@
 from sqlalchemy import inspect, text
 
 from app.database import engine
+from app.services.procurement import DEFAULT_APPROVAL_MATRIX
 
 
 DEFAULT_DEPARTMENTS = [
@@ -49,6 +50,27 @@ def ensure_schema() -> None:
                     connection.execute(
                         text("INSERT INTO departments (name, is_active, created_at) VALUES (:name, true, CURRENT_TIMESTAMP)"),
                         {"name": name},
+                    )
+        if "approval_matrix_rules" in inspector.get_table_names():
+            count = connection.execute(text("SELECT count(*) FROM approval_matrix_rules")).scalar() or 0
+            if count == 0:
+                for sort_order, min_value, max_value, modality, final_approval in DEFAULT_APPROVAL_MATRIX:
+                    connection.execute(
+                        text(
+                            """
+                            INSERT INTO approval_matrix_rules
+                                (sort_order, min_value, max_value, modality, final_approval, is_active, created_at)
+                            VALUES
+                                (:sort_order, :min_value, :max_value, :modality, :final_approval, true, CURRENT_TIMESTAMP)
+                            """
+                        ),
+                        {
+                            "sort_order": sort_order,
+                            "min_value": float(min_value),
+                            "max_value": float(max_value) if max_value is not None else None,
+                            "modality": modality,
+                            "final_approval": final_approval,
+                        },
                     )
 
 
