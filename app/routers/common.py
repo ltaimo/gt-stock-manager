@@ -1,8 +1,8 @@
 from fastapi.templating import Jinja2Templates
 
 from app.config import get_settings
-from app.services.notifications import unread_count
 from app.security import has_permission, role_permissions
+from app.services.notifications import unread_count
 
 templates = Jinja2Templates(directory="app/templates")
 settings = get_settings()
@@ -13,21 +13,22 @@ TRANSLATIONS = {
         "products": "Economato / Produtos",
         "movements": "Movimentos",
         "documents": "Documentos",
-        "new_sr": "Nova Requisicao SR",
-        "sr_requests": "Requisicoes SR",
+        "new_sr": "Nova Requisição SR",
+        "sr_requests": "Requisições SR",
         "procurement": "Procurement / NS",
-        "reports": "Relatorios",
+        "reports": "Relatórios",
         "users": "Utilizadores",
         "profiles": "Perfis de acesso",
         "imports": "Importar",
         "audit": "Auditoria",
-        "settings": "Configuracoes",
+        "settings": "Configurações",
         "about": "Sobre",
-        "notifications": "Notificacoes",
+        "notifications": "Notificações",
         "dashboard_intro": "Visão operacional de stock, movimentos, alertas, procurement e projeções do mês.",
         "total_products": "Total de produtos",
         "open_procurement": "Procurement aberto",
         "pending_requests": "Requisições Pendentes",
+        "apply_language": "Aplicar",
     },
     "en": {
         "dashboard": "Dashboard",
@@ -49,6 +50,7 @@ TRANSLATIONS = {
         "total_products": "Total products",
         "open_procurement": "Open procurement",
         "pending_requests": "Pending Requests",
+        "apply_language": "Apply",
     },
 }
 

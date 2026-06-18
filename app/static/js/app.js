@@ -69,6 +69,19 @@ function initResponsiveTables() {
   });
 }
 
+function initLanguageForm() {
+  document.querySelectorAll(".language-form select[name='language']").forEach((select) => {
+    select.addEventListener("change", () => {
+      if (!select.form) return;
+      if (typeof select.form.requestSubmit === "function") {
+        select.form.requestSubmit();
+      } else {
+        select.form.submit();
+      }
+    });
+  });
+}
+
 document.addEventListener("submit", (event) => {
   const message = event.target.dataset.confirm;
   if (message && !window.confirm(message)) event.preventDefault();
@@ -330,6 +343,7 @@ function initDashboardCharts() {
 window.addEventListener("load", () => {
   initNavigation();
   initResponsiveTables();
+  initLanguageForm();
   initDashboardCharts();
   initRequisitionForm();
   initRequisitionReview();
