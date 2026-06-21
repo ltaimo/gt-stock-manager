@@ -11,7 +11,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-001"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-002",
@@ -25,7 +29,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-002"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-003",
@@ -39,7 +47,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-003"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-004",
@@ -53,7 +65,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-004"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-005",
@@ -67,7 +83,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-005"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-006",
@@ -81,7 +101,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-006"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-007",
@@ -95,7 +119,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-007"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-008",
@@ -109,7 +137,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-008"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-009",
@@ -123,7 +155,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-009"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-010",
@@ -137,7 +173,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-010"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-011",
@@ -151,7 +191,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-011"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-012",
@@ -165,7 +209,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-012"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-013",
@@ -179,7 +227,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-013"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-014",
@@ -193,7 +245,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-014"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-015",
@@ -207,7 +263,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-015"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-016",
@@ -221,7 +281,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-016"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-017",
@@ -235,7 +299,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-017"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-018",
@@ -249,7 +317,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-018"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-019",
@@ -263,7 +335,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-019"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-020",
@@ -277,7 +353,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-020"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-021",
@@ -291,7 +371,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-021"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-022",
@@ -305,7 +389,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-022"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-023",
@@ -319,7 +407,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-023"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-024",
@@ -333,7 +425,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-024"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-025",
@@ -347,7 +443,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-025"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-026",
@@ -361,7 +461,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-026"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-027",
@@ -375,7 +479,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-027"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-028",
@@ -389,7 +497,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-028"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-029",
@@ -403,7 +515,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-029"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-030",
@@ -417,7 +533,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-030"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-031",
@@ -431,7 +551,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-031"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-032",
@@ -445,7 +569,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-032"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-033",
@@ -459,7 +587,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-033"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-034",
@@ -473,7 +605,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-034"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-035",
@@ -487,7 +623,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-035"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-036",
@@ -501,7 +641,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-036"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-037",
@@ -515,7 +659,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-037"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-038",
@@ -529,7 +677,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-038"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-039",
@@ -543,7 +695,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-039"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-040",
@@ -557,7 +713,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-040"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-041",
@@ -571,7 +731,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-041"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-042",
@@ -585,7 +749,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-042"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-043",
@@ -599,7 +767,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-043"
+    ],
+    "source_count": 1
   },
   {
     "code": "FR-044",
@@ -613,7 +785,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": "Manutenção"
+    "location": "Manutenção",
+    "source_codes": [
+      "FR-044"
+    ],
+    "source_count": 1
   },
   {
     "code": "AC-001",
@@ -623,11 +799,18 @@
     "power": "18000 BTU",
     "category": "Ar Condicionado",
     "unit": "un",
-    "quantity": 2.0,
+    "quantity": 6.0,
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": ""
+    "location": "",
+    "source_codes": [
+      "AC-001",
+      "AC-012",
+      "AC-036",
+      "AC-037"
+    ],
+    "source_count": 4
   },
   {
     "code": "AC-002",
@@ -637,11 +820,37 @@
     "power": "12000 BTU",
     "category": "Ar Condicionado",
     "unit": "un",
-    "quantity": 2.0,
+    "quantity": 32.0,
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": ""
+    "location": "",
+    "source_codes": [
+      "AC-002",
+      "AC-005",
+      "AC-007",
+      "AC-008",
+      "AC-009",
+      "AC-010",
+      "AC-014",
+      "AC-015",
+      "AC-016",
+      "AC-018",
+      "AC-022",
+      "AC-024",
+      "AC-025",
+      "AC-026",
+      "AC-028",
+      "AC-029",
+      "AC-032",
+      "AC-040",
+      "AC-041",
+      "AC-043",
+      "AC-046",
+      "AC-047",
+      "AC-048"
+    ],
+    "source_count": 23
   },
   {
     "code": "AC-003",
@@ -651,11 +860,23 @@
     "power": "12000 BTU",
     "category": "Ar Condicionado",
     "unit": "un",
-    "quantity": 1.0,
+    "quantity": 11.0,
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": ""
+    "location": "",
+    "source_codes": [
+      "AC-003",
+      "AC-019",
+      "AC-020",
+      "AC-030",
+      "AC-031",
+      "AC-033",
+      "AC-035",
+      "AC-039",
+      "AC-045"
+    ],
+    "source_count": 9
   },
   {
     "code": "AC-004",
@@ -665,25 +886,16 @@
     "power": "18000 BTU",
     "category": "Ar Condicionado",
     "unit": "un",
-    "quantity": 3.0,
+    "quantity": 4.0,
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-005",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 2.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
+    "location": "",
+    "source_codes": [
+      "AC-004",
+      "AC-023"
+    ],
+    "source_count": 2
   },
   {
     "code": "AC-006",
@@ -693,67 +905,19 @@
     "power": "18000 BTU",
     "category": "Ar Condicionado",
     "unit": "un",
-    "quantity": 1.0,
+    "quantity": 7.0,
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-007",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-008",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-009",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-010",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
+    "location": "",
+    "source_codes": [
+      "AC-006",
+      "AC-013",
+      "AC-017",
+      "AC-027",
+      "AC-038"
+    ],
+    "source_count": 5
   },
   {
     "code": "AC-011",
@@ -763,431 +927,17 @@
     "power": "12000 BTU",
     "category": "Ar Condicionado",
     "unit": "un",
-    "quantity": 4.0,
+    "quantity": 6.0,
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-012",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 18000 BTU",
-    "brand": "Gree",
-    "power": "18000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-013",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Samsung 18000 BTU",
-    "brand": "Samsung",
-    "power": "18000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-014",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-015",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-016",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-017",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Samsung 18000 BTU",
-    "brand": "Samsung",
-    "power": "18000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-018",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-019",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Samsung 12000 BTU",
-    "brand": "Samsung",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-020",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Samsung 12000 BTU",
-    "brand": "Samsung",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-021",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Hisense 12000 BTU",
-    "brand": "Hisense",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-022",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-023",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Hisense 18000 BTU",
-    "brand": "Hisense",
-    "power": "18000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-024",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-025",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-026",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-027",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Samsung 18000 BTU",
-    "brand": "Samsung",
-    "power": "18000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 3.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-028",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-029",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-030",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Samsung 12000 BTU",
-    "brand": "Samsung",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-031",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Samsung 12000 BTU",
-    "brand": "Samsung",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-032",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-033",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Samsung 12000 BTU",
-    "brand": "Samsung",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-034",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Hisense 12000 BTU",
-    "brand": "Hisense",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-035",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Samsung 12000 BTU",
-    "brand": "Samsung",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-036",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 18000 BTU",
-    "brand": "Gree",
-    "power": "18000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-037",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 18000 BTU",
-    "brand": "Gree",
-    "power": "18000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 2.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-038",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Samsung 18000 BTU",
-    "brand": "Samsung",
-    "power": "18000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-039",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Samsung 12000 BTU",
-    "brand": "Samsung",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 3.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-040",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-041",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
+    "location": "",
+    "source_codes": [
+      "AC-011",
+      "AC-021",
+      "AC-034"
+    ],
+    "source_count": 3
   },
   {
     "code": "AC-042",
@@ -1197,95 +947,16 @@
     "power": "12000 BTU",
     "category": "Ar Condicionado",
     "unit": "un",
-    "quantity": 4.0,
+    "quantity": 5.0,
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-043",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-044",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Midea 12000 BTU",
-    "brand": "Midea",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-045",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Samsung 12000 BTU",
-    "brand": "Samsung",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-046",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 2.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-047",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-048",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Gree 12000 BTU",
-    "brand": "Gree",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 7.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
+    "location": "",
+    "source_codes": [
+      "AC-042",
+      "AC-044"
+    ],
+    "source_count": 2
   },
   {
     "code": "AC-049",
@@ -1299,7 +970,11 @@
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": ""
+    "location": "",
+    "source_codes": [
+      "AC-049"
+    ],
+    "source_count": 1
   },
   {
     "code": "AC-050",
@@ -1309,24 +984,15 @@
     "power": "12000 BTU",
     "category": "Ar Condicionado",
     "unit": "un",
-    "quantity": 1.0,
+    "quantity": 2.0,
     "minimum_stock": 0,
     "unit_price": 0.0,
     "condition": "Por verificar",
-    "location": ""
-  },
-  {
-    "code": "AC-051",
-    "type": "Ar Condicionado",
-    "name": "Ar condicionado Zatia 12000 BTU",
-    "brand": "Zatia",
-    "power": "12000 BTU",
-    "category": "Ar Condicionado",
-    "unit": "un",
-    "quantity": 1.0,
-    "minimum_stock": 0,
-    "unit_price": 0.0,
-    "condition": "Por verificar",
-    "location": ""
+    "location": "",
+    "source_codes": [
+      "AC-050",
+      "AC-051"
+    ],
+    "source_count": 2
   }
 ]

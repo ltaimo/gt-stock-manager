@@ -5,10 +5,21 @@ from sqlalchemy import or_, select
 
 from app.database import Base, SessionLocal, engine
 from app.maintenance.migrate_schema import ensure_schema
-from app.models.core import Category, Department, MovementAction, Product, Role, Setting, User
+from app.models.core import (
+    Category,
+    Department,
+    MovementAction,
+    Product,
+    RequisitionItem,
+    Role,
+    Setting,
+    StockDocumentProduct,
+    StockMovement,
+    User,
+)
 from app.security import hash_password
 from app.services.categorization import normalize_text
-from app.services.inventory import post_movement
+from app.services.inventory import post_movement, recalculate_product_stock
 
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
@@ -104,6 +115,55 @@ def seed_ac_tools_products(db, actor: User) -> int:
     return created
 
 
+def consolidate_fixture_duplicate_products(db) -> int:
+    if not AC_TOOLS_FIXTURE.exists():
+        return 0
+
+    items = json.loads(AC_TOOLS_FIXTURE.read_text(encoding="utf-8"))
+    consolidated = 0
+    for item in items:
+        source_codes = [code for code in item.get("source_codes", []) if code]
+        if len(source_codes) <= 1:
+            continue
+
+        products = db.scalars(select(Product).where(Product.code.in_(source_codes))).all()
+        if len(products) <= 1:
+            continue
+
+        canonical = next((product for product in products if product.code == item["code"]), None)
+        if canonical is None:
+            canonical = sorted(products, key=lambda product: product.code)[0]
+        duplicates = [product for product in products if product.id != canonical.id]
+
+        for duplicate in duplicates:
+            for movement in db.scalars(select(StockMovement).where(StockMovement.product_id == duplicate.id)).all():
+                movement.product_id = canonical.id
+
+            for requisition_item in db.scalars(select(RequisitionItem).where(RequisitionItem.product_id == duplicate.id)).all():
+                requisition_item.product_id = canonical.id
+
+            for document_link in db.scalars(select(StockDocumentProduct).where(StockDocumentProduct.product_id == duplicate.id)).all():
+                existing_link = db.scalar(
+                    select(StockDocumentProduct).where(
+                        StockDocumentProduct.document_id == document_link.document_id,
+                        StockDocumentProduct.product_id == canonical.id,
+                    )
+                )
+                if existing_link:
+                    db.delete(document_link)
+                else:
+                    document_link.product_id = canonical.id
+
+            db.flush()
+            db.delete(duplicate)
+            consolidated += 1
+
+        db.flush()
+        recalculate_product_stock(db, canonical)
+
+    return consolidated
+
+
 def seed() -> None:
     Base.metadata.create_all(bind=engine)
     ensure_schema()
@@ -170,8 +230,13 @@ def seed() -> None:
 
         repair_portuguese_labels(db)
         created_tools = seed_ac_tools_products(db, superadmin)
+        consolidated_tools = consolidate_fixture_duplicate_products(db)
         db.commit()
-        print(f"Configuração base concluída. Novos produtos da lista AC/ferramentas: {created_tools}.")
+        print(
+            "Configuração base concluída. "
+            f"Novos produtos da lista AC/ferramentas: {created_tools}. "
+            f"Duplicados consolidados: {consolidated_tools}."
+        )
     finally:
         db.close()
 
