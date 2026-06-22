@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import SessionLocal
-from app.models.core import Notification, Requisition, Role, User
+from app.models.core import Notification, ProcurementCase, Requisition, Role, User
 from app.security import has_permission
 
 
@@ -118,6 +118,15 @@ def notify_procurement_budget_pending(db: Session, req: Requisition) -> None:
     )
     for user in recipients_with_permission(db, "budget_verify"):
         notify_user(db, user, title, message, "Procurement", req.number)
+
+
+def notify_procurement_permission(db: Session, case: ProcurementCase, permission: str, title: str, message: str) -> None:
+    for user in recipients_with_permission(db, permission):
+        notify_user(db, user, title, message, "Procurement", case.requisition.number)
+
+
+def notify_procurement_requester(db: Session, case: ProcurementCase, title: str, message: str) -> None:
+    notify_user(db, case.requisition.requesting_user, title, message, "Procurement", case.requisition.number)
 
 
 def notify_procurement_classification_pending(db: Session, req: Requisition) -> None:

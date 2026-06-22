@@ -13,31 +13,79 @@
 {% if error %}<div class="alert red">{{ error }}</div>{% endif %}
 
 <section class="panel">
-  <h2>Dados da requisicao NS</h2>
+  <h2>Resumo do processo</h2>
   <div class="grid-two">
     <div>
       <p><strong>Requisitante:</strong> {{ case.requisition.requesting_user.full_name }}</p>
       <p><strong>Departamento:</strong> {{ case.requisition.department.name if case.requisition.department else '' }}</p>
+      <p><strong>Tipo:</strong> {{ case.item_type or 'Bem' }}</p>
       <p><strong>Prioridade:</strong> {{ case.priority }}</p>
       <p><strong>Budget estimado:</strong> {{ "%.2f"|format(case.estimated_budget|float) }} MZN</p>
     </div>
     <div>
       <p><strong>Estado:</strong> <span class="badge orange">{{ case.status }}</span></p>
+      <p><strong>TdR:</strong> {{ case.tor_status or '-' }}</p>
       <p><strong>Budget:</strong> {{ 'Confirmado' if case.budget_confirmed else 'Sem budget' if case.budget_confirmed == false else 'Pendente' }}</p>
       <p><strong>Modalidade:</strong> {{ case.modality or '-' }}</p>
-      <p><strong>Aprovacao final:</strong> {{ case.approval_route or '-' }}</p>
+      <p><strong>Aprovação final:</strong> {{ case.approval_route or '-' }}</p>
     </div>
   </div>
-  <p><strong>Descricao / escopo:</strong><br>{{ case.description }}</p>
-  {% if case.justification %}<p><strong>Justificacao:</strong><br>{{ case.justification }}</p>{% endif %}
-  {% if case.comments %}<p><strong>Comentarios:</strong><br>{{ case.comments }}</p>{% endif %}
+  <p><strong>Descrição / TdR / escopo:</strong><br>{{ case.description }}</p>
+  {% if case.technical_requirements %}<p><strong>Requisitos técnicos:</strong><br>{{ case.technical_requirements }}</p>{% endif %}
+  {% if case.hse_requirements %}<p><strong>Requisitos HSE:</strong><br>{{ case.hse_requirements }}</p>{% endif %}
+  {% if case.justification %}<p><strong>Justificação:</strong><br>{{ case.justification }}</p>{% endif %}
+  {% if case.comments %}<p><strong>Comentários:</strong><br>{{ case.comments }}</p>{% endif %}
 </section>
+
+<section class="panel">
+  <h2>Fluxo obrigatório</h2>
+  <div class="timeline">
+    <div><strong>1. Necessidade/TdR</strong><span>{{ case.tor_status or 'Pendente' }}</span></div>
+    <div><strong>2. Budget</strong><span>{{ 'Confirmado' if case.budget_confirmed else 'Sem budget' if case.budget_confirmed == false else 'Pendente' }}</span></div>
+    <div><strong>3. Concurso</strong><span>{{ case.modality or 'Por classificar' }}</span></div>
+    <div><strong>4. Avaliação técnica</strong><span>{{ case.technical_evaluation_status }}</span></div>
+    <div><strong>5. Avaliação financeira</strong><span>{{ case.financial_evaluation_status }}</span></div>
+    <div><strong>6. PO</strong><span>{{ case.po_number or 'Pendente' }}</span></div>
+    <div><strong>7. Receção/execução</strong><span>{{ case.receipt_status }}</span></div>
+    <div><strong>8. Arquivo</strong><span>{{ case.archive_status }}</span></div>
+  </div>
+</section>
+
+{% if can(user, 'procurement_tor_approve_hod') and case.tor_status == 'Pending HOD Approval' %}
+<section class="panel">
+  <h2>Aprovação HOD / Chefe do Departamento</h2>
+  <form method="post" action="/procurement/{{ case.id }}/tdr/hod" class="form-stack">
+    <label>Comentários
+      <textarea name="comments" placeholder="Obrigatório se devolver para correção"></textarea>
+    </label>
+    <div class="actions">
+      <button name="decision" value="approve" class="success">Aprovar TdR</button>
+      <button name="decision" value="return" class="danger">Devolver para correção</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+
+{% if can(user, 'procurement_tor_approve_terminal') and case.tor_status == 'Pending Terminal Manager Approval' %}
+<section class="panel">
+  <h2>Aprovação Director do Terminal / Terminal Manager</h2>
+  <form method="post" action="/procurement/{{ case.id }}/tdr/terminal" class="form-stack">
+    <label>Comentários
+      <textarea name="comments" placeholder="Obrigatório se devolver para correção"></textarea>
+    </label>
+    <div class="actions">
+      <button name="decision" value="approve" class="success">Aprovar TdR final</button>
+      <button name="decision" value="return" class="danger">Devolver para correção</button>
+    </div>
+  </form>
+</section>
+{% endif %}
 
 {% if can(user, 'budget_verify') and case.status == 'Pending Budget Verification' %}
 <section class="panel">
-  <h2>Verificacao de budget</h2>
+  <h2>Verificação de budget</h2>
   <form method="post" action="/procurement/{{ case.id }}/orcamento" class="form-stack">
-    <label>Comentarios do financeiro
+    <label>Comentários do financeiro
       <textarea name="comments" placeholder="Opcional, mas recomendado se devolver por falta de budget"></textarea>
     </label>
     <div class="actions">
@@ -50,13 +98,13 @@
 
 {% if can(user, 'procurement_manage') and case.budget_confirmed %}
 <section class="panel">
-  <h2>Classificacao</h2>
-  <p class="muted">A modalidade e a aprovacao final sao definidas pela matriz configuravel com base no budget estimado.</p>
+  <h2>Classificação pelo Procurement</h2>
+  <p class="muted">A modalidade e a aprovação final são definidas pela matriz configurável com base no budget estimado.</p>
   <form method="post" action="/procurement/{{ case.id }}/classificar" class="form-stack">
     <div class="form-grid">
       <label>Procurement officer
         <select name="procurement_officer_id">
-          <option value="">Sem atribuicao</option>
+          <option value="">Sem atribuição</option>
           {% for officer in officers %}
             <option value="{{ officer.id }}" {% if case.procurement_officer_id == officer.id %}selected{% endif %}>{{ officer.full_name }} - {{ officer.role.name }}</option>
           {% endfor %}
@@ -64,53 +112,81 @@
       </label>
       <label class="check">
         <input type="checkbox" name="technical_evaluation_required" value="1" {% if case.technical_evaluation_required %}checked{% endif %}>
-        Requer avaliacao tecnica
+        Requer avaliação técnica
       </label>
     </div>
     <div class="actions"><button>Classificar pela matriz</button></div>
   </form>
 </section>
+{% endif %}
 
+{% if can_update_tracker %}
 <section class="panel">
   <h2>Tracker de procurement</h2>
   <form method="post" action="/procurement/{{ case.id }}/tracker" class="form-stack">
     <div class="form-grid">
       <label>Estado do processo
         <select name="status">
-          {% for value in ['Pending Approval','Approved','RFQ/RFP/Tender Running','Evaluation','Bid Analysis','PO Issued','Receiving','Closed','Cancelled'] %}
+          {% for value in ['Pending HOD TdR Approval','Pending Terminal Manager TdR Approval','Pending Budget Verification','Pending Procurement Classification','Pending Approval','RFQ/RFP/Tender Running','Technical Evaluation','Financial Evaluation','Bid Analysis','Supplier Selected','PO Issued','Mobilization / Delivery','Receiving','Closed','Cancelled','Returned - TdR Correction','Returned - No Budget'] %}
             <option {% if case.status == value %}selected{% endif %}>{{ value }}</option>
           {% endfor %}
         </select>
       </label>
-      <label>Estado da aprovacao
+      <label>Estado da aprovação
         <select name="approval_status">
           {% for value in ['Pending','Approved','Rejected','Returned'] %}
             <option {% if case.approval_status == value %}selected{% endif %}>{{ value }}</option>
           {% endfor %}
         </select>
       </label>
-      <label>Numero RFQ/RFP/Tender
+      <label>Número RFQ/RFP/Tender
         <input name="rfq_rfp_tender_number" value="{{ case.rfq_rfp_tender_number or '' }}">
       </label>
       <label>Fornecedores convidados
         <input name="suppliers_invited" type="number" min="0" value="{{ case.suppliers_invited or 0 }}">
       </label>
-      <label>Cotacoes recebidas
+      <label>Cotações recebidas
         <input name="quotations_received" type="number" min="0" value="{{ case.quotations_received or 0 }}">
       </label>
-      <label>Estado avaliacao tecnica
-        <input name="technical_evaluation_status" value="{{ case.technical_evaluation_status or 'Not Required' }}">
+      <label>Estado avaliação técnica
+        <select name="technical_evaluation_status">
+          {% for value in ['Not Required','Pending','Approved','Rejected','Returned'] %}
+            <option {% if case.technical_evaluation_status == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
       </label>
-      <label>Estado avaliacao financeira
-        <input name="financial_evaluation_status" value="{{ case.financial_evaluation_status or 'Pending' }}">
+      <label>Relatório técnico
+        <select name="technical_report_status">
+          {% for value in ['Pending','Received','Approved','Returned','Not Required'] %}
+            <option {% if case.technical_report_status == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Estado avaliação financeira
+        <select name="financial_evaluation_status">
+          {% for value in ['Pending','Approved','Rejected','Returned'] %}
+            <option {% if case.financial_evaluation_status == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
       </label>
       <label>Estado Bid Analysis
-        <input name="bid_analysis_status" value="{{ case.bid_analysis_status or 'Pending' }}">
+        <select name="bid_analysis_status">
+          {% for value in ['Pending','Completed','Returned','Not Required'] %}
+            <option {% if case.bid_analysis_status == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Documentos HSE
+        <select name="hse_documents_status">
+          {% for value in ['Not Required','Pending','Approved','Rejected','Returned'] %}
+            <option {% if case.hse_documents_status == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
       </label>
       <label>Fornecedor selecionado
         <input name="selected_supplier" value="{{ case.selected_supplier or '' }}">
       </label>
-      <label>PO numero
+      <label>PO número
         <input name="po_number" value="{{ case.po_number or '' }}">
       </label>
       <label>PO data
@@ -119,15 +195,36 @@
       <label>PO valor
         <input name="po_value" type="number" min="0" step="0.01" value="{{ case.po_value or '' }}">
       </label>
-      <label>Estado de recepcao
-        <input name="receipt_status" value="{{ case.receipt_status or 'Pending' }}">
+      <label>Execução / entrega
+        <select name="execution_status">
+          {% for value in ['Not Started','Mobilizing','In Progress','Delivered','Completed','Suspended'] %}
+            <option {% if case.execution_status == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Estado de receção
+        <select name="receipt_status">
+          {% for value in ['Pending','Partial','Received','Completed','Rejected'] %}
+            <option {% if case.receipt_status == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Arquivo
+        <select name="archive_status">
+          {% for value in ['Pending','Ready for Archive','Archived','Returned'] %}
+            <option {% if case.archive_status == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
       </label>
       <label>Data de fecho
         <input name="closure_date" type="date" value="{{ case.closure_date.strftime('%Y-%m-%d') if case.closure_date else '' }}">
       </label>
     </div>
-    <label>Comentarios
-      <textarea name="comments">{{ case.comments or '' }}</textarea>
+    <label>Nota de recebimento / confirmação de entrega ou execução
+      <textarea name="receipt_note" placeholder="Quantidade recebida, estado, conformidade com PO, validação técnica">{{ case.receipt_note or '' }}</textarea>
+    </label>
+    <label>Comentários / justificativas
+      <textarea name="comments" placeholder="Obrigatório se aprovar avaliação financeira com menos de 3 cotações">{{ case.comments or '' }}</textarea>
     </label>
     <div class="actions"><button>Guardar tracker</button></div>
   </form>

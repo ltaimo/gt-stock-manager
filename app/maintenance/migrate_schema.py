@@ -58,6 +58,26 @@ def ensure_schema() -> None:
         columns = {column["name"] for column in inspector.get_columns("approval_matrix_rules")}
         if "approver_role_id" not in columns:
             additions.append("ALTER TABLE approval_matrix_rules ADD COLUMN approver_role_id INTEGER REFERENCES roles(id)")
+    if "procurement_cases" in tables:
+        columns = {column["name"] for column in inspector.get_columns("procurement_cases")}
+        procurement_additions = {
+            "item_type": "ALTER TABLE procurement_cases ADD COLUMN item_type VARCHAR(40) DEFAULT 'Bem'",
+            "technical_requirements": "ALTER TABLE procurement_cases ADD COLUMN technical_requirements TEXT",
+            "hse_requirements": "ALTER TABLE procurement_cases ADD COLUMN hse_requirements TEXT",
+            "tor_status": "ALTER TABLE procurement_cases ADD COLUMN tor_status VARCHAR(60) DEFAULT 'Pending HOD Approval'",
+            "hod_approved_by_id": "ALTER TABLE procurement_cases ADD COLUMN hod_approved_by_id INTEGER REFERENCES users(id)",
+            "hod_approved_at": "ALTER TABLE procurement_cases ADD COLUMN hod_approved_at DATETIME",
+            "terminal_manager_approved_by_id": "ALTER TABLE procurement_cases ADD COLUMN terminal_manager_approved_by_id INTEGER REFERENCES users(id)",
+            "terminal_manager_approved_at": "ALTER TABLE procurement_cases ADD COLUMN terminal_manager_approved_at DATETIME",
+            "technical_report_status": "ALTER TABLE procurement_cases ADD COLUMN technical_report_status VARCHAR(60) DEFAULT 'Pending'",
+            "hse_documents_status": "ALTER TABLE procurement_cases ADD COLUMN hse_documents_status VARCHAR(60) DEFAULT 'Not Required'",
+            "execution_status": "ALTER TABLE procurement_cases ADD COLUMN execution_status VARCHAR(60) DEFAULT 'Not Started'",
+            "receipt_note": "ALTER TABLE procurement_cases ADD COLUMN receipt_note TEXT",
+            "archive_status": "ALTER TABLE procurement_cases ADD COLUMN archive_status VARCHAR(60) DEFAULT 'Pending'",
+        }
+        for column, statement in procurement_additions.items():
+            if column not in columns:
+                additions.append(statement)
 
     with engine.begin() as connection:
         for statement in additions:

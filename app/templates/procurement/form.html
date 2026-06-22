@@ -1,17 +1,30 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="panel narrow">
-  <h1>Nova requisicao non-stock</h1>
-  <p class="muted">Use este fluxo para servicos, obras, contratados ou bens que nao existem no stock.</p>
+  <h1>Nova requisição non-stock</h1>
+  <p class="muted">Use este fluxo para bens, serviços ou obras que não existem no stock. Anexe aqui a descrição/TdR inicial, requisitos técnicos e HSE quando aplicável.</p>
   {% if error %}<div class="alert red">{{ error }}</div>{% endif %}
   <form method="post" class="form-stack">
-    <label>Descricao / escopo
-      <textarea name="description" required placeholder="Descreva o que precisa comprar ou contratar"></textarea>
+    <label>Descrição / TdR / escopo
+      <textarea name="description" required placeholder="Descreva claramente o bem, serviço ou obra"></textarea>
     </label>
-    <label>Justificacao
+    <label>Requisitos técnicos
+      <textarea name="technical_requirements" placeholder="Especificações, quantidades, normas técnicas, desenhos, escopo detalhado"></textarea>
+    </label>
+    <label>Requisitos HSE / segurança
+      <textarea name="hse_requirements" placeholder="Permissões, documentação HSE, EPIs, riscos, requisitos obrigatórios"></textarea>
+    </label>
+    <label>Justificação
       <textarea name="justification" placeholder="Explique o motivo e contexto do pedido"></textarea>
     </label>
     <div class="form-grid">
+      <label>Tipo
+        <select name="item_type">
+          <option>Bem</option>
+          <option>Serviço</option>
+          <option>Obra</option>
+        </select>
+      </label>
       <label>Centro de custo
         <input name="cost_center" placeholder="Opcional">
       </label>
@@ -30,9 +43,12 @@
         <input name="required_date" type="date">
       </label>
     </div>
+    <div class="alert">
+      Fluxo: criação da necessidade → aprovação HOD → aprovação Terminal Manager → budget → procurement/tracker → avaliação técnica/financeira → PO → entrega/execução → nota de recebimento → arquivo.
+    </div>
     <div class="actions">
       <a class="button secondary" href="/procurement">Cancelar</a>
-      <button>Submeter para verificacao de budget</button>
+      <button>Submeter TdR para aprovação HOD</button>
     </div>
   </form>
 </section>

@@ -3,8 +3,8 @@
 <header class="page-header">
   <h1>Procurement / Non-Stock</h1>
   <div class="actions">
-    {% if can(user, 'non_stock_requisitions_create') %}<a class="button" href="/procurement/nova">Nova requisicao NS</a>{% endif %}
-    {% if can(user, 'procurement_settings') %}<a class="button secondary" href="/configuracoes/matriz">Matriz de aprovacao</a>{% endif %}
+    {% if can(user, 'non_stock_requisitions_create') %}<a class="button" href="/procurement/nova">Nova requisição NS</a>{% endif %}
+    {% if can(user, 'procurement_settings') %}<a class="button secondary" href="/configuracoes/matriz">Matriz de aprovação</a>{% endif %}
   </div>
 </header>
 
@@ -15,10 +15,12 @@
         <th>N.</th>
         <th>Requisitante</th>
         <th>Departamento</th>
+        <th>Tipo</th>
         <th>Budget</th>
-        <th>Orcamento</th>
+        <th>TdR</th>
+        <th>Orçamento</th>
         <th>Modalidade</th>
-        <th>Aprovacao</th>
+        <th>Aprovação</th>
         <th>Estado</th>
         <th>Dias</th>
       </tr>
@@ -29,19 +31,21 @@
         <td data-label="N."><a href="/procurement/{{ case.id }}">{{ case.requisition.number }}</a></td>
         <td data-label="Requisitante">{{ case.requisition.requesting_user.full_name }}</td>
         <td data-label="Departamento">{{ case.requisition.department.name if case.requisition.department else '' }}</td>
+        <td data-label="Tipo">{{ case.item_type or 'Bem' }}</td>
         <td data-label="Budget">{{ "%.2f"|format(case.estimated_budget|float) }} MZN</td>
-        <td data-label="Orcamento">
+        <td data-label="TdR">{{ case.tor_status or '-' }}</td>
+        <td data-label="Orçamento">
           <span class="badge {{ 'green' if case.budget_confirmed else 'red' if case.budget_confirmed == false else 'orange' }}">
             {{ 'Confirmado' if case.budget_confirmed else 'Sem budget' if case.budget_confirmed == false else 'Pendente' }}
           </span>
         </td>
         <td data-label="Modalidade">{{ case.modality or '-' }}</td>
-        <td data-label="Aprovacao">{{ case.approval_route or '-' }}</td>
+        <td data-label="Aprovação">{{ case.approval_route or '-' }}</td>
         <td data-label="Estado"><span class="badge orange">{{ case.status }}</span></td>
         <td data-label="Dias">{{ days_open(case.created_at, case.closure_date) }}</td>
       </tr>
       {% else %}
-      <tr><td colspan="9">Ainda nao existem processos de procurement.</td></tr>
+      <tr><td colspan="11">Ainda não existem processos de procurement.</td></tr>
       {% endfor %}
     </tbody>
   </table>

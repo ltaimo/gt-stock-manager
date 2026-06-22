@@ -80,3 +80,6 @@ output.rejected-quantity{font-weight:800;color:var(--red)}
   .login-card{padding:24px 20px}
 }
 @media (max-width:420px){.content{padding:12px}.kpis{grid-template-columns:minmax(0,1fr)}.panel-heading{align-items:flex-start;flex-direction:column}.responsive-table td{display:block;text-align:left}.responsive-table td::before{display:block;margin-bottom:5px}.topbar-brand strong{font-size:13px}}
+.timeline{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.timeline div{border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:8px;background:#fafafa;padding:12px}
+.timeline strong{display:block;margin-bottom:5px}.timeline span{color:var(--muted)}
