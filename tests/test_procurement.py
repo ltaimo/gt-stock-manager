@@ -9,6 +9,7 @@ from app.models.core import ApprovalMatrixRule, Department, ProcurementCase, Req
 from app.routers.procurement import update_tracker, verify_budget
 from app.security import has_permission, hash_password
 from app.services.procurement import classify_procurement
+from app.services.tdr_pdf import terms_of_reference_to_pdf
 
 
 class ProcurementMatrixTests(unittest.TestCase):
@@ -90,6 +91,12 @@ class ProcurementWorkflowTests(unittest.TestCase):
             tor_status="Pending HOD Approval",
         )
         self.db.add(self.case)
+        self.db.add_all(
+            [
+                ApprovalMatrixRule(min_value=0, max_value=5000, modality="RFQ", final_approval="Supervisor", sort_order=0),
+                ApprovalMatrixRule(min_value=5001, max_value=10000, modality="RFQ", final_approval="Chefe do Terminal", sort_order=1),
+            ]
+        )
         self.db.commit()
 
     def tearDown(self):
@@ -145,6 +152,53 @@ class ProcurementWorkflowTests(unittest.TestCase):
 
         self.assertEqual(caught.exception.status_code, 400)
         self.assertIn("menos de 3", caught.exception.detail)
+
+    def test_tdr_pdf_contains_template_identity_and_approval_value(self):
+        self.case.tdr_number = "TdR-NS-2026-00001"
+        self.case.job_title = "Manutenção corretiva"
+        self.case.approval_route = "Supervisor"
+        self.db.commit()
+
+        pdf = terms_of_reference_to_pdf(self.case, self.user)
+
+        self.assertTrue(pdf.startswith(b"%PDF"))
+        self.assertGreater(len(pdf), 2000)
+
+    def test_tracker_reclassifies_approval_by_po_value(self):
+        self.case.tor_status = "Approved"
+        self.case.status = "Financial Evaluation"
+        self.db.commit()
+
+        update_tracker(
+            self.case.id,
+            request=None,
+            status="Supplier Selected",
+            approval_status="Approved",
+            rfq_rfp_tender_number="RFQ-1",
+            suppliers_invited="3",
+            quotations_received="3",
+            technical_evaluation_status="Approved",
+            financial_evaluation_status="Approved",
+            bid_analysis_status="Completed",
+            selected_supplier="Fornecedor A",
+            po_number="PO-1",
+            po_date=None,
+            po_value="7500",
+            receipt_status="Pending",
+            hse_documents_status="Not Required",
+            technical_report_status="Approved",
+            execution_status="Not Started",
+            receipt_note=None,
+            archive_status="Pending",
+            closure_date=None,
+            comments="3 cotações recebidas",
+            db=self.db,
+            user=self.user,
+        )
+        self.db.commit()
+
+        self.assertEqual(self.case.approval_route, "Chefe do Terminal")
+        self.assertEqual(self.case.modality, "RFQ")
 
 
 if __name__ == "__main__":

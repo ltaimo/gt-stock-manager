@@ -250,6 +250,8 @@ class ProcurementCase(Base):
     cost_center: Mapped[str | None] = mapped_column(String(120))
     priority: Mapped[str] = mapped_column(String(30), default="Normal")
     item_type: Mapped[str] = mapped_column(String(40), default="Bem")
+    tdr_number: Mapped[str | None] = mapped_column(String(80))
+    job_title: Mapped[str | None] = mapped_column(String(220))
     technical_requirements: Mapped[str | None] = mapped_column(Text)
     hse_requirements: Mapped[str | None] = mapped_column(Text)
     tor_status: Mapped[str] = mapped_column(String(60), default="Pending HOD Approval")

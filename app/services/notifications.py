@@ -32,16 +32,20 @@ def recipients_with_permission(db: Session, permission: str) -> list[User]:
     return [user for user in users if has_permission(user, permission)]
 
 
-def send_email(to_email: str, subject: str, body: str) -> None:
+def send_email(to_email: str, subject: str, body: str, attachments: list[tuple[str, bytes, str]] | None = None) -> None:
     settings = get_settings()
     if not to_email:
         return
+    attachments = attachments or []
     if settings.smtp_host:
         msg = EmailMessage()
         msg["Subject"] = subject
         msg["From"] = settings.smtp_from
         msg["To"] = to_email
         msg.set_content(body)
+        for filename, content, mime_type in attachments:
+            maintype, subtype = mime_type.split("/", 1)
+            msg.add_attachment(content, maintype=maintype, subtype=subtype, filename=filename)
         with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as smtp:
             smtp.starttls()
             if settings.smtp_user:
@@ -53,6 +57,10 @@ def send_email(to_email: str, subject: str, body: str) -> None:
     filename = f"{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}_{safe_name}.txt"
     path = settings.email_outbox_dir / filename
     path.write_text(f"To: {to_email}\nSubject: {subject}\n\n{body}", encoding="utf-8")
+    for attachment_name, content, _mime_type in attachments:
+        safe_attachment = "".join(ch if ch.isalnum() or ch in "._-" else "_" for ch in attachment_name)
+        attachment_path = settings.email_outbox_dir / f"{path.stem}_{safe_attachment}"
+        attachment_path.write_bytes(content)
 
 
 def send_whatsapp(phone: str, subject: str, body: str) -> None:

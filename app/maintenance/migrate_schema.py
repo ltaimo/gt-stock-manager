@@ -62,6 +62,8 @@ def ensure_schema() -> None:
         columns = {column["name"] for column in inspector.get_columns("procurement_cases")}
         procurement_additions = {
             "item_type": "ALTER TABLE procurement_cases ADD COLUMN item_type VARCHAR(40) DEFAULT 'Bem'",
+            "tdr_number": "ALTER TABLE procurement_cases ADD COLUMN tdr_number VARCHAR(80)",
+            "job_title": "ALTER TABLE procurement_cases ADD COLUMN job_title VARCHAR(220)",
             "technical_requirements": "ALTER TABLE procurement_cases ADD COLUMN technical_requirements TEXT",
             "hse_requirements": "ALTER TABLE procurement_cases ADD COLUMN hse_requirements TEXT",
             "tor_status": "ALTER TABLE procurement_cases ADD COLUMN tor_status VARCHAR(60) DEFAULT 'Pending HOD Approval'",

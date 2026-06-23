@@ -17,9 +17,11 @@ from app.services.notifications import (
     notify_procurement_permission,
     notify_procurement_requester,
 )
+from app.services.notifications import send_email
 from app.services.procurement import classify_procurement, days_open, next_non_stock_number
 from app.services.procurement import approval_label
 from app.services.procurement_pdf import procurement_form_to_pdf
+from app.services.tdr_pdf import terms_of_reference_to_pdf
 from app.services.transactions import atomic
 
 router = APIRouter(prefix="/procurement", tags=["procurement"])
@@ -88,6 +90,8 @@ def new_non_stock(request: Request, user: User = Depends(require_permission("non
 def create_non_stock(
     request: Request,
     description: str | None = Form(None),
+    job_title: str | None = Form(None),
+    tdr_number: str | None = Form(None),
     justification: str | None = Form(None),
     cost_center: str | None = Form(None),
     priority: str = Form("Normal"),
@@ -119,8 +123,11 @@ def create_non_stock(
         )
         db.add(req)
         db.flush()
+        clean_tdr_number = (tdr_number or "").strip() or f"TdR-{req.number}"
         case = ProcurementCase(
             requisition_id=req.id,
+            tdr_number=clean_tdr_number,
+            job_title=(job_title or "").strip() or clean_description[:120],
             description=clean_description,
             justification=(justification or "").strip() or None,
             cost_center=(cost_center or "").strip() or None,
@@ -311,6 +318,47 @@ def procurement_form_pdf(case_id: int, request: Request, db: Session = Depends(g
     )
 
 
+@router.get("/{case_id}/tdr")
+def tdr_pdf(case_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    case = case_or_404(db, case_id, user)
+    disposition = "attachment" if request.query_params.get("download") == "1" else "inline"
+    filename = f"{case.tdr_number or 'TdR-' + case.requisition.number}.pdf"
+    return Response(
+        terms_of_reference_to_pdf(case, user),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
+    )
+
+
+@router.post("/{case_id}/tdr/enviar")
+def send_tdr_email(
+    case_id: int,
+    request: Request,
+    email_to: str | None = Form(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    case = case_or_404(db, case_id, user)
+    target = (email_to or "").strip() or case.requisition.requesting_user.email
+    if not target:
+        raise HTTPException(400, "Indique o e-mail de destino ou configure e-mail no requisitante.")
+    filename = f"{case.tdr_number or 'TdR-' + case.requisition.number}.pdf"
+    pdf = terms_of_reference_to_pdf(case, user)
+    subject = f"Termo de Referência - {case.tdr_number or case.requisition.number}"
+    body = (
+        f"Segue referência para o Termo de Referência do processo {case.requisition.number}.\n\n"
+        f"TdR: {case.tdr_number or 'TdR-' + case.requisition.number}\n"
+        f"Job title: {case.job_title or case.description[:120]}\n"
+        f"Valor base: {float(case.po_value or case.estimated_budget or 0):.2f} MZN\n"
+        f"Aprovação por valor: {case.approval_route or 'Por definir'}\n\n"
+        "O PDF segue anexado."
+    )
+    with atomic(db):
+        send_email(target, subject, body, attachments=[(filename, pdf, "application/pdf")])
+        audit_log(db, user, "Enviou TdR por e-mail", "Procurement", case.requisition.number, new_value={"to": target}, request=request)
+    return RedirectResponse(f"/procurement/{case.id}", status_code=303)
+
+
 @router.post("/{case_id}/tracker")
 def update_tracker(
     case_id: int,
@@ -352,6 +400,7 @@ def update_tracker(
     next_execution_status = required_text(execution_status, "Execucao / entrega", 60)
     next_archive_status = required_text(archive_status, "Arquivo", 60)
     next_quotations = int(optional_int(quotations_received, "Cotacoes recebidas") or 0)
+    next_po_value = optional_float(po_value, "Valor da PO")
     next_comments = (comments or "").strip() or None
     if next_financial_status == "Approved" and next_quotations < 3 and not next_comments:
         raise HTTPException(400, "Para aprovar a avaliação financeira com menos de 3 cotações, registe a justificativa nos comentários.")
@@ -376,7 +425,12 @@ def update_tracker(
         case.selected_supplier = (selected_supplier or "").strip() or None
         case.po_number = (po_number or "").strip() or None
         case.po_date = parse_date(po_date)
-        case.po_value = optional_float(po_value, "Valor da PO")
+        case.po_value = next_po_value
+        approval_amount = next_po_value if next_po_value is not None else case.estimated_budget
+        approval_rule = classify_procurement(db, approval_amount)
+        if approval_rule:
+            case.modality = approval_rule.modality
+            case.approval_route = approval_label(approval_rule)
         case.receipt_status = next_receipt_status
         case.execution_status = next_execution_status
         case.receipt_note = (receipt_note or "").strip() or None

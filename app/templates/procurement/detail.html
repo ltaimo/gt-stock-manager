@@ -4,6 +4,8 @@
   <h1>{{ case.requisition.number }}</h1>
   <div class="actions">
     <a class="button secondary" href="/procurement">Voltar</a>
+    <a class="button secondary" href="/procurement/{{ case.id }}/tdr" target="_blank">Visualizar TdR</a>
+    <a class="button" href="/procurement/{{ case.id }}/tdr?download=1">Baixar TdR</a>
     <a class="button secondary" href="/procurement/{{ case.id }}/formulario" target="_blank">Visualizar formulário</a>
     <a class="button" href="/procurement/{{ case.id }}/formulario?download=1">Baixar formulário</a>
     {% if can(user, 'procurement_settings') %}<a class="button secondary" href="/configuracoes/matriz">Matriz</a>{% endif %}
@@ -19,6 +21,8 @@
       <p><strong>Requisitante:</strong> {{ case.requisition.requesting_user.full_name }}</p>
       <p><strong>Departamento:</strong> {{ case.requisition.department.name if case.requisition.department else '' }}</p>
       <p><strong>Tipo:</strong> {{ case.item_type or 'Bem' }}</p>
+      <p><strong>TdR No.:</strong> {{ case.tdr_number or ('TdR-' ~ case.requisition.number) }}</p>
+      <p><strong>Job title:</strong> {{ case.job_title or '-' }}</p>
       <p><strong>Prioridade:</strong> {{ case.priority }}</p>
       <p><strong>Budget estimado:</strong> {{ "%.2f"|format(case.estimated_budget|float) }} MZN</p>
     </div>
@@ -28,6 +32,7 @@
       <p><strong>Budget:</strong> {{ 'Confirmado' if case.budget_confirmed else 'Sem budget' if case.budget_confirmed == false else 'Pendente' }}</p>
       <p><strong>Modalidade:</strong> {{ case.modality or '-' }}</p>
       <p><strong>Aprovação final:</strong> {{ case.approval_route or '-' }}</p>
+      <p><strong>Base da aprovação:</strong> {{ "%.2f"|format((case.po_value or case.estimated_budget)|float) }} MZN</p>
     </div>
   </div>
   <p><strong>Descrição / TdR / escopo:</strong><br>{{ case.description }}</p>
@@ -35,6 +40,15 @@
   {% if case.hse_requirements %}<p><strong>Requisitos HSE:</strong><br>{{ case.hse_requirements }}</p>{% endif %}
   {% if case.justification %}<p><strong>Justificação:</strong><br>{{ case.justification }}</p>{% endif %}
   {% if case.comments %}<p><strong>Comentários:</strong><br>{{ case.comments }}</p>{% endif %}
+</section>
+
+<section class="panel">
+  <h2>Termo de Referência</h2>
+  <p class="muted">O TdR segue o modelo GT: âmbito, condições de oferta, requisitos, prestação de serviços/fornecimento, EPI, documentos HSE/SSA, condições financeiras e aprovações. A aprovação por valor usa a matriz configurável; quando houver valor de PO/cotação, esse valor passa a ser a base da rota de aprovação.</p>
+  <form method="post" action="/procurement/{{ case.id }}/tdr/enviar" class="inline-form">
+    <input name="email_to" type="email" placeholder="E-mail de destino">
+    <button class="secondary">Enviar TdR por e-mail</button>
+  </form>
 </section>
 
 <section class="panel">

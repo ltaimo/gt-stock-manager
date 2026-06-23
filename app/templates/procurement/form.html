@@ -5,6 +5,14 @@
   <p class="muted">Use este fluxo para bens, serviços ou obras que não existem no stock. Anexe aqui a descrição/TdR inicial, requisitos técnicos e HSE quando aplicável.</p>
   {% if error %}<div class="alert red">{{ error }}</div>{% endif %}
   <form method="post" class="form-stack">
+    <div class="form-grid">
+      <label>TdR No.
+        <input name="tdr_number" placeholder="Gerado automaticamente se vazio">
+      </label>
+      <label>Job title
+        <input name="job_title" placeholder="Título do trabalho / contratação">
+      </label>
+    </div>
     <label>Descrição / TdR / escopo
       <textarea name="description" required placeholder="Descreva claramente o bem, serviço ou obra"></textarea>
     </label>
