@@ -1,0 +1,149 @@
+from datetime import datetime
+from pathlib import Path
+
+from reportlab.lib import colors
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import cm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import Image, Paragraph, Table, TableStyle
+
+from app.config import get_settings
+
+
+GOLD = colors.HexColor("#F5BF00")
+GOLD_DARK = colors.HexColor("#D6A619")
+INK = colors.HexColor("#2D3033")
+MUTED = colors.HexColor("#747981")
+LINE = colors.HexColor("#D9DDE3")
+LIGHT = colors.HexColor("#F7F8FA")
+WHITE = colors.white
+FOOTER_TEXT = "Departamento de Tecnologia e Informação - GT, SA"
+
+
+def register_pdf_fonts() -> tuple[str, str]:
+    regular = "Helvetica"
+    bold = "Helvetica-Bold"
+    font_candidates = [
+        (Path(r"C:\Windows\Fonts\arial.ttf"), Path(r"C:\Windows\Fonts\arialbd.ttf")),
+        (Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"), Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")),
+    ]
+    for regular_path, bold_path in font_candidates:
+        if regular_path.exists() and bold_path.exists():
+            try:
+                pdfmetrics.registerFont(TTFont("GTRegular", str(regular_path)))
+                pdfmetrics.registerFont(TTFont("GTBold", str(bold_path)))
+                return "GTRegular", "GTBold"
+            except Exception:
+                continue
+    return regular, bold
+
+
+def branded_styles():
+    regular, bold = register_pdf_fonts()
+    styles = getSampleStyleSheet()
+    for style_name in ("Normal", "Title", "Heading1", "Heading2", "Heading3"):
+        styles[style_name].fontName = regular
+        styles[style_name].textColor = INK
+    styles["Title"].fontName = bold
+    styles["Heading1"].fontName = bold
+    styles["Heading2"].fontName = bold
+    styles["Heading3"].fontName = bold
+    styles.add(ParagraphStyle(name="GTNormalSmall", parent=styles["Normal"], fontSize=8, leading=10, textColor=MUTED))
+    styles.add(ParagraphStyle(name="GTTitle", parent=styles["Title"], fontName=bold, fontSize=15, leading=18, textColor=INK))
+    styles.add(ParagraphStyle(name="GTSection", parent=styles["Heading2"], fontName=bold, fontSize=11, leading=14, spaceBefore=10, spaceAfter=5))
+    return styles, regular, bold
+
+
+def brand_header(title: str, subtitle: str | None = None, meta: list[str] | None = None, width: float = 18.2 * cm) -> Table:
+    settings = get_settings()
+    styles, _regular, bold = branded_styles()
+    if settings.logo_path.exists():
+        logo = Image(str(settings.logo_path), width=3.8 * cm, height=1.6 * cm, kind="proportional")
+    else:
+        logo = Paragraph("<b>GT</b>", styles["GTTitle"])
+    meta_lines = [settings.app_subtitle]
+    if subtitle:
+        meta_lines.append(subtitle)
+    meta_lines.extend(meta or [])
+    text = Paragraph(f"<b>{title}</b><br/>" + "<br/>".join(meta_lines), styles["Normal"])
+    table = Table([[logo, text]], colWidths=[4.4 * cm, width - 4.4 * cm])
+    table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("BOX", (0, 0), (-1, -1), 0.5, LINE),
+                ("BACKGROUND", (0, 0), (-1, -1), WHITE),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ("FONTNAME", (0, 0), (-1, -1), bold),
+            ]
+        )
+    )
+    return table
+
+
+def branded_footer(canvas, doc, generated_by: str = "") -> None:
+    canvas.saveState()
+    page_width, _page_height = canvas._pagesize
+    y = 0.78 * cm
+    canvas.setStrokeColor(LINE)
+    canvas.setLineWidth(0.5)
+    canvas.line(doc.leftMargin, y + 0.25 * cm, page_width - doc.rightMargin, y + 0.25 * cm)
+    canvas.setFillColor(MUTED)
+    canvas.setFont("Helvetica", 7)
+    left = FOOTER_TEXT
+    if generated_by:
+        left += f" | Gerado por: {generated_by}"
+    canvas.drawString(doc.leftMargin, y, left)
+    canvas.drawRightString(page_width - doc.rightMargin, y, f"Página {doc.page}")
+    canvas.restoreState()
+
+
+def label_value_table(rows: list[list], widths: list[float]) -> Table:
+    _styles, regular, bold = branded_styles()
+    table = Table(rows, colWidths=widths)
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (0, -1), GOLD),
+                ("TEXTCOLOR", (0, 0), (-1, -1), INK),
+                ("GRID", (0, 0), (-1, -1), 0.35, LINE),
+                ("FONTNAME", (0, 0), (0, -1), bold),
+                ("FONTNAME", (1, 0), (-1, -1), regular),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("PADDING", (0, 0), (-1, -1), 5),
+            ]
+        )
+    )
+    return table
+
+
+def data_table(rows: list[list], repeat_rows: int = 1, col_widths: list[float] | None = None) -> Table:
+    _styles, regular, bold = branded_styles()
+    table = Table(rows, repeatRows=repeat_rows, colWidths=col_widths)
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), GOLD_DARK),
+                ("TEXTCOLOR", (0, 0), (-1, 0), INK),
+                ("GRID", (0, 0), (-1, -1), 0.25, LINE),
+                ("FONTNAME", (0, 0), (-1, 0), bold),
+                ("FONTNAME", (0, 1), (-1, -1), regular),
+                ("FONTSIZE", (0, 0), (-1, -1), 7),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [WHITE, LIGHT]),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("PADDING", (0, 0), (-1, -1), 4),
+            ]
+        )
+    )
+    return table
+
+
+def generated_meta(generated_by: str | None = None) -> list[str]:
+    items = [f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}"]
+    if generated_by:
+        items.append(f"Gerado por: {generated_by}")
+    return items

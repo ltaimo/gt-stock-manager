@@ -1,17 +1,15 @@
 import csv
 from datetime import datetime
 from io import BytesIO, StringIO
-from pathlib import Path
 from typing import Iterable
 
 from openpyxl import Workbook
-from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm
-from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+from xml.sax.saxutils import escape
 
-from app.config import get_settings
+from app.services.pdf_branding import INK, brand_header, branded_footer, branded_styles, data_table, generated_meta
 
 
 def rows_to_csv(headers: list[str], rows: Iterable[Iterable]) -> str:
@@ -43,7 +41,6 @@ def rows_to_xlsx(headers: list[str], rows: Iterable[Iterable], title: str = "Rel
 
 
 def rows_to_pdf(headers: list[str], rows: Iterable[Iterable], title: str = "Relatório", generated_by: str = "") -> bytes:
-    settings = get_settings()
     stream = BytesIO()
     doc = SimpleDocTemplate(
         stream,
@@ -53,35 +50,27 @@ def rows_to_pdf(headers: list[str], rows: Iterable[Iterable], title: str = "Rela
         topMargin=1 * cm,
         bottomMargin=1.4 * cm,
     )
-    styles = getSampleStyleSheet()
-    story = []
-    header_cells = []
-    if settings.logo_path.exists():
-        header_cells.append(Image(str(settings.logo_path), width=3.2 * cm, height=1.5 * cm, kind="proportional"))
-    else:
-        header_cells.append(Paragraph("<b>GT</b>", styles["Title"]))
-    meta = f"{settings.app_subtitle}<br/>Gerado em {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-    if generated_by:
-        meta += f"<br/>Gerado por: {generated_by}"
-    header_cells.append(Paragraph(f"<b>{title}</b><br/>{meta}", styles["Normal"]))
-    header_table = Table([header_cells], colWidths=[4 * cm, 22 * cm])
-    header_table.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE")]))
-    story.extend([header_table, Spacer(1, 0.35 * cm)])
-
-    data = [headers] + [[str(value or "") for value in row] for row in rows]
-    table = Table(data, repeatRows=1)
-    table.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#D6A619")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#2D3033")),
-                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#E3E6EA")),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, -1), 7),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F7F8FA")]),
-            ]
-        )
+    story = [brand_header(title, meta=generated_meta(generated_by), width=26 * cm), Spacer(1, 0.35 * cm)]
+    styles, _regular, bold = branded_styles()
+    cell_style = styles["GTNormalSmall"]
+    header_style = cell_style.clone("GTReportHeader")
+    header_style.fontName = bold
+    header_style.textColor = INK
+    rows_list = [[Paragraph(escape(str(value or "")), header_style) for value in headers]]
+    rows_list.extend([[Paragraph(escape(str(value or "")), cell_style) for value in row] for row in rows])
+    col_count = max(len(headers), 1)
+    weights = []
+    for header in headers:
+        lowered = header.lower()
+        if any(term in lowered for term in ("produto", "descr", "item", "observ", "coment", "fornecedor")):
+            weights.append(2.2)
+        else:
+            weights.append(1.0)
+    total_weight = sum(weights) or col_count
+    story.append(data_table(rows_list, col_widths=[(26 * cm) * weight / total_weight for weight in weights]))
+    doc.build(
+        story,
+        onFirstPage=lambda canvas, d: branded_footer(canvas, d, generated_by),
+        onLaterPages=lambda canvas, d: branded_footer(canvas, d, generated_by),
     )
-    story.append(table)
-    doc.build(story)
     return stream.getvalue()

@@ -1,45 +1,25 @@
-from datetime import datetime
 from io import BytesIO
 
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer
 
 from app.models.core import ProcurementCase, User
-
-
-def _register_fonts() -> tuple[str, str]:
-    regular = "Helvetica"
-    bold = "Helvetica-Bold"
-    try:
-        pdfmetrics.registerFont(TTFont("GTArial", r"C:\Windows\Fonts\arial.ttf"))
-        pdfmetrics.registerFont(TTFont("GTArialBold", r"C:\Windows\Fonts\arialbd.ttf"))
-        regular = "GTArial"
-        bold = "GTArialBold"
-    except Exception:
-        pass
-    return regular, bold
+from app.services.pdf_branding import (
+    brand_header,
+    branded_footer,
+    branded_styles,
+    data_table,
+    generated_meta,
+    label_value_table,
+)
 
 
 def _text(value: str | None) -> str:
     return (value or "").replace("\n", "<br/>")
 
 
-def _yes_no(value: bool | None) -> str:
-    if value is True:
-        return "Sim"
-    if value is False:
-        return "Não"
-    return "Pendente"
-
-
 def terms_of_reference_to_pdf(case: ProcurementCase, generated_by: User | None = None) -> bytes:
-    regular_font, bold_font = _register_fonts()
     stream = BytesIO()
     doc = SimpleDocTemplate(
         stream,
@@ -47,31 +27,23 @@ def terms_of_reference_to_pdf(case: ProcurementCase, generated_by: User | None =
         rightMargin=1.4 * cm,
         leftMargin=1.4 * cm,
         topMargin=1.0 * cm,
-        bottomMargin=1.0 * cm,
+        bottomMargin=1.2 * cm,
     )
-    styles = getSampleStyleSheet()
-    for style_name in ("Normal", "Title", "Heading2", "Heading3"):
-        styles[style_name].fontName = regular_font
-    styles.add(
-        ParagraphStyle(
-            name="CenteredTitle",
-            parent=styles["Title"],
-            alignment=TA_CENTER,
-            fontName=bold_font,
-            fontSize=15,
-            leading=18,
-            spaceAfter=8,
-        )
-    )
-    styles.add(ParagraphStyle(name="Section", parent=styles["Heading2"], fontName=bold_font, fontSize=11, leading=14, spaceBefore=10, spaceAfter=5))
+    styles, _regular, _bold = branded_styles()
     normal = styles["Normal"]
+    section = styles["GTSection"]
+    generated_by_name = generated_by.full_name if generated_by else "Sistema"
 
     tdr_number = case.tdr_number or f"TdR-{case.requisition.number}"
     story = [
-        Paragraph("<b>TERMO DE REFERÊNCIA</b><br/>TERM OF REFERENCE", styles["CenteredTitle"]),
-        Paragraph(f"<b>TdR No.:</b> {tdr_number}", normal),
+        brand_header(
+            "TERMO DE REFERÊNCIA / TERM OF REFERENCE",
+            subtitle=f"TdR No.: {tdr_number}",
+            meta=generated_meta(generated_by_name),
+        ),
+        Spacer(1, 0.35 * cm),
         Paragraph(f"<b>Job title:</b> {case.job_title or case.description[:120]}", normal),
-        Spacer(1, 0.25 * cm),
+        Spacer(1, 0.2 * cm),
     ]
 
     summary_rows = [
@@ -85,21 +57,7 @@ def terms_of_reference_to_pdf(case: ProcurementCase, generated_by: User | None =
         ["Aprovação por valor", case.approval_route or "Por definir na matriz"],
         ["Estado TdR", case.tor_status or "Pendente"],
     ]
-    summary = Table(summary_rows, colWidths=[5.2 * cm, 11.2 * cm])
-    summary.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F5BF00")),
-                ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#DDDDDD")),
-                ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-                ("FONTNAME", (1, 0), (-1, -1), regular_font),
-                ("FONTNAME", (0, 0), (0, -1), bold_font),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("PADDING", (0, 0), (-1, -1), 5),
-            ]
-        )
-    )
-    story.extend([summary, Spacer(1, 0.25 * cm)])
+    story.extend([label_value_table(summary_rows, [5.2 * cm, 11.2 * cm]), Spacer(1, 0.25 * cm)])
 
     sections = [
         ("1. ÂMBITO", case.description),
@@ -112,7 +70,7 @@ def terms_of_reference_to_pdf(case: ProcurementCase, generated_by: User | None =
         ("8. CONDIÇÕES FINANCEIRAS", "A política da GTSA prevê pagamentos após entrega do trabalho/fornecimento, em até 30 dias a contar da submissão da factura e após confirmação do good service. Pagamento antecipado exige garantia bancária do valor em causa."),
     ]
     for title, body in sections:
-        story.append(Paragraph(f"<b>{title}</b>", styles["Section"]))
+        story.append(Paragraph(f"<b>{title}</b>", section))
         story.append(Paragraph(_text(body), normal))
 
     approval_rows = [
@@ -124,26 +82,8 @@ def terms_of_reference_to_pdf(case: ProcurementCase, generated_by: User | None =
         ["Approved by", "Terminal Manager", case.terminal_manager_approved_by.full_name if case.terminal_manager_approved_by else "", "Terminal Manager"],
         ["Approved by value", case.approval_route or "", "", "Matriz de aprovações"],
     ]
-    approvals = Table(approval_rows, colWidths=[3.7 * cm, 5 * cm, 4.2 * cm, 3.6 * cm])
-    approvals.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F5BF00")),
-                ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#999999")),
-                ("FONTNAME", (0, 0), (-1, 0), bold_font),
-                ("FONTNAME", (0, 1), (-1, -1), regular_font),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("PADDING", (0, 0), (-1, -1), 5),
-            ]
-        )
-    )
-    story.append(KeepTogether([Paragraph("<b>9. APROVAÇÕES</b>", styles["Section"]), approvals]))
-    story.extend(
-        [
-            Spacer(1, 0.35 * cm),
-            Paragraph(f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}", normal),
-            Paragraph(f"Gerado por: {generated_by.full_name if generated_by else 'Sistema'}", normal),
-        ]
-    )
-    doc.build(story)
+    approvals = data_table(approval_rows, col_widths=[3.7 * cm, 5.0 * cm, 4.2 * cm, 3.6 * cm])
+    story.append(KeepTogether([Paragraph("<b>9. APROVAÇÕES</b>", section), approvals]))
+
+    doc.build(story, onFirstPage=lambda c, d: branded_footer(c, d, generated_by_name), onLaterPages=lambda c, d: branded_footer(c, d, generated_by_name))
     return stream.getvalue()
