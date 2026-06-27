@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=20260627-replenishment">
+  <link rel="stylesheet" href="/static/css/app.css?v=20260627-v210">
 </head>
 <body spellcheck="true">
 {% if user %}
@@ -73,12 +73,12 @@
     {% block content %}{% endblock %}
 {% if user %}
   </main>
-  <footer class="app-footer">Designed by Layton Taimo</footer>
+  <footer class="app-footer">GT Stock Manager v{{ app_version }} &middot; Designed by Layton Taimo</footer>
 </div>
 {% else %}
-  <footer class="auth-footer">Designed by Layton Taimo</footer>
+  <footer class="auth-footer">GT Stock Manager v{{ app_version }} &middot; Designed by Layton Taimo</footer>
 </main>
 {% endif %}
-<script src="/static/js/app.js?v=20260627-replenishment"></script>
+<script src="/static/js/app.js?v=20260627-v210"></script>
 </body>
 </html>

@@ -10,7 +10,7 @@
 </header>
 
 <section class="kpis dashboard-kpis">
-  <div><strong>{{ total_products }}</strong><span>{{ t('total_products', user) }}</span><small>{{ active_products }} ativos</small></div>
+  <div><strong>{{ total_products }}</strong><span>{{ t('total_products', user) }}</span><small>{{ active_products }} ativos &middot; {{ monitored_products }} monitorizados</small></div>
   <div><strong>{{ stockout }}</strong><span>Sem Stock</span><small>{{ critical }} itens requerem atenção</small></div>
   <div><strong>{{ warning }}</strong><span>Stock em Atenção</span><small>{{ negative }} stock negativo</small></div>
   {% if can_view_movements %}

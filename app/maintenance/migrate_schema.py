@@ -38,6 +38,8 @@ def ensure_schema() -> None:
         columns = {column["name"] for column in inspector.get_columns("products")}
         if "unit_price" not in columns:
             additions.append("ALTER TABLE products ADD COLUMN unit_price NUMERIC(14, 2) DEFAULT 0")
+        if "requires_stock_control" not in columns:
+            additions.append("ALTER TABLE products ADD COLUMN requires_stock_control BOOLEAN DEFAULT true")
     if "requisitions" in tables:
         columns = {column["name"] for column in inspector.get_columns("requisitions")}
         if "estimated_value" not in columns:

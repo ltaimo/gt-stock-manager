@@ -107,6 +107,7 @@ class Product(Base):
     minimum_stock: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     total_entries: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     total_exits: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    requires_stock_control: Mapped[bool] = mapped_column(Boolean, default=True)
     status: Mapped[str] = mapped_column(String(20), default=ProductStatus.active.value)
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
@@ -118,6 +119,10 @@ class Product(Base):
 
     @property
     def alert_status(self) -> str:
+        if self.status != ProductStatus.active.value:
+            return "Inativo"
+        if not self.requires_stock_control:
+            return "Sem monitorização"
         current = float(self.current_stock or 0)
         minimum = float(self.minimum_stock or 0)
         if current < 0:
@@ -134,6 +139,8 @@ class Product(Base):
     def alert_badge(self) -> str:
         return {
             "Stock Adequado": "green",
+            "Inativo": "grey",
+            "Sem monitorização": "grey",
             "Stock em Atenção": "orange",
             "Stock Crítico": "red",
             "Sem Stock": "grey",

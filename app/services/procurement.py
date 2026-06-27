@@ -29,6 +29,8 @@ def next_replenishment_number(db: Session) -> str:
 
 
 def suggested_replenishment_quantity(product) -> float:
+    if product.status != "active" or not product.requires_stock_control:
+        return 0
     current = Decimal(str(product.current_stock or 0))
     minimum = Decimal(str(product.minimum_stock or 0))
     if minimum <= 0 or current > minimum:

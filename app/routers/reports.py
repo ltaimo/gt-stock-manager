@@ -32,15 +32,29 @@ def stock_rows(db: Session):
             p.minimum_stock,
             p.total_entries,
             p.total_exits,
+            "Ativo" if p.status == "active" else "Inativo",
+            "Sim" if p.requires_stock_control else "Não",
             p.alert_status,
         )
         for p in products
     ]
 
 
+def products_requiring_attention(db: Session) -> list[Product]:
+    return [
+        product
+        for product in db.scalars(
+            select(Product)
+            .where(Product.status == "active", Product.requires_stock_control == True)
+            .order_by(Product.name)
+        ).all()
+        if product.alert_status != "Stock Adequado"
+    ]
+
+
 @router.get("/stock")
 def stock_report(request: Request, export: str = "", db: Session = Depends(get_db), user: User = Depends(require_permission("reports"))):
-    headers = ["Código", "Produto", "Categoria", "Unidade", "Preço Unit.", "Stock Atual", "Stock Mínimo", "Entradas", "Saídas", "Alerta"]
+    headers = ["Código", "Produto", "Categoria", "Unidade", "Preço Unit.", "Stock Atual", "Stock Mínimo", "Entradas", "Saídas", "Estado", "Monitorizado", "Alerta"]
     rows = stock_rows(db)
     if export == "xlsx":
         return Response(rows_to_xlsx(headers, rows, "Stock"), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": 'attachment; filename="stock.xlsx"'})
@@ -109,7 +123,11 @@ def movement_report(
 
 @router.get("/requisicoes")
 def requisition_report(request: Request, status: str = "", department_id: int | None = None, requester_id: int | None = None, export: str = "", db: Session = Depends(get_db), user: User = Depends(require_permission("reports"))):
-    stmt = select(Requisition).order_by(Requisition.request_date.desc())
+    stmt = (
+        select(Requisition)
+        .where(Requisition.req_type.notin_(["NS", "REPOSICAO"]))
+        .order_by(Requisition.request_date.desc())
+    )
     if status:
         stmt = stmt.where(Requisition.status == status)
     if department_id:
@@ -167,6 +185,36 @@ def procurement_report(request: Request, export: str = "", db: Session = Depends
 
 
 @router.get("/critico")
-def critical_report(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("reports"))):
-    products = [p for p in db.scalars(select(Product).order_by(Product.name)).all() if p.alert_status != "Stock Adequado"]
+def critical_report(
+    request: Request,
+    export: str = "",
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("reports")),
+):
+    products = products_requiring_attention(db)
+    headers = ["Código", "Produto", "Categoria", "Unidade", "Stock Atual", "Stock Mínimo", "Estado"]
+    rows = [
+        (
+            product.code,
+            product.name,
+            product.category.name if product.category else "Sem Categoria",
+            product.unit,
+            product.current_stock,
+            product.minimum_stock,
+            product.alert_status,
+        )
+        for product in products
+    ]
+    if export == "xlsx":
+        return Response(
+            rows_to_xlsx(headers, rows, "Stock crítico"),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": 'attachment; filename="stock-critico.xlsx"'},
+        )
+    if export == "pdf":
+        return Response(
+            rows_to_pdf(headers, rows, "Stock que Requer Atenção", user.full_name),
+            media_type="application/pdf",
+            headers={"Content-Disposition": 'attachment; filename="stock-critico.pdf"'},
+        )
     return templates.TemplateResponse("reports/critical.html", {"request": request, "user": user, "products": products})

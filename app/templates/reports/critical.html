@@ -1,2 +1,25 @@
 {% extends "base.html" %}
-{% block content %}<header class="page-header"><h1>Stock que Requer Atenção</h1></header><div class="panel"><table><thead><tr><th>Código</th><th>Produto</th><th>Atual</th><th>Mínimo</th><th>Estado</th></tr></thead><tbody>{% for p in products %}<tr><td>{{ p.code }}</td><td>{{ p.name }}</td><td>{{ p.current_stock }}</td><td>{{ p.minimum_stock }}</td><td><span class="badge {{ p.alert_badge }}">{{ p.alert_status }}</span></td></tr>{% endfor %}</tbody></table></div>{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <h1>Stock que Requer Atenção</h1>
+    <p class="muted">Apenas produtos ativos com monitorização de stock ligada.</p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="?export=xlsx">Excel</a>
+    <a class="button secondary" href="?export=pdf">PDF</a>
+  </div>
+</header>
+<div class="panel">
+  <table>
+    <thead><tr><th>Código</th><th>Produto</th><th>Atual</th><th>Mínimo</th><th>Estado</th></tr></thead>
+    <tbody>
+      {% for p in products %}
+      <tr><td>{{ p.code }}</td><td>{{ p.name }}</td><td>{{ p.current_stock }}</td><td>{{ p.minimum_stock }}</td><td><span class="badge {{ p.alert_badge }}">{{ p.alert_status }}</span></td></tr>
+      {% else %}
+      <tr><td colspan="5"><div class="empty-state">Não existem produtos que requeiram atenção.</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

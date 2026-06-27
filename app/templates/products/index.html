@@ -19,7 +19,7 @@
 <div class="panel">
   <table>
     <thead>
-      <tr><th>Código</th><th>Produto/Marca</th><th>Categoria</th><th>Unidade</th><th>Preço Unit.</th><th>Qtde</th><th>Entrada</th><th>Saída</th><th>Alerta</th><th>Estado</th><th></th></tr>
+      <tr><th>Código</th><th>Produto/Marca</th><th>Categoria</th><th>Unidade</th><th>Preço Unit.</th><th>Qtde</th><th>Entrada</th><th>Saída</th><th>Controlo</th><th>Alerta</th><th>Estado</th><th></th></tr>
     </thead>
     <tbody>
     {% for p in products %}
@@ -32,6 +32,7 @@
         <td>{{ p.current_stock }}</td>
         <td>{{ p.total_entries }}</td>
         <td>{{ p.total_exits }}</td>
+        <td><span class="badge {{ 'green' if p.requires_stock_control else 'grey' }}">{{ 'Monitorizado' if p.requires_stock_control else 'Pontual' }}</span></td>
         <td><span class="badge {{ p.alert_badge }}">{{ p.alert_status }}</span></td>
         <td><span class="badge grey">{{ p.status }}</span></td>
         <td>{% if can(user, 'products_manage') %}<a href="/produtos/{{ p.id }}/editar">Editar</a>{% endif %}</td>

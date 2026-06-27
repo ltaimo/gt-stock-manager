@@ -12,6 +12,10 @@ from xml.sax.saxutils import escape
 from app.services.pdf_branding import INK, brand_header, branded_footer, branded_styles, data_table, generated_meta
 
 
+def display_value(value) -> str:
+    return "" if value is None else str(value)
+
+
 def rows_to_csv(headers: list[str], rows: Iterable[Iterable]) -> str:
     output = StringIO()
     writer = csv.writer(output)
@@ -33,7 +37,7 @@ def rows_to_xlsx(headers: list[str], rows: Iterable[Iterable], title: str = "Rel
     for cell in ws[4]:
         cell.font = cell.font.copy(bold=True)
     for column in ws.columns:
-        width = min(max(len(str(cell.value or "")) for cell in column) + 2, 42)
+        width = min(max(len(display_value(cell.value)) for cell in column) + 2, 42)
         ws.column_dimensions[column[0].column_letter].width = width
     stream = BytesIO()
     wb.save(stream)
@@ -56,8 +60,8 @@ def rows_to_pdf(headers: list[str], rows: Iterable[Iterable], title: str = "Rela
     header_style = cell_style.clone("GTReportHeader")
     header_style.fontName = bold
     header_style.textColor = INK
-    rows_list = [[Paragraph(escape(str(value or "")), header_style) for value in headers]]
-    rows_list.extend([[Paragraph(escape(str(value or "")), cell_style) for value in row] for row in rows])
+    rows_list = [[Paragraph(escape(display_value(value)), header_style) for value in headers]]
+    rows_list.extend([[Paragraph(escape(display_value(value)), cell_style) for value in row] for row in rows])
     col_count = max(len(headers), 1)
     weights = []
     for header in headers:

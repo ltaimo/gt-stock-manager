@@ -64,6 +64,7 @@ def create_product(
     unit: str = Form("un"),
     unit_price: str | None = Form("0"),
     minimum_stock: str | None = Form("0"),
+    requires_stock_control: str | None = Form("1"),
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("products_manage")),
 ):
@@ -104,6 +105,7 @@ def create_product(
             unit=clean_unit,
             unit_price=parsed_price,
             minimum_stock=parsed_minimum,
+            requires_stock_control=requires_stock_control == "1",
             created_by_id=user.id,
         )
         db.add(product)
@@ -129,6 +131,7 @@ def update_product(
     unit: str = Form("un"),
     unit_price: str | None = Form("0"),
     minimum_stock: str | None = Form("0"),
+    requires_stock_control: str | None = Form(None),
     status: str = Form("active"),
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("products_manage")),
@@ -154,15 +157,37 @@ def update_product(
     duplicate = db.scalar(select(Product).where(Product.name.ilike(clean_name), Product.id != product.id))
     if duplicate:
         raise HTTPException(400, "Já existe outro produto com este nome.")
-    old = {"name": product.name, "unit_price": float(product.unit_price or 0), "minimum_stock": float(product.minimum_stock or 0), "status": product.status}
+    old = {
+        "name": product.name,
+        "unit_price": float(product.unit_price or 0),
+        "minimum_stock": float(product.minimum_stock or 0),
+        "requires_stock_control": product.requires_stock_control,
+        "status": product.status,
+    }
     with atomic(db):
         product.name = clean_name
         product.category_id = parsed_category_id
         product.unit = clean_unit
         product.unit_price = parsed_price
         product.minimum_stock = parsed_minimum
+        product.requires_stock_control = requires_stock_control == "1"
         product.status = status
-        audit_log(db, user, "Atualizou produto", "Produtos", product.id, old_value=old, new_value={"name": clean_name, "unit_price": parsed_price, "minimum_stock": parsed_minimum, "status": status}, request=request)
+        audit_log(
+            db,
+            user,
+            "Atualizou produto",
+            "Produtos",
+            product.id,
+            old_value=old,
+            new_value={
+                "name": clean_name,
+                "unit_price": parsed_price,
+                "minimum_stock": parsed_minimum,
+                "requires_stock_control": product.requires_stock_control,
+                "status": status,
+            },
+            request=request,
+        )
     return RedirectResponse("/produtos", status_code=303)
 
 

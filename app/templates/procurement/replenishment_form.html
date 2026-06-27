@@ -48,7 +48,7 @@
           <td data-label="Produto">
             <strong>{{ product.code }}</strong><br>
             {{ product.name }}
-            {% if suggested > 0 %}<br><span class="badge {{ product.alert_badge }}">{{ product.alert_status }}</span>{% endif %}
+            {% if suggested > 0 or not product.requires_stock_control %}<br><span class="badge {{ product.alert_badge }}">{{ product.alert_status }}</span>{% endif %}
           </td>
           <td data-label="Stock atual">{{ product.current_stock }} {{ product.unit }}</td>
           <td data-label="Mínimo">{{ product.minimum_stock }} {{ product.unit }}</td>

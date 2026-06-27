@@ -1,5 +1,7 @@
 # Stock Management System
 
+Versão atual: **2.1.0**
+
 Sistema web para substituir o gestor Excel/VBA de economato, movimentos, requisições, relatórios e utilizadores.
 
 ## Stack

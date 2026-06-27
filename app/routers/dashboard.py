@@ -63,11 +63,12 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
     procurement_pending = db.scalars(procurement_stmt.limit(8)).all() if can_view_procurement else []
 
     active_products = [p for p in products if p.status == "active"]
+    monitored_products = [p for p in active_products if p.requires_stock_control]
     attention_statuses = {"Sem Stock", "Stock Crítico", "Stock em Atenção", "Erro: Stock Negativo"}
-    critical_products = [p for p in products if p.alert_status in attention_statuses]
-    stockout_products = [p for p in products if p.alert_status == "Sem Stock"]
-    warning_products = [p for p in products if p.alert_status == "Stock em Atenção"]
-    negative_products = [p for p in products if p.alert_status == "Erro: Stock Negativo"]
+    critical_products = [p for p in monitored_products if p.alert_status in attention_statuses]
+    stockout_products = [p for p in monitored_products if p.alert_status == "Sem Stock"]
+    warning_products = [p for p in monitored_products if p.alert_status == "Stock em Atenção"]
+    negative_products = [p for p in monitored_products if p.alert_status == "Erro: Stock Negativo"]
 
     entries_month = db.scalar(
         select(func.coalesce(func.sum(StockMovement.quantity), 0)).where(
@@ -134,7 +135,11 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
 
     projected_entries = round(float(entries_month) / elapsed_days * days_in_month, 2)
     projected_exits = round(float(exits_month) / elapsed_days * days_in_month, 2)
-    stock_health = round(((len(products) - len(critical_products)) / len(products) * 100), 1) if products else 0
+    stock_health = (
+        round(((len(monitored_products) - len(critical_products)) / len(monitored_products) * 100), 1)
+        if monitored_products
+        else 100
+    )
 
     return templates.TemplateResponse(
         "dashboard/index.html",
@@ -143,6 +148,7 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
             "user": user,
             "total_products": len(products),
             "active_products": len(active_products),
+            "monitored_products": len(monitored_products),
             "critical": len(critical_products),
             "stockout": len(stockout_products),
             "warning": len(warning_products),
