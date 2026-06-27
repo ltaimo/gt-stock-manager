@@ -12,6 +12,18 @@ from app.security import current_user, has_permission
 
 router = APIRouter()
 
+PROCUREMENT_VIEW_PERMISSIONS = {
+    "procurement_manage",
+    "budget_verify",
+    "procurement_tor_approve_hod",
+    "procurement_tor_approve_terminal",
+    "procurement_technical_evaluate",
+    "procurement_financial_evaluate",
+    "procurement_hse_validate",
+    "procurement_receive",
+    "procurement_archive",
+}
+
 
 @router.get("/dashboard")
 def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
@@ -22,17 +34,33 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
     products = db.scalars(select(Product).order_by(Product.name)).all()
     can_view_movements = has_permission(user, "movements")
     can_review_requisitions = has_permission(user, "requisitions_review")
-    can_view_procurement = has_permission(user, "procurement_manage") or has_permission(user, "budget_verify")
+    can_view_all_procurement = any(has_permission(user, permission) for permission in PROCUREMENT_VIEW_PERMISSIONS)
+    can_view_procurement = (
+        can_view_all_procurement
+        or has_permission(user, "non_stock_requisitions_create")
+        or has_permission(user, "stock_replenishment_create")
+    )
     movements = (
         db.scalars(select(StockMovement).order_by(StockMovement.posted_at.desc()).limit(8)).all()
         if can_view_movements
         else []
     )
-    pending_stmt = select(Requisition).where(Requisition.status == RequisitionStatus.submitted.value)
+    pending_stmt = select(Requisition).where(
+        Requisition.status == RequisitionStatus.submitted.value,
+        Requisition.req_type != "REPOSICAO",
+    )
     if not can_review_requisitions:
         pending_stmt = pending_stmt.where(Requisition.requesting_user_id == user.id)
     pending = db.scalars(pending_stmt.limit(8)).all()
-    procurement_pending = db.scalars(select(ProcurementCase).where(ProcurementCase.status != "Closed").order_by(ProcurementCase.created_at.desc()).limit(8)).all() if can_view_procurement else []
+    procurement_stmt = (
+        select(ProcurementCase)
+        .join(ProcurementCase.requisition)
+        .where(ProcurementCase.status != "Closed")
+        .order_by(ProcurementCase.created_at.desc())
+    )
+    if can_view_procurement and not can_view_all_procurement:
+        procurement_stmt = procurement_stmt.where(Requisition.requesting_user_id == user.id)
+    procurement_pending = db.scalars(procurement_stmt.limit(8)).all() if can_view_procurement else []
 
     active_products = [p for p in products if p.status == "active"]
     attention_statuses = {"Sem Stock", "Stock Crítico", "Stock em Atenção", "Erro: Stock Negativo"}

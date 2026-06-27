@@ -5,7 +5,7 @@ from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 from app.models.core import ProcurementCase, User
-from app.services.pdf_branding import brand_header, branded_footer, branded_styles, generated_meta, label_value_table
+from app.services.pdf_branding import brand_header, branded_footer, branded_styles, data_table, generated_meta, label_value_table
 
 
 def procurement_form_to_pdf(case: ProcurementCase, generated_by: User | None = None) -> bytes:
@@ -20,9 +20,10 @@ def procurement_form_to_pdf(case: ProcurementCase, generated_by: User | None = N
     )
     styles, _regular, _bold = branded_styles()
     generated_name = generated_by.full_name if generated_by else "Sistema"
+    is_replenishment = case.requisition.req_type == "REPOSICAO"
     story = [
         brand_header(
-            "Formulário de Requisição Non-Stock",
+            "Pedido de Reposição de Stock" if is_replenishment else "Formulário de Requisição Non-Stock",
             subtitle=f"Nº: {case.requisition.number}",
             meta=generated_meta(generated_name),
         ),
@@ -45,6 +46,25 @@ def procurement_form_to_pdf(case: ProcurementCase, generated_by: User | None = N
         ["PO", case.po_number or ""],
     ]
     story.extend([label_value_table(rows, [5 * cm, 12 * cm]), Spacer(1, 0.5 * cm)])
+    if is_replenishment:
+        item_rows = [["Código / produto", "Qtd.", "Preço unit.", "Total", "Recebido"]]
+        for item in case.requisition.items:
+            item_rows.append(
+                [
+                    Paragraph(f"<b>{item.product.code}</b><br/>{item.product.name}", styles["Normal"]),
+                    f"{float(item.quantity_requested or 0):g} {item.product.unit}",
+                    f"{float(item.estimated_unit_price or 0):.2f}",
+                    f"{float(item.quantity_requested or 0) * float(item.estimated_unit_price or 0):.2f}",
+                    f"{float(item.quantity_received or 0):g}",
+                ]
+            )
+        story.extend(
+            [
+                Paragraph("<b>Produtos a adquirir</b>", styles["Heading3"]),
+                data_table(item_rows, col_widths=[7.4 * cm, 2.2 * cm, 2.6 * cm, 2.6 * cm, 2.2 * cm]),
+                Spacer(1, 0.5 * cm),
+            ]
+        )
     story.append(Paragraph("<b>Descrição / escopo</b>", styles["Heading3"]))
     story.append(Paragraph((case.description or "").replace("\n", "<br/>"), styles["Normal"]))
     if case.justification:

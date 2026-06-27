@@ -125,7 +125,11 @@ def normalize_req_type(req_type: str) -> str:
 
 @router.get("")
 def list_requisitions(request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
-    stmt = select(Requisition).order_by(Requisition.request_date.desc())
+    stmt = (
+        select(Requisition)
+        .where(Requisition.req_type != "REPOSICAO")
+        .order_by(Requisition.request_date.desc())
+    )
     if not has_permission(user, "requisitions_all"):
         stmt = stmt.where(Requisition.requesting_user_id == user.id)
     return templates.TemplateResponse("requisitions/index.html", {"request": request, "user": user, "requisitions": db.scalars(stmt).all()})

@@ -5,8 +5,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
-from app.models.core import ApprovalMatrixRule, Department, ProcurementCase, Requisition, RequisitionStatus, Role, User
-from app.routers.procurement import update_tracker, verify_budget
+from app.models.core import ApprovalMatrixRule, Department, ProcurementCase, Product, Requisition, RequisitionItem, RequisitionStatus, Role, User
+from app.routers.procurement import approve_by_value, can_update_tracker, create_replenishment, receive_replenishment, update_tracker, verify_budget
 from app.security import has_permission, hash_password
 from app.services.procurement import classify_procurement
 from app.services.tdr_pdf import terms_of_reference_to_pdf
@@ -55,6 +55,20 @@ class ProcurementPermissionTests(unittest.TestCase):
 
         self.assertTrue(has_permission(user, "procurement_tor_approve_hod"))
 
+    def test_stock_receiver_cannot_edit_the_procurement_tracker(self):
+        role = Role(name="Recebedor", permissions='["procurement_receive"]')
+        user = type("UserObj", (), {"role": role})()
+
+        self.assertFalse(can_update_tracker(user))
+
+    def test_stock_manager_can_receive_replenishment_without_managing_tracker(self):
+        role = Role(name="Gestor de Estoque", permissions=None)
+        user = type("UserObj", (), {"role": role})()
+
+        self.assertTrue(has_permission(user, "procurement_receive"))
+        self.assertTrue(has_permission(user, "stock_replenishment_create"))
+        self.assertFalse(can_update_tracker(user))
+
 
 class ProcurementWorkflowTests(unittest.TestCase):
     def setUp(self):
@@ -73,6 +87,17 @@ class ProcurementWorkflowTests(unittest.TestCase):
             department_id=department.id,
         )
         self.db.add(self.user)
+        self.db.flush()
+        self.product = Product(
+            code="REP-001",
+            name="Produto para reposição",
+            unit="un",
+            unit_price=250,
+            current_stock=1,
+            minimum_stock=2,
+            created_by_id=self.user.id,
+        )
+        self.db.add(self.product)
         self.db.flush()
         self.req = Requisition(
             number="NS-2026-00001",
@@ -167,6 +192,8 @@ class ProcurementWorkflowTests(unittest.TestCase):
     def test_tracker_reclassifies_approval_by_po_value(self):
         self.case.tor_status = "Approved"
         self.case.status = "Financial Evaluation"
+        self.case.approval_status = "Approved"
+        self.case.approval_route = "Supervisor"
         self.db.commit()
 
         update_tracker(
@@ -199,6 +226,98 @@ class ProcurementWorkflowTests(unittest.TestCase):
 
         self.assertEqual(self.case.approval_route, "Chefe do Terminal")
         self.assertEqual(self.case.modality, "RFQ")
+        self.assertEqual(self.case.approval_status, "Pending")
+        self.assertEqual(self.case.status, "Pending Approval")
+
+    def test_replenishment_uses_selected_products_and_calculates_approval_value(self):
+        response = create_replenishment(
+            request=None,
+            product_id=[str(self.product.id)],
+            quantity=["4"],
+            estimated_unit_price=["250"],
+            justification="Repor nível mínimo",
+            cost_center="ARMAZEM",
+            priority="Normal",
+            required_date=None,
+            db=self.db,
+            user=self.user,
+        )
+        self.db.commit()
+
+        requisition = self.db.query(Requisition).filter(Requisition.number.like("RP-%")).one()
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(requisition.req_type, "REPOSICAO")
+        self.assertEqual(float(requisition.estimated_value), 1000)
+        self.assertEqual(requisition.authorization_person, "Supervisor")
+        self.assertEqual(requisition.procurement_case.approval_route, "Supervisor")
+        self.assertEqual(requisition.procurement_case.modality, "RFQ")
+        self.assertEqual(len(requisition.items), 1)
+        self.assertEqual(float(requisition.items[0].estimated_unit_price), 250)
+        self.assertEqual(requisition.procurement_case.status, "Pending HOD TdR Approval")
+
+    def test_replenishment_receipt_posts_stock_once_and_blocks_over_receipt(self):
+        self.req.req_type = "REPOSICAO"
+        item = RequisitionItem(
+            requisition_id=self.req.id,
+            product_id=self.product.id,
+            quantity_requested=5,
+            estimated_unit_price=250,
+        )
+        self.db.add(item)
+        self.case.po_number = "PO-REP-1"
+        self.case.approval_status = "Approved"
+        self.db.commit()
+
+        response = receive_replenishment(
+            self.case.id,
+            request=None,
+            item_id=[str(item.id)],
+            received_quantity=["3"],
+            receipt_note="Recebido em boas condições",
+            db=self.db,
+            user=self.user,
+        )
+        self.db.commit()
+        self.db.refresh(item)
+        self.db.refresh(self.product)
+
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(float(item.quantity_received), 3)
+        self.assertEqual(float(self.product.current_stock), 3)
+        self.assertEqual(self.case.receipt_status, "Partial")
+
+        with self.assertRaises(HTTPException) as caught:
+            receive_replenishment(
+                self.case.id,
+                request=None,
+                item_id=[str(item.id)],
+                received_quantity=["3"],
+                receipt_note="Tentativa duplicada",
+                db=self.db,
+                user=self.user,
+            )
+        self.assertEqual(caught.exception.status_code, 400)
+        self.assertIn("excede", caught.exception.detail)
+
+    def test_superadmin_can_complete_value_based_approval(self):
+        self.case.status = "Pending Approval"
+        self.case.approval_status = "Pending"
+        self.case.approval_route = "Supervisor"
+        self.db.commit()
+
+        response = approve_by_value(
+            self.case.id,
+            request=None,
+            decision="approve",
+            comments="Aprovado conforme matriz",
+            db=self.db,
+            user=self.user,
+        )
+        self.db.commit()
+
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(self.case.approval_status, "Approved")
+        self.assertEqual(self.case.status, "RFQ/RFP/Tender Running")
 
 
 if __name__ == "__main__":

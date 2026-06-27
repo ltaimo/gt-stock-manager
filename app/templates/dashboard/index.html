@@ -18,7 +18,7 @@
     <div><strong>{{ exits_month }}</strong><span>Saídas do mês</span><small>Proj. {{ projected_exits }}</small></div>
   {% endif %}
   {% if can_view_procurement %}
-    <div><strong>{{ procurement_pending_count }}</strong><span>{{ t('open_procurement', user) }}</span><small>NS em acompanhamento</small></div>
+    <div><strong>{{ procurement_pending_count }}</strong><span>{{ t('open_procurement', user) }}</span><small>Compras e reposições em acompanhamento</small></div>
   {% endif %}
   <div><strong>{{ stock_health }}%</strong><span>Saúde do stock</span><small>Stock adequado</small></div>
 </section>
@@ -94,14 +94,14 @@
 
   {% if can_view_procurement %}
   <div class="panel">
-    <div class="panel-heading"><h2>Procurement / NS aberto</h2><span class="badge orange">{{ procurement_pending_count }}</span></div>
+    <div class="panel-heading"><h2>Procurement aberto</h2><span class="badge orange">{{ procurement_pending_count }}</span></div>
     <table>
       <thead><tr><th>Nº</th><th>Budget</th><th>Estado</th></tr></thead>
       <tbody>
       {% for case in pending_procurement %}
         <tr><td><a href="/procurement/{{ case.id }}">{{ case.requisition.number }}</a></td><td>{{ "%.2f"|format(case.estimated_budget|float) }} MZN</td><td><span class="badge orange">{{ case.status }}</span></td></tr>
       {% else %}
-        <tr><td colspan="3"><div class="empty-state">Sem processos NS abertos.</div></td></tr>
+        <tr><td colspan="3"><div class="empty-state">Sem processos de procurement abertos.</div></td></tr>
       {% endfor %}
       </tbody>
     </table>

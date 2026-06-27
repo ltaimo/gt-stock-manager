@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=20260623-forms">
+  <link rel="stylesheet" href="/static/css/app.css?v=20260627-replenishment">
 </head>
 <body spellcheck="true">
 {% if user %}
@@ -28,7 +28,7 @@
     {% if can(user, 'documents') %}<a href="/documentos" data-nav-prefix="/documentos">{{ t('documents', user) }}</a>{% endif %}
     {% if can(user, 'stock_requisitions_create') %}<a href="/requisicoes/nova" data-nav-exact="/requisicoes/nova">{{ t('new_sr', user) }}</a>{% endif %}
     <a href="/requisicoes" data-nav-prefix="/requisicoes">{{ t('sr_requests', user) }}</a>
-    {% if can(user, 'non_stock_requisitions_create') or can(user, 'procurement_manage') or can(user, 'budget_verify') %}
+    {% if can(user, 'non_stock_requisitions_create') or can(user, 'stock_replenishment_create') or can(user, 'procurement_manage') or can(user, 'budget_verify') %}
       <a href="/procurement" data-nav-prefix="/procurement">{{ t('procurement', user) }}</a>
     {% endif %}
     {% if can(user, 'reports') %}<a href="/relatorios" data-nav-prefix="/relatorios">{{ t('reports', user) }}</a>{% endif %}
@@ -79,6 +79,6 @@
   <footer class="auth-footer">Designed by Layton Taimo</footer>
 </main>
 {% endif %}
-<script src="/static/js/app.js?v=20260623-forms"></script>
+<script src="/static/js/app.js?v=20260627-replenishment"></script>
 </body>
 </html>

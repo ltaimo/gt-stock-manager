@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <h1>Novo pedido de reposição</h1>
+    <p class="muted">Selecione produtos do stock, indique a quantidade a comprar e confirme o preço estimado.</p>
+  </div>
+  <a class="button secondary" href="/procurement">Cancelar</a>
+</header>
+
+{% if error %}<div class="alert red">{{ error }}</div>{% endif %}
+
+<form method="post" class="form-stack" data-replenishment-form>
+  <section class="panel">
+    <div class="panel-heading">
+      <div>
+        <h2>Produtos para compra</h2>
+        <span class="muted">Os itens em falta ou no mínimo aparecem primeiro. Pode escolher qualquer produto ativo.</span>
+      </div>
+      <label class="search-field">Pesquisar
+        <input type="search" placeholder="Código ou produto" data-replenishment-search>
+      </label>
+    </div>
+    <table class="responsive-table replenishment-table">
+      <thead>
+        <tr>
+          <th>Selecionar</th>
+          <th>Produto</th>
+          <th>Stock atual</th>
+          <th>Mínimo</th>
+          <th>Sugestão</th>
+          <th>Quantidade</th>
+          <th>Preço estimado</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for product in products %}
+        {% set suggested = suggested_quantity(product) %}
+        {% set selected = product.id in selected_ids %}
+        <tr data-replenishment-row data-search-text="{{ product.code }} {{ product.name }}">
+          <td data-label="Selecionar">
+            <label class="check">
+              <input type="checkbox" name="product_id" value="{{ product.id }}" data-replenishment-check {% if selected %}checked{% endif %}>
+              <span class="sr-only">Selecionar {{ product.name }}</span>
+            </label>
+          </td>
+          <td data-label="Produto">
+            <strong>{{ product.code }}</strong><br>
+            {{ product.name }}
+            {% if suggested > 0 %}<br><span class="badge {{ product.alert_badge }}">{{ product.alert_status }}</span>{% endif %}
+          </td>
+          <td data-label="Stock atual">{{ product.current_stock }} {{ product.unit }}</td>
+          <td data-label="Mínimo">{{ product.minimum_stock }} {{ product.unit }}</td>
+          <td data-label="Sugestão">{{ suggested|round(2) if suggested > 0 else '-' }}</td>
+          <td data-label="Quantidade">
+            <input name="quantity" type="number" min="0.01" step="0.01" value="{{ suggested if suggested > 0 else 1 }}" data-replenishment-quantity {% if not selected %}disabled{% endif %}>
+          </td>
+          <td data-label="Preço estimado">
+            <input name="estimated_unit_price" type="number" min="0.01" step="0.01" value="{{ product.unit_price or '' }}" data-replenishment-price {% if not selected %}disabled{% endif %}>
+          </td>
+          <td data-label="Total"><strong><output data-replenishment-line-total>0.00</output> MZN</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel">
+    <h2>Dados do pedido</h2>
+    <div class="form-grid">
+      <label>Centro de custo
+        <input name="cost_center" placeholder="Opcional">
+      </label>
+      <label>Prioridade
+        <select name="priority">
+          <option>Normal</option>
+          <option>Baixa</option>
+          <option>Alta</option>
+          <option>Urgente</option>
+        </select>
+      </label>
+      <label>Data requerida
+        <input name="required_date" type="date">
+      </label>
+      <div class="replenishment-total-card">
+        <span>Valor total estimado</span>
+        <strong><output data-replenishment-total>0.00</output> MZN</strong>
+        <small>A rota de aprovação será definida por este valor.</small>
+      </div>
+    </div>
+    <label>Justificação
+      <textarea name="justification" placeholder="Motivo da reposição e impacto operacional"></textarea>
+    </label>
+  </section>
+
+  <div class="actions sticky-actions">
+    <a class="button secondary" href="/procurement">Cancelar</a>
+    <button type="submit">Criar e enviar para aprovação</button>
+  </div>
+</form>
+{% endblock %}

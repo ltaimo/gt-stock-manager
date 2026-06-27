@@ -231,6 +231,64 @@ function initMovementForm() {
   updateFields();
 }
 
+function initReplenishmentForm() {
+  const form = document.querySelector("[data-replenishment-form]");
+  if (!form) return;
+  const rows = Array.from(form.querySelectorAll("[data-replenishment-row]"));
+  const totalOutput = form.querySelector("[data-replenishment-total]");
+  const search = form.querySelector("[data-replenishment-search]");
+
+  const update = () => {
+    let total = 0;
+    let selectedCount = 0;
+    rows.forEach((row) => {
+      const checkbox = row.querySelector("[data-replenishment-check]");
+      const quantity = row.querySelector("[data-replenishment-quantity]");
+      const price = row.querySelector("[data-replenishment-price]");
+      const lineOutput = row.querySelector("[data-replenishment-line-total]");
+      const selected = Boolean(checkbox?.checked);
+      if (quantity) {
+        quantity.disabled = !selected;
+        quantity.required = selected;
+      }
+      if (price) {
+        price.disabled = !selected;
+        price.required = selected;
+      }
+      row.classList.toggle("is-selected", selected);
+      const lineTotal = selected ? Number(quantity?.value || 0) * Number(price?.value || 0) : 0;
+      if (lineOutput) lineOutput.textContent = lineTotal.toFixed(2);
+      total += lineTotal;
+      if (selected) selectedCount += 1;
+    });
+    if (totalOutput) totalOutput.textContent = total.toFixed(2);
+    const firstCheckbox = rows[0]?.querySelector("[data-replenishment-check]");
+    if (firstCheckbox) {
+      firstCheckbox.setCustomValidity(selectedCount ? "" : "Selecione pelo menos um produto para reposição.");
+    }
+  };
+
+  rows.forEach((row) => {
+    row.querySelectorAll("input").forEach((input) => input.addEventListener("input", update));
+    row.addEventListener("click", (event) => {
+      if (event.target.closest("input, label, a, button")) return;
+      const checkbox = row.querySelector("[data-replenishment-check]");
+      if (checkbox) {
+        checkbox.checked = !checkbox.checked;
+        update();
+      }
+    });
+  });
+  search?.addEventListener("input", () => {
+    const query = search.value.trim().toLocaleLowerCase("pt");
+    rows.forEach((row) => {
+      row.hidden = Boolean(query) && !row.dataset.searchText.toLocaleLowerCase("pt").includes(query);
+    });
+  });
+  form.addEventListener("submit", update);
+  update();
+}
+
 function drawBarLineChart(canvas, labels, bars, line) {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -348,6 +406,7 @@ window.addEventListener("load", () => {
   initRequisitionForm();
   initRequisitionReview();
   initMovementForm();
+  initReplenishmentForm();
 });
 window.addEventListener("resize", () => {
   window.clearTimeout(window.__chartResize);

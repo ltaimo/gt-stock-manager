@@ -141,10 +141,11 @@ def requisition_report(request: Request, status: str = "", department_id: int | 
 @router.get("/procurement")
 def procurement_report(request: Request, export: str = "", db: Session = Depends(get_db), user: User = Depends(require_permission("reports"))):
     cases = db.scalars(select(ProcurementCase).order_by(ProcurementCase.created_at.desc())).all()
-    headers = ["Nº", "Requisitante", "Departamento", "Budget estimado", "Budget confirmado", "Modalidade", "Aprovação", "Estado", "Fornecedor", "PO", "Valor PO"]
+    headers = ["Nº", "Origem", "Requisitante", "Departamento", "Budget estimado", "Budget confirmado", "Modalidade", "Aprovação", "Estado", "Fornecedor", "PO", "Valor PO"]
     rows = [
         (
             case.requisition.number,
+            "Reposição de stock" if case.requisition.req_type == "REPOSICAO" else "Non-stock",
             case.requisition.requesting_user.full_name,
             case.requisition.department.name if case.requisition.department else "",
             case.estimated_budget,

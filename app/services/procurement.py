@@ -22,6 +22,20 @@ def next_non_stock_number(db: Session) -> str:
     return f"NS-{year}-{count + 1:05d}"
 
 
+def next_replenishment_number(db: Session) -> str:
+    year = datetime.now(timezone.utc).year
+    count = db.scalar(select(func.count(Requisition.id)).where(Requisition.number.like(f"RP-{year}-%"))) or 0
+    return f"RP-{year}-{count + 1:05d}"
+
+
+def suggested_replenishment_quantity(product) -> float:
+    current = Decimal(str(product.current_stock or 0))
+    minimum = Decimal(str(product.minimum_stock or 0))
+    if minimum <= 0 or current > minimum:
+        return 0
+    return float(max((minimum * 2) - current, Decimal("1")))
+
+
 def classify_procurement(db: Session, amount: float | Decimal) -> ApprovalMatrixRule | None:
     value = Decimal(str(amount or 0))
     rules = db.scalars(

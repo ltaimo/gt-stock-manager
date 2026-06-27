@@ -24,6 +24,10 @@ def ensure_schema() -> None:
         columns = {column["name"] for column in inspector.get_columns("requisition_items")}
         if "quantity_issued" not in columns:
             additions.append("ALTER TABLE requisition_items ADD COLUMN quantity_issued NUMERIC(12, 2) DEFAULT 0")
+        if "estimated_unit_price" not in columns:
+            additions.append("ALTER TABLE requisition_items ADD COLUMN estimated_unit_price NUMERIC(14, 2) DEFAULT 0")
+        if "quantity_received" not in columns:
+            additions.append("ALTER TABLE requisition_items ADD COLUMN quantity_received NUMERIC(12, 2) DEFAULT 0")
         if "quantity_rejected" not in columns:
             additions.append("ALTER TABLE requisition_items ADD COLUMN quantity_rejected NUMERIC(12, 2) DEFAULT 0")
         if "review_status" not in columns:
