@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import SessionLocal
+from app.i18n import language_for, translate_value
 from app.models.core import Notification, ProcurementCase, Requisition, Role, User
 from app.security import has_permission
 
@@ -85,7 +86,59 @@ def send_whatsapp(phone: str, subject: str, body: str) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def localize_notification(text: str, user: User) -> str:
+    if language_for(user) != "en":
+        return text
+    replacements = (
+        ("Requisicao pendente:", "Pending requisition:"),
+        ("Requisição pendente:", "Pending requisition:"),
+        ("Requisicao Aprovada parcialmente:", "Requisition partially approved:"),
+        ("Requisicao Aprovada:", "Requisition approved:"),
+        ("Requisicao Rejeitada:", "Requisition rejected:"),
+        ("Budget pendente:", "Pending budget:"),
+        ("Procurement para classificar:", "Procurement pending classification:"),
+        ("TdR para aprovação HOD:", "ToR pending HOD approval:"),
+        ("TdR para aprovação Terminal Manager:", "ToR pending Terminal Manager approval:"),
+        ("Reposição de stock para aprovação:", "Stock replenishment pending approval:"),
+        ("TdR devolvido para correção:", "ToR returned for correction:"),
+        ("TdR devolvido pelo Terminal Manager:", "ToR returned by the Terminal Manager:"),
+        ("Decisão de aprovação:", "Approval decision:"),
+        ("Reposição recebida:", "Replenishment received:"),
+        ("Existe uma requisicao pendente para analise.", "There is a requisition pending review."),
+        ("Existe uma requisição pendente para análise.", "There is a requisition pending review."),
+        ("Existe uma requisicao non-stock pendente de verificacao de budget.", "There is a non-stock requisition pending budget verification."),
+        ("O budget da requisicao non-stock foi confirmado e o processo esta pronto para classificacao.", "The non-stock requisition budget was confirmed and the process is ready for classification."),
+        ("aguarda aprovação do HOD/Chefe do Departamento.", "is pending HOD/Head of Department approval."),
+        ("aguarda aprovação do HOD.", "is pending HOD approval."),
+        ("O HOD aprovou o TdR do processo", "The HOD approved the ToR for process"),
+        ("O HOD devolveu o TdR do processo", "The HOD returned the ToR for process"),
+        ("O Terminal Manager devolveu o TdR do processo", "The Terminal Manager returned the ToR for process"),
+        ("para correção.", "for correction."),
+        ("foi aprovado por", "was approved by"),
+        ("foi devolvido por", "was returned by"),
+        ("Os produtos do pedido", "The products for request"),
+        ("foram recebidos no stock.", "were received into stock."),
+        ("Foi registada uma receção parcial do pedido", "A partial receipt was recorded for request"),
+        ("A requisicao", "Requisition"),
+        ("A requisição", "Requisition"),
+        ("foi aprovada parcialmente por", "was partially approved by"),
+        ("foi aprovada por", "was approved by"),
+        ("foi rejeitada por", "was rejected by"),
+        ("Requisitante:", "Requester:"),
+        ("Departamento:", "Department:"),
+        ("Tipo:", "Type:"),
+        ("N.:", "No.:"),
+        ("no valor estimado de", "with an estimated value of"),
+    )
+    localized = text
+    for source, target in replacements:
+        localized = localized.replace(source, target)
+    return localized
+
+
 def notify_user(db: Session, user: User, title: str, message: str, module: str, record_id: str | None = None, email: bool = True) -> None:
+    title = localize_notification(title, user)
+    message = localize_notification(message, user)
     db.add(Notification(user_id=user.id, title=title, message=message, module=module, record_id=record_id))
     if email and user.email and user.notify_email:
         send_email(user.email, title, message)
@@ -107,12 +160,21 @@ def notify_requisition_pending(db: Session, req: Requisition) -> None:
 
 
 def notify_requisition_decision(db: Session, req: Requisition, actor: User, decision: str) -> None:
-    title = f"Requisicao {decision}: {req.number}"
-    message = f"A requisicao {req.number} foi {decision.lower()} por {actor.full_name}."
     targets = recipients_for_requisitions(db)
     if req.requesting_user not in targets:
         targets.append(req.requesting_user)
     for user in targets:
+        translated_decision = translate_value(decision, language_for(user))
+        title = (
+            f"Requisition {translated_decision.lower()}: {req.number}"
+            if language_for(user) == "en"
+            else f"Requisição {translated_decision.lower()}: {req.number}"
+        )
+        message = (
+            f"Requisition {req.number} was {translated_decision.lower()} by {actor.full_name}."
+            if language_for(user) == "en"
+            else f"A requisição {req.number} foi {translated_decision.lower()} por {actor.full_name}."
+        )
         notify_user(db, user, title, message, "Requisicoes", req.number)
 
 

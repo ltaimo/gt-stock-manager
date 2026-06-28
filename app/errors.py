@@ -6,6 +6,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import joinedload
 
 from app.database import SessionLocal
+from app.i18n import language_for, translate_message
 from app.models.core import User
 from app.routers.common import templates
 from app.services.forms import field_label
@@ -26,13 +27,14 @@ def request_user(request: Request) -> User | None:
 
 
 def error_response(request: Request, message: str, status_code: int):
+    user = request_user(request)
     return templates.TemplateResponse(
         request,
         "error.html",
         {
             "request": request,
-            "user": request_user(request),
-            "message": message,
+            "user": user,
+            "message": translate_message(message, language_for(user, request)),
             "status_code": status_code,
             "back_url": request.headers.get("referer") or "/dashboard",
         },

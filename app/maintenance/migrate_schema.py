@@ -36,10 +36,16 @@ def ensure_schema() -> None:
             additions.append("ALTER TABLE requisition_items ADD COLUMN review_observation TEXT")
     if "products" in tables:
         columns = {column["name"] for column in inspector.get_columns("products")}
+        if "name_en" not in columns:
+            additions.append("ALTER TABLE products ADD COLUMN name_en VARCHAR(220)")
         if "unit_price" not in columns:
             additions.append("ALTER TABLE products ADD COLUMN unit_price NUMERIC(14, 2) DEFAULT 0")
         if "requires_stock_control" not in columns:
             additions.append("ALTER TABLE products ADD COLUMN requires_stock_control BOOLEAN DEFAULT true")
+    if "categories" in tables:
+        columns = {column["name"] for column in inspector.get_columns("categories")}
+        if "name_en" not in columns:
+            additions.append("ALTER TABLE categories ADD COLUMN name_en VARCHAR(120)")
     if "requisitions" in tables:
         columns = {column["name"] for column in inspector.get_columns("requisitions")}
         if "estimated_value" not in columns:

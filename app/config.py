@@ -11,7 +11,7 @@ def env_path(name: str, default: Path) -> Path:
 
 
 class Settings:
-    app_version = os.getenv("APP_VERSION", "2.1.0")
+    app_version = os.getenv("APP_VERSION", "2.1.1")
     app_name = os.getenv("APP_NAME", "Sistema de Gestão de Stock")
     app_subtitle = os.getenv("APP_SUBTITLE", "Gestão de Terminais, SA")
     app_short_name = os.getenv("APP_SHORT_NAME", "GT Stock Manager")

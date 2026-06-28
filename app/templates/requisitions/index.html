@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
-<header class="page-header"><h1>Requisições</h1><a class="button" href="/requisicoes/nova">Nova Requisição</a></header>
-<div class="panel"><table><thead><tr><th>Nº</th><th>Data</th><th>Requisitante</th><th>Departamento</th><th>Tipo</th><th>Estado</th></tr></thead><tbody>
-{% for r in requisitions %}<tr><td><a href="/requisicoes/{{ r.id }}">{{ r.number }}</a></td><td>{{ r.request_date.strftime('%Y-%m-%d') }}</td><td>{{ r.requesting_user.full_name }}</td><td>{{ r.department.name if r.department else '' }}</td><td>{{ r.req_type }}</td><td><span class="badge {{ 'orange' if r.status=='Submitted' else 'green' if r.status in ['Approved','Issued'] else 'grey' }}">{{ r.status }}</span></td></tr>{% endfor %}
+<header class="page-header"><h1>{{ tx("Requisições", user if user is defined else none) }}</h1><a class="button" href="/requisicoes/nova">{{ tx("Nova Requisição", user if user is defined else none) }}</a></header>
+<div class="panel"><table><thead><tr><th>{{ tx("Nº", user if user is defined else none) }}</th><th>{{ tx("Data", user if user is defined else none) }}</th><th>{{ tx("Requisitante", user if user is defined else none) }}</th><th>{{ tx("Departamento", user if user is defined else none) }}</th><th>{{ tx("Tipo", user if user is defined else none) }}</th><th>{{ tx("Estado", user if user is defined else none) }}</th></tr></thead><tbody>
+{% for r in requisitions %}<tr><td><a href="/requisicoes/{{ r.id }}">{{ r.number }}</a></td><td>{{ r.request_date.strftime('%Y-%m-%d') }}</td><td>{{ r.requesting_user.full_name }}</td><td>{{ r.department.name if r.department else '' }}</td><td>{{ tv(r.req_type, user) }}</td><td><span class="badge {{ 'orange' if r.status=='Submitted' else 'green' if r.status in ['Approved','Issued'] else 'grey' }}">{{ tv(r.status, user) }}</span></td></tr>{% endfor %}
 </tbody></table></div>
 {% endblock %}

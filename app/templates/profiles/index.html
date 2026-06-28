@@ -1,22 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
-<header class="page-header"><h1>Perfis de acesso</h1><a class="button" href="/perfis/novo">Novo perfil</a></header>
-<p class="muted">Perfis definem acessos e funcoes do utilizador. Categorias de produto ficam em Configuracoes.</p>
+<header class="page-header"><h1>{{ tx("Perfis de acesso", user if user is defined else none) }}</h1><a class="button" href="/perfis/novo">{{ tx("Novo perfil", user if user is defined else none) }}</a></header>
+<p class="muted">{{ tx("Perfis definem acessos e funcoes do utilizador. Categorias de produto ficam em Configuracoes.", user if user is defined else none) }}</p>
 <div class="panel">
   <table class="responsive-table">
-    <thead><tr><th>Perfil / Funcao</th><th>Utilizadores</th><th>Permissoes</th><th></th></tr></thead>
+    <thead><tr><th>{{ tx("Perfil / Funcao", user if user is defined else none) }}</th><th>{{ tx("Utilizadores", user if user is defined else none) }}</th><th>{{ tx("Permissoes", user if user is defined else none) }}</th><th></th></tr></thead>
     <tbody>
     {% for role in roles %}
       <tr>
-        <td data-label="Perfil / Funcao"><strong>{{ role.name }}</strong></td>
-        <td data-label="Utilizadores">{{ role.users|length }}</td>
-        <td data-label="Permissoes">{{ role_permissions(role)|length if role.name != 'SuperAdmin' else 'Todas' }}</td>
-        <td data-label="Acao">
+        <td data-label="{{ tx("Perfil / Funcao", user if user is defined else none) }}"><strong>{{ tv(role.name, user) }}</strong></td>
+        <td data-label="{{ tx("Utilizadores", user if user is defined else none) }}">{{ role.users|length }}</td>
+        <td data-label="{{ tx("Permissoes", user if user is defined else none) }}">{{ role_permissions(role)|length if role.name != 'SuperAdmin' else 'Todas' }}</td>
+        <td data-label="{{ tx("Acao", user if user is defined else none) }}">
           <div class="actions">
-            <a href="/perfis/{{ role.id }}/editar">Editar</a>
+            <a href="/perfis/{{ role.id }}/editar">{{ tx("Editar", user if user is defined else none) }}</a>
             {% if role.name != 'SuperAdmin' and not role.users %}
-            <form method="post" action="/perfis/{{ role.id }}/remover" data-confirm="Remover este perfil?">
-              <button class="link-button danger">Remover</button>
+            <form method="post" action="/perfis/{{ role.id }}/remover" data-confirm="{{ tx("Remover este perfil?", user if user is defined else none) }}">
+              <button class="link-button danger">{{ tx("Remover", user if user is defined else none) }}</button>
             </form>
             {% endif %}
           </div>

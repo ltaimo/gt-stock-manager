@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.i18n import language_for, localized_name, translate_text, translate_value
 from app.models.core import Department, ProcurementCase, Product, Requisition, StockMovement, User
 from app.routers.common import templates
 from app.security import require_permission
@@ -16,25 +17,25 @@ router = APIRouter(prefix="/relatorios", tags=["relatorios"])
 
 @router.get("")
 def reports_home(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("reports"))):
-    return templates.TemplateResponse("reports/index.html", {"request": request, "user": user})
+    return templates.TemplateResponse(request, "reports/index.html", {"request": request, "user": user})
 
 
-def stock_rows(db: Session):
+def stock_rows(db: Session, language: str = "pt"):
     products = db.scalars(select(Product).order_by(Product.name)).all()
     return [
         (
             p.code,
-            p.name,
-            p.category.name if p.category else "Sem Categoria",
+            localized_name(p, request=None) if language == "pt" else (p.name_en or p.name),
+            (p.category.name_en or p.category.name) if language == "en" and p.category else p.category.name if p.category else translate_text("Sem Categoria", language),
             p.unit,
             p.unit_price,
             p.current_stock,
             p.minimum_stock,
             p.total_entries,
             p.total_exits,
-            "Ativo" if p.status == "active" else "Inativo",
-            "Sim" if p.requires_stock_control else "Não",
-            p.alert_status,
+            translate_value(p.status, language),
+            translate_text("Sim" if p.requires_stock_control else "Não", language),
+            translate_value(p.alert_status, language),
         )
         for p in products
     ]
@@ -54,15 +55,16 @@ def products_requiring_attention(db: Session) -> list[Product]:
 
 @router.get("/stock")
 def stock_report(request: Request, export: str = "", db: Session = Depends(get_db), user: User = Depends(require_permission("reports"))):
-    headers = ["Código", "Produto", "Categoria", "Unidade", "Preço Unit.", "Stock Atual", "Stock Mínimo", "Entradas", "Saídas", "Estado", "Monitorizado", "Alerta"]
-    rows = stock_rows(db)
+    language = language_for(user, request)
+    headers = [translate_text(value, language) for value in ["Código", "Produto", "Categoria", "Unidade", "Preço Unit.", "Stock Atual", "Stock Mínimo", "Entradas", "Saídas", "Estado", "Monitorizado", "Alerta"]]
+    rows = stock_rows(db, language)
     if export == "xlsx":
-        return Response(rows_to_xlsx(headers, rows, "Stock"), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": 'attachment; filename="stock.xlsx"'})
+        return Response(rows_to_xlsx(headers, rows, translate_text("Stock", language), language), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": 'attachment; filename="stock.xlsx"'})
     if export == "pdf":
-        return Response(rows_to_pdf(headers, rows, "Relatório de Stock", user.full_name), media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="stock.pdf"'})
+        return Response(rows_to_pdf(headers, rows, translate_text("Relatório de Stock", language), user.full_name, language), media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="stock.pdf"'})
     if export == "csv":
         return Response(rows_to_csv(headers, rows), media_type="text/csv", headers={"Content-Disposition": 'attachment; filename="stock.csv"'})
-    return templates.TemplateResponse("reports/stock.html", {"request": request, "user": user, "headers": headers, "rows": rows})
+    return templates.TemplateResponse(request, "reports/stock.html", {"request": request, "user": user, "headers": headers, "rows": rows})
 
 
 @router.get("/movimentos")
@@ -78,6 +80,7 @@ def movement_report(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("reports")),
 ):
+    language = language_for(user, request)
     stmt = select(StockMovement).order_by(StockMovement.posted_at.desc())
     if action:
         stmt = stmt.where(StockMovement.action_type == action)
@@ -95,14 +98,13 @@ def movement_report(
     except ValueError as exc:
         raise HTTPException(400, "Informe datas válidas no formato AAAA-MM-DD.") from exc
     movements = db.scalars(stmt).all()
-    headers = ["Data", "Ação", "Código", "Item", "Destino", "Quantidade", "Tipo", "Responsável", "Departamento"]
-    rows = [(m.posted_at, m.action_type, m.product.code, m.product.name, m.destination, m.quantity, m.reference_number, m.responsible_person, m.department.name if m.department else "") for m in movements]
+    headers = [translate_text(value, language) for value in ["Data", "Ação", "Código", "Item", "Destino", "Quantidade", "Tipo", "Responsável", "Departamento"]]
+    rows = [(m.posted_at, translate_value(m.action_type, language), m.product.code, m.product.name_en or m.product.name if language == "en" else m.product.name, m.destination, m.quantity, m.reference_number, m.responsible_person, m.department.name if m.department else "") for m in movements]
     if export == "xlsx":
-        return Response(rows_to_xlsx(headers, rows, "Movimentos"), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": 'attachment; filename="movimentos.xlsx"'})
+        return Response(rows_to_xlsx(headers, rows, translate_text("Movimentos", language), language), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": 'attachment; filename="movimentos.xlsx"'})
     if export == "pdf":
-        return Response(rows_to_pdf(headers, rows, "Relatório de Movimentos", user.full_name), media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="movimentos.pdf"'})
-    return templates.TemplateResponse(
-        "reports/movements.html",
+        return Response(rows_to_pdf(headers, rows, translate_text("Relatório de Movimentos", language), user.full_name, language), media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="movimentos.pdf"'})
+    return templates.TemplateResponse(request, "reports/movements.html",
         {
             "request": request,
             "user": user,
@@ -123,6 +125,7 @@ def movement_report(
 
 @router.get("/requisicoes")
 def requisition_report(request: Request, status: str = "", department_id: int | None = None, requester_id: int | None = None, export: str = "", db: Session = Depends(get_db), user: User = Depends(require_permission("reports"))):
+    language = language_for(user, request)
     stmt = (
         select(Requisition)
         .where(Requisition.req_type.notin_(["NS", "REPOSICAO"]))
@@ -135,14 +138,13 @@ def requisition_report(request: Request, status: str = "", department_id: int | 
     if requester_id:
         stmt = stmt.where(Requisition.requesting_user_id == requester_id)
     reqs = db.scalars(stmt).all()
-    headers = ["Nº", "Data", "Estado", "Departamento", "Requisitante", "Valor", "Aprovador"]
-    rows = [(r.number, r.request_date, r.status, r.department.name if r.department else "", r.requesting_user.full_name, r.estimated_value, r.authorization_person or "") for r in reqs]
+    headers = [translate_text(value, language) for value in ["Nº", "Data", "Estado", "Departamento", "Requisitante", "Valor", "Aprovador"]]
+    rows = [(r.number, r.request_date, translate_value(r.status, language), r.department.name if r.department else "", r.requesting_user.full_name, r.estimated_value, r.authorization_person or "") for r in reqs]
     if export == "xlsx":
-        return Response(rows_to_xlsx(headers, rows, "Requisições"), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": 'attachment; filename="requisicoes.xlsx"'})
+        return Response(rows_to_xlsx(headers, rows, translate_text("Requisições", language), language), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": 'attachment; filename="requisicoes.xlsx"'})
     if export == "pdf":
-        return Response(rows_to_pdf(headers, rows, "Relatório de Requisições", user.full_name), media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="requisicoes.pdf"'})
-    return templates.TemplateResponse(
-        "reports/requisitions.html",
+        return Response(rows_to_pdf(headers, rows, translate_text("Relatório de Requisições", language), user.full_name, language), media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="requisicoes.pdf"'})
+    return templates.TemplateResponse(request, "reports/requisitions.html",
         {
             "request": request,
             "user": user,
@@ -158,19 +160,20 @@ def requisition_report(request: Request, status: str = "", department_id: int | 
 
 @router.get("/procurement")
 def procurement_report(request: Request, export: str = "", db: Session = Depends(get_db), user: User = Depends(require_permission("reports"))):
+    language = language_for(user, request)
     cases = db.scalars(select(ProcurementCase).order_by(ProcurementCase.created_at.desc())).all()
-    headers = ["Nº", "Origem", "Requisitante", "Departamento", "Budget estimado", "Budget confirmado", "Modalidade", "Aprovação", "Estado", "Fornecedor", "PO", "Valor PO"]
+    headers = [translate_text(value, language) for value in ["Nº", "Origem", "Requisitante", "Departamento", "Budget estimado", "Budget confirmado", "Modalidade", "Aprovação", "Estado", "Fornecedor", "PO", "Valor PO"]]
     rows = [
         (
             case.requisition.number,
-            "Reposição de stock" if case.requisition.req_type == "REPOSICAO" else "Non-stock",
+            translate_text("Reposição de stock", language) if case.requisition.req_type == "REPOSICAO" else "Non-stock",
             case.requisition.requesting_user.full_name,
             case.requisition.department.name if case.requisition.department else "",
             case.estimated_budget,
-            "Sim" if case.budget_confirmed else "Não" if case.budget_confirmed is False else "Pendente",
+            translate_text("Sim", language) if case.budget_confirmed else translate_text("Não", language) if case.budget_confirmed is False else translate_value("Pending", language),
             case.modality or "",
             case.approval_route or "",
-            case.status,
+            translate_value(case.status, language),
             case.selected_supplier or "",
             case.po_number or "",
             case.po_value or "",
@@ -178,10 +181,10 @@ def procurement_report(request: Request, export: str = "", db: Session = Depends
         for case in cases
     ]
     if export == "xlsx":
-        return Response(rows_to_xlsx(headers, rows, "Procurement"), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": 'attachment; filename="procurement.xlsx"'})
+        return Response(rows_to_xlsx(headers, rows, "Procurement", language), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": 'attachment; filename="procurement.xlsx"'})
     if export == "pdf":
-        return Response(rows_to_pdf(headers, rows, "Relatório de Procurement", user.full_name), media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="procurement.pdf"'})
-    return templates.TemplateResponse("reports/procurement.html", {"request": request, "user": user, "headers": headers, "rows": rows})
+        return Response(rows_to_pdf(headers, rows, translate_text("Relatório de Procurement", language), user.full_name, language), media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="procurement.pdf"'})
+    return templates.TemplateResponse(request, "reports/procurement.html", {"request": request, "user": user, "headers": headers, "rows": rows})
 
 
 @router.get("/critico")
@@ -191,30 +194,31 @@ def critical_report(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("reports")),
 ):
+    language = language_for(user, request)
     products = products_requiring_attention(db)
-    headers = ["Código", "Produto", "Categoria", "Unidade", "Stock Atual", "Stock Mínimo", "Estado"]
+    headers = [translate_text(value, language) for value in ["Código", "Produto", "Categoria", "Unidade", "Stock Atual", "Stock Mínimo", "Estado"]]
     rows = [
         (
             product.code,
-            product.name,
-            product.category.name if product.category else "Sem Categoria",
+            product.name_en or product.name if language == "en" else product.name,
+            (product.category.name_en or product.category.name) if language == "en" and product.category else product.category.name if product.category else translate_text("Sem Categoria", language),
             product.unit,
             product.current_stock,
             product.minimum_stock,
-            product.alert_status,
+            translate_value(product.alert_status, language),
         )
         for product in products
     ]
     if export == "xlsx":
         return Response(
-            rows_to_xlsx(headers, rows, "Stock crítico"),
+            rows_to_xlsx(headers, rows, translate_text("Stock crítico", language), language),
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             headers={"Content-Disposition": 'attachment; filename="stock-critico.xlsx"'},
         )
     if export == "pdf":
         return Response(
-            rows_to_pdf(headers, rows, "Stock que Requer Atenção", user.full_name),
+            rows_to_pdf(headers, rows, translate_text("Stock que Requer Atenção", language), user.full_name, language),
             media_type="application/pdf",
             headers={"Content-Disposition": 'attachment; filename="stock-critico.pdf"'},
         )
-    return templates.TemplateResponse("reports/critical.html", {"request": request, "user": user, "products": products})
+    return templates.TemplateResponse(request, "reports/critical.html", {"request": request, "user": user, "products": products})

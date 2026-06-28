@@ -30,12 +30,12 @@ def movement_form_context(request: Request, db: Session, user: User, error: str 
 @router.get("")
 def list_movements(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("movements"))):
     movements = db.scalars(select(StockMovement).order_by(StockMovement.posted_at.desc()).limit(300)).all()
-    return templates.TemplateResponse("movements/index.html", {"request": request, "user": user, "movements": movements})
+    return templates.TemplateResponse(request, "movements/index.html", {"request": request, "user": user, "movements": movements})
 
 
 @router.get("/novo")
 def new_movement(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("movements"))):
-    return templates.TemplateResponse("movements/form.html", movement_form_context(request, db, user))
+    return templates.TemplateResponse(request, "movements/form.html", movement_form_context(request, db, user))
 
 
 @router.post("/novo")
@@ -66,7 +66,7 @@ async def create_movement(
         MovementAction.saida.value,
         MovementAction.devolucao.value,
     }:
-        raise HTTPException(400, "Escolha uma acção de movimento válida.")
+        raise HTTPException(400, "Escolha uma ação de movimento válida.")
     if document_type not in {"Guia", "Fatura", "Proforma", "Outro"}:
         raise HTTPException(400, "Tipo de documento inválido.")
     product = db.get(Product, parsed_product_id)
@@ -114,8 +114,7 @@ async def create_movement(
             if document:
                 audit_log(db, user, "Anexou documento de stock", "Documentos", document.id, new_value={"filename": document.original_filename, "product": product.code}, request=request)
     except (StockError, ValueError) as exc:
-        return templates.TemplateResponse(
-            "movements/form.html",
+        return templates.TemplateResponse(request, "movements/form.html",
             movement_form_context(request, db, user, str(exc)),
             status_code=400,
         )

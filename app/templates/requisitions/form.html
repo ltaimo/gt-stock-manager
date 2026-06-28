@@ -1,37 +1,37 @@
 {% extends "base.html" %}
 {% block content %}
 <header class="page-header">
-  <h1>Nova requisição SR</h1>
-  <a class="button secondary" href="/requisicoes">Voltar às requisições</a>
+  <h1>{{ tx("Nova requisição SR", user if user is defined else none) }}</h1>
+  <a class="button secondary" href="/requisicoes">{{ tx("Voltar às requisições", user if user is defined else none) }}</a>
 </header>
 <section class="panel">
-{% if error %}<div class="alert red">{{ error }}</div>{% endif %}
+{% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
 <form method="post" class="form-stack" spellcheck="true">
   <div class="form-grid">
-    <label>Departamento<input value="{{ user.department.name if user.department else 'Sem departamento definido' }}" disabled></label>
-    <label>Gestor Operacional em serviço
+    <label>{{ tx("Departamento", user if user is defined else none) }}<input value="{{ user.department.name if user.department else 'Sem departamento definido' }}" disabled></label>
+    <label>{{ tx("Gestor Operacional em serviço", user if user is defined else none) }}
       <select name="operational_manager_id" required>
-        {% if not managers %}<option value="">Nenhum Gestor Operacional disponível</option>{% endif %}
+        {% if not managers %}<option value="">{{ tx("Nenhum Gestor Operacional disponível", user if user is defined else none) }}</option>{% endif %}
         {% for manager in managers %}
           <option value="{{ manager.id }}" {% if manager.id == default_manager_id %}selected{% endif %}>
-            {{ manager.full_name }} · {{ manager.role.name }}{% if manager.department %} · {{ manager.department.name }}{% endif %}
+            {{ manager.full_name }} · {{ tv(manager.role.name, user) }}{% if manager.department %} · {{ manager.department.name }}{% endif %}
           </option>
         {% endfor %}
       </select>
     </label>
-    <label>Aprovação pela matriz<input value="Calculada pelo valor total dos itens" disabled></label>
-    <label>Tipo<select name="req_type" id="requisition-type"><option>REQUISIÇÃO</option><option>DEVOLUÇÃO</option><option>OUTRO</option></select></label>
+    <label>{{ tx("Aprovação pela matriz", user if user is defined else none) }}<input value="{{ tx("Calculada pelo valor total dos itens", user) }}" disabled></label>
+    <label>{{ tx("Tipo", user if user is defined else none) }}<select name="req_type" id="requisition-type"><option value="REQUISIÇÃO">{{ tx("REQUISIÇÃO", user if user is defined else none) }}</option><option value="DEVOLUÇÃO">{{ tx("DEVOLUÇÃO", user if user is defined else none) }}</option><option value="OUTRO">{{ tx("OUTRO", user if user is defined else none) }}</option></select></label>
   </div>
-  <p class="muted">Apenas itens com stock podem ser selecionados. O valor total define o aprovador pela matriz de aprovações.</p>
+  <p class="muted">{{ tx("Apenas itens com stock podem ser selecionados. O valor total define o aprovador pela matriz de aprovações.", user if user is defined else none) }}</p>
   <table id="items-table">
-    <thead><tr><th>Código / Item</th><th>Qtde</th><th>Preço unit.</th><th>Subtotal</th><th>Obs</th><th></th></tr></thead>
+    <thead><tr><th>{{ tx("Código / Item", user if user is defined else none) }}</th><th>{{ tx("Qtde", user if user is defined else none) }}</th><th>{{ tx("Preço unit.", user if user is defined else none) }}</th><th>{{ tx("Subtotal", user if user is defined else none) }}</th><th>{{ tx("Obs", user if user is defined else none) }}</th><th></th></tr></thead>
     <tbody>
       <tr data-requisition-item>
         <td>
           <select name="product_id" required>
             {% for p in products %}
             <option value="{{ p.id }}" data-stock="{{ p.current_stock|float }}" data-unit="{{ p.unit }}" data-price="{{ p.unit_price|float }}">
-              {{ p.code }} · {{ p.name }} · disponível {{ p.current_stock }} {{ p.unit }} · {{ "%.2f"|format(p.unit_price|float) }} MZN
+              {{ p.code }} · {{ lname(p, user) }} · {{ tx('disponível', user) }} {{ p.current_stock }} {{ p.unit }} · {{ "%.2f"|format(p.unit_price|float) }} MZN
             </option>
             {% endfor %}
           </select>
@@ -43,16 +43,16 @@
         <td><span class="unit-price">0.00</span> MZN</td>
         <td><span class="line-total">0.00</span> MZN</td>
         <td><input name="observation"></td>
-        <td><button type="button" class="secondary compact" data-remove-row>Remover</button></td>
+        <td><button type="button" class="secondary compact" data-remove-row>{{ tx("Remover", user if user is defined else none) }}</button></td>
       </tr>
     </tbody>
   </table>
-  <p class="muted"><strong>Total estimado:</strong> <span id="requisition-total">0.00</span> MZN</p>
+  <p class="muted"><strong>{{ tx("Total estimado:", user if user is defined else none) }}</strong> <span id="requisition-total">0.00</span> MZN</p>
   <div class="actions">
-    <button type="button" class="secondary" data-add-row>Adicionar item</button>
-    <a class="button secondary" href="/requisicoes">Cancelar</a>
-    <button name="draft" value="1" class="blue">Guardar rascunho</button>
-    <button name="submit" value="1" class="success">Submeter requisição</button>
+    <button type="button" class="secondary" data-add-row>{{ tx("Adicionar item", user if user is defined else none) }}</button>
+    <a class="button secondary" href="/requisicoes">{{ tx("Cancelar", user if user is defined else none) }}</a>
+    <button name="draft" value="1" class="blue">{{ tx("Guardar rascunho", user if user is defined else none) }}</button>
+    <button name="submit" value="1" class="success">{{ tx("Submeter requisição", user if user is defined else none) }}</button>
   </div>
 </form></section>
 {% endblock %}

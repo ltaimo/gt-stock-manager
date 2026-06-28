@@ -89,6 +89,7 @@ class Category(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    name_en: Mapped[str | None] = mapped_column(String(120))
     normalized_name: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
@@ -100,6 +101,7 @@ class Product(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(220), nullable=False, index=True)
+    name_en: Mapped[str | None] = mapped_column(String(220))
     category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id"))
     unit: Mapped[str] = mapped_column(String(30), default="un")
     unit_price: Mapped[float] = mapped_column(Numeric(14, 2), default=0)

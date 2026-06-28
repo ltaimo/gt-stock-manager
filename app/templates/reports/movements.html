@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
-<header class="page-header"><h1>Relatório de Movimentos</h1><div><a class="button secondary" href="?action={{ action }}&product_id={{ product_id or '' }}&department_id={{ department_id or '' }}&user_id={{ user_id or '' }}&date_from={{ date_from }}&date_to={{ date_to }}&export=xlsx">Excel</a><a class="button secondary" href="?action={{ action }}&product_id={{ product_id or '' }}&department_id={{ department_id or '' }}&user_id={{ user_id or '' }}&date_from={{ date_from }}&date_to={{ date_to }}&export=pdf">PDF</a></div></header>
+<header class="page-header"><h1>{{ tx("Relatório de Movimentos", user if user is defined else none) }}</h1><div><a class="button secondary" href="?action={{ action }}&product_id={{ product_id or '' }}&department_id={{ department_id or '' }}&user_id={{ user_id or '' }}&date_from={{ date_from }}&date_to={{ date_to }}&export=xlsx">Excel</a><a class="button secondary" href="?action={{ action }}&product_id={{ product_id or '' }}&department_id={{ department_id or '' }}&user_id={{ user_id or '' }}&date_from={{ date_from }}&date_to={{ date_to }}&export=pdf">PDF</a></div></header>
 <form class="filters">
   <input type="date" name="date_from" value="{{ date_from }}">
   <input type="date" name="date_to" value="{{ date_to }}">
-  <select name="action"><option value="">Todos</option>{% for a in ['ENTRADA','SAÍDA','DEVOLUÇÃO','ACERTO'] %}<option {% if action==a %}selected{% endif %}>{{ a }}</option>{% endfor %}</select>
-  <select name="product_id"><option value="">Produto</option>{% for p in products %}<option value="{{ p.id }}" {% if product_id==p.id %}selected{% endif %}>{{ p.code }} · {{ p.name }}</option>{% endfor %}</select>
-  <select name="department_id"><option value="">Departamento</option>{% for d in departments %}<option value="{{ d.id }}" {% if department_id==d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select>
-  <select name="user_id"><option value="">Utilizador</option>{% for u in users %}<option value="{{ u.id }}" {% if user_id==u.id %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}</select>
-  <button>Filtrar</button>
+  <select name="action"><option value="">{{ tx("Todos", user if user is defined else none) }}</option>{% for a in ['ENTRADA','SAÍDA','DEVOLUÇÃO','ACERTO'] %}<option value="{{ a }}" {% if action==a %}selected{% endif %}>{{ tv(a, user) }}</option>{% endfor %}</select>
+  <select name="product_id"><option value="">{{ tx("Produto", user if user is defined else none) }}</option>{% for p in products %}<option value="{{ p.id }}" {% if product_id==p.id %}selected{% endif %}>{{ p.code }} · {{ lname(p, user) }}</option>{% endfor %}</select>
+  <select name="department_id"><option value="">{{ tx("Departamento", user if user is defined else none) }}</option>{% for d in departments %}<option value="{{ d.id }}" {% if department_id==d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select>
+  <select name="user_id"><option value="">{{ tx("Utilizador", user if user is defined else none) }}</option>{% for u in users %}<option value="{{ u.id }}" {% if user_id==u.id %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}</select>
+  <button>{{ tx("Filtrar", user if user is defined else none) }}</button>
 </form>
 {% include "reports/table.html" %}
 {% endblock %}

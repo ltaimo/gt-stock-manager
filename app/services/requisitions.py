@@ -51,7 +51,7 @@ def approve_requisition(
                 f"Indique o motivo da rejeição total ou parcial do item {item.product.code} - {item.product.name}."
             )
         if "REQU" in (req.req_type or "").upper() and approved > float(item.product.current_stock or 0):
-            raise StockError(f"Estoque insuficiente para {item.product.code} - {item.product.name}.")
+            raise StockError(f"Stock insuficiente para {item.product.code} - {item.product.name}.")
         item.quantity_issued = approved
         item.quantity_rejected = rejected
         item.review_observation = observation or None
@@ -101,7 +101,7 @@ def issue_requisition(
         for item in req.items:
             approved = quantities[item.id]
             if approved and float(item.product.current_stock or 0) < approved:
-                raise StockError(f"Estoque insuficiente para {item.product.code} - {item.product.name}.")
+                raise StockError(f"Stock insuficiente para {item.product.code} - {item.product.name}.")
 
     issued_any = False
     partially_issued = False

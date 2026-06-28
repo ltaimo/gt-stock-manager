@@ -8,7 +8,7 @@ from sqlalchemy.pool import StaticPool
 from app.database import Base, get_db
 from app.main import app
 from app.models.core import Category, Department, MovementAction, Product, Role, Setting, StockMovement, User
-from app.seed import consolidate_fixture_duplicate_products, seed_ac_tools_products
+from app.seed import consolidate_fixture_duplicate_products, repair_portuguese_labels, seed_ac_tools_products
 from app.security import hash_password
 from app.services.inventory import post_movement
 
@@ -103,6 +103,21 @@ class SeedAndLanguageTests(unittest.TestCase):
         self.assertEqual(float(canonical.current_stock), 15.0)
         movement_product_ids = {product_id for (product_id,) in self.db.execute(select(StockMovement.product_id)).all()}
         self.assertEqual(movement_product_ids, {canonical.id})
+
+    def test_repairs_legacy_mojibake_without_changing_correct_labels(self):
+        corrupted_department = "Operações".encode("utf-8").decode("latin-1")
+        corrupted_category = "Climatização".encode("utf-8").decode("latin-1")
+        department = Department(name=corrupted_department)
+        category = Category(name=corrupted_category, normalized_name="legacy-climatizacao")
+        self.db.add_all([department, category])
+        self.db.flush()
+
+        repair_portuguese_labels(self.db)
+        self.db.flush()
+
+        self.assertEqual(department.name, "Operações")
+        self.assertEqual(category.name, "Climatização")
+        self.assertEqual(category.normalized_name, "climatizacao")
 
     def test_language_selector_persists_and_changes_navigation_after_login(self):
         app.dependency_overrides[get_db] = self.override_db

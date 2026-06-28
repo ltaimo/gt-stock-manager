@@ -1,23 +1,23 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="panel narrow">
-  <h1>{{ 'Editar Perfil' if target else 'Novo Perfil' }}</h1>
-  <p class="muted">O perfil representa a função do utilizador, como Gestor de Estoque, Chefe do Terminal, HSE Officer ou IT.</p>
+  <h1>{{ tx('Editar Perfil', user) if target else tx('Novo Perfil', user) }}</h1>
+  <p class="muted">{{ tx("O perfil representa a função do utilizador, como Gestor de Estoque, Chefe do Terminal, HSE Officer ou IT.", user if user is defined else none) }}</p>
   <form method="post" class="form-stack">
-    <label>Nome do perfil
+    <label>{{ tx("Nome do perfil", user if user is defined else none) }}
       <input name="name" value="{{ target.name if target else '' }}" required {% if target and target.name == 'SuperAdmin' %}readonly{% endif %}>
     </label>
     <fieldset>
-      <legend>Acessos permitidos</legend>
+      <legend>{{ tx("Acessos permitidos", user if user is defined else none) }}</legend>
       {% for key, label in permission_options.items() %}
       <label class="check">
         <input type="checkbox" name="permissions" value="{{ key }}"
           {% if target and target.name == 'SuperAdmin' %}checked disabled{% elif key in selected_permissions %}checked{% endif %}>
-        {{ label }}
+        {{ tx(label, user) }}
       </label>
       {% endfor %}
     </fieldset>
-    <div class="actions"><a class="button secondary" href="/perfis">Cancelar</a><button>Guardar</button></div>
+    <div class="actions"><a class="button secondary" href="/perfis">{{ tx("Cancelar", user if user is defined else none) }}</a><button>{{ tx("Guardar", user if user is defined else none) }}</button></div>
   </form>
 </section>
 {% endblock %}

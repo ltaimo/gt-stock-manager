@@ -24,7 +24,6 @@ def audit_index(
     if action:
         stmt = stmt.where(AuditLog.action.ilike(f"%{action}%"))
     logs = db.scalars(stmt).all()
-    return templates.TemplateResponse(
-        "audit/index.html",
+    return templates.TemplateResponse(request, "audit/index.html",
         {"request": request, "user": user, "logs": logs, "module": module, "action": action},
     )

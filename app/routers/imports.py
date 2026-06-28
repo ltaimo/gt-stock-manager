@@ -3,6 +3,7 @@ from fastapi.responses import RedirectResponse, Response
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.i18n import language_for, translate_message, translate_text
 from app.models.core import User
 from app.routers.common import templates
 from app.security import require_permission
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/importar", tags=["importar"])
 
 @router.get("")
 def import_home(request: Request, user: User = Depends(require_permission("imports"))):
-    return templates.TemplateResponse("imports/index.html", {"request": request, "user": user})
+    return templates.TemplateResponse(request, "imports/index.html", {"request": request, "user": user})
 
 
 @router.post("/preview")
@@ -31,8 +32,7 @@ async def preview_import(
     try:
         preview = build_import_preview(db, file.filename, content)
     except Exception as exc:
-        return templates.TemplateResponse(
-            "imports/index.html",
+        return templates.TemplateResponse(request, "imports/index.html",
             {"request": request, "user": user, "error": f"Não foi possível ler o ficheiro: {exc}"},
             status_code=400,
         )
@@ -45,7 +45,7 @@ def preview_page(batch_id: str, request: Request, user: User = Depends(require_p
         preview = load_preview(batch_id)
     except FileNotFoundError:
         raise HTTPException(404, "Preview de importação não encontrado.")
-    return templates.TemplateResponse("imports/preview.html", {"request": request, "user": user, "preview": preview})
+    return templates.TemplateResponse(request, "imports/preview.html", {"request": request, "user": user, "preview": preview})
 
 
 @router.post("/confirm/{batch_id}")
@@ -77,20 +77,21 @@ def confirm_import(
             )
     except StockError as exc:
         preview["errors"].append({"module": "Confirmação", "row": "", "error": str(exc), "data": {}})
-        return templates.TemplateResponse("imports/preview.html", {"request": request, "user": user, "preview": preview}, status_code=400)
+        return templates.TemplateResponse(request, "imports/preview.html", {"request": request, "user": user, "preview": preview}, status_code=400)
 
-    return templates.TemplateResponse("imports/complete.html", {"request": request, "user": user, "preview": preview, "result": result})
+    return templates.TemplateResponse(request, "imports/complete.html", {"request": request, "user": user, "preview": preview, "result": result})
 
 
 @router.get("/falhas/{batch_id}.csv")
 def failed_rows(batch_id: str, user: User = Depends(require_permission("imports"))):
+    language = language_for(user)
     try:
         preview = load_preview(batch_id)
     except FileNotFoundError:
         raise HTTPException(404, "Preview de importação não encontrado.")
-    rows = [(e["module"], e["row"], e["error"], e["data"]) for e in preview["errors"]]
+    rows = [(translate_text(e["module"], language), e["row"], translate_message(e["error"], language), e["data"]) for e in preview["errors"]]
     return Response(
-        rows_to_csv(["Módulo", "Linha", "Erro", "Dados"], rows),
+        rows_to_csv([translate_text(value, language) for value in ["Módulo", "Linha", "Erro", "Dados"]], rows),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="erros_importacao.csv"'},
     )

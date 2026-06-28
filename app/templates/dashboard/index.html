@@ -3,46 +3,46 @@
 {% block content %}
 <header class="page-header">
   <div>
-    <h1>Dashboard</h1>
+    <h1>{{ tx("Dashboard", user if user is defined else none) }}</h1>
     <p class="muted">{{ t('dashboard_intro', user) }}</p>
   </div>
-  <span>{{ user.full_name }} · {{ user.role.name }}</span>
+  <span>{{ user.full_name }} · {{ tv(user.role.name, user) }}</span>
 </header>
 
 <section class="kpis dashboard-kpis">
-  <div><strong>{{ total_products }}</strong><span>{{ t('total_products', user) }}</span><small>{{ active_products }} ativos &middot; {{ monitored_products }} monitorizados</small></div>
-  <div><strong>{{ stockout }}</strong><span>Sem Stock</span><small>{{ critical }} itens requerem atenção</small></div>
-  <div><strong>{{ warning }}</strong><span>Stock em Atenção</span><small>{{ negative }} stock negativo</small></div>
+  <div><strong>{{ total_products }}</strong><span>{{ t('total_products', user) }}</span><small>{{ active_products }} {{ tx("ativos", user) }} &middot; {{ monitored_products }} {{ tx("monitorizados", user) }}</small></div>
+  <div><strong>{{ stockout }}</strong><span>{{ tx("Sem Stock", user if user is defined else none) }}</span><small>{{ critical }} {{ tx("itens requerem atenção", user) }}</small></div>
+  <div><strong>{{ warning }}</strong><span>{{ tx("Stock em Atenção", user if user is defined else none) }}</span><small>{{ negative }} {{ tx("stock negativo", user) }}</small></div>
   {% if can_view_movements %}
-    <div><strong>{{ entries_month }}</strong><span>Entradas do mês</span><small>Proj. {{ projected_entries }}</small></div>
-    <div><strong>{{ exits_month }}</strong><span>Saídas do mês</span><small>Proj. {{ projected_exits }}</small></div>
+    <div><strong>{{ entries_month }}</strong><span>{{ tx("Entradas do mês", user if user is defined else none) }}</span><small>{{ tx("Proj.", user) }} {{ projected_entries }}</small></div>
+    <div><strong>{{ exits_month }}</strong><span>{{ tx("Saídas do mês", user if user is defined else none) }}</span><small>{{ tx("Proj.", user) }} {{ projected_exits }}</small></div>
   {% endif %}
   {% if can_view_procurement %}
-    <div><strong>{{ procurement_pending_count }}</strong><span>{{ t('open_procurement', user) }}</span><small>Compras e reposições em acompanhamento</small></div>
+    <div><strong>{{ procurement_pending_count }}</strong><span>{{ t('open_procurement', user) }}</span><small>{{ tx("Compras e reposições em acompanhamento", user if user is defined else none) }}</small></div>
   {% endif %}
-  <div><strong>{{ stock_health }}%</strong><span>Saúde do stock</span><small>Stock adequado</small></div>
+  <div><strong>{{ stock_health }}%</strong><span>{{ tx("Saúde do stock", user if user is defined else none) }}</span><small>{{ tx("Stock adequado", user if user is defined else none) }}</small></div>
 </section>
 
 {% if can_view_movements %}
 <section class="dashboard-grid">
   <div class="panel chart-panel wide">
     <div class="panel-heading">
-      <h2>Entradas vs Saídas do Mês</h2>
-      <span class="badge orange">Projeção mensal</span>
+      <h2>{{ tx("Entradas vs Saídas do Mês", user if user is defined else none) }}</h2>
+      <span class="badge orange">{{ tx("Projeção mensal", user if user is defined else none) }}</span>
     </div>
     <canvas id="monthlyFlowChart" height="150"></canvas>
     <div class="projection-strip">
-      <div><strong>{{ projected_entries }}</strong><span>Entradas projetadas</span></div>
-      <div><strong>{{ projected_exits }}</strong><span>Saídas projetadas</span></div>
-      <div><strong>{{ projected_entries - projected_exits }}</strong><span>Saldo projetado</span></div>
+      <div><strong>{{ projected_entries }}</strong><span>{{ tx("Entradas projetadas", user if user is defined else none) }}</span></div>
+      <div><strong>{{ projected_exits }}</strong><span>{{ tx("Saídas projetadas", user if user is defined else none) }}</span></div>
+      <div><strong>{{ projected_entries - projected_exits }}</strong><span>{{ tx("Saldo projetado", user if user is defined else none) }}</span></div>
     </div>
   </div>
   <div class="panel chart-panel">
-    <div class="panel-heading"><h2>Movimentos por Tipo</h2></div>
+    <div class="panel-heading"><h2>{{ tx("Movimentos por Tipo", user if user is defined else none) }}</h2></div>
     <canvas id="movementTypeChart" height="190"></canvas>
   </div>
   <div class="panel chart-panel">
-    <div class="panel-heading"><h2>Produtos por Unidade</h2></div>
+    <div class="panel-heading"><h2>{{ tx("Produtos por Unidade", user if user is defined else none) }}</h2></div>
     <canvas id="unitChart" height="190"></canvas>
   </div>
 </section>
@@ -51,16 +51,16 @@
 <section class="grid-two">
   <div class="panel">
     <div class="panel-heading">
-      <h2>Itens que requerem atenção</h2>
-      {% if can(user, 'reports') %}<a href="/relatorios/critico">Ver relatório</a>{% endif %}
+      <h2>{{ tx("Itens que requerem atenção", user if user is defined else none) }}</h2>
+      {% if can(user, 'reports') %}<a href="/relatorios/critico">{{ tx("Ver relatório", user if user is defined else none) }}</a>{% endif %}
     </div>
     <table>
-      <thead><tr><th>Código</th><th>Produto</th><th>Un.</th><th>Atual</th><th>Estado</th></tr></thead>
+      <thead><tr><th>{{ tx("Código", user if user is defined else none) }}</th><th>{{ tx("Produto", user if user is defined else none) }}</th><th>{{ tx("Un.", user if user is defined else none) }}</th><th>{{ tx("Atual", user if user is defined else none) }}</th><th>{{ tx("Estado", user if user is defined else none) }}</th></tr></thead>
       <tbody>
       {% for p in critical_products %}
-        <tr><td>{{ p.code }}</td><td>{{ p.name }}</td><td>{{ p.unit }}</td><td>{{ p.current_stock }}</td><td><span class="badge {{ p.alert_badge }}">{{ p.alert_status }}</span></td></tr>
+        <tr><td>{{ p.code }}</td><td>{{ lname(p, user) }}</td><td>{{ p.unit }}</td><td>{{ p.current_stock }}</td><td><span class="badge {{ p.alert_badge }}">{{ tv(p.alert_status, user) }}</span></td></tr>
       {% else %}
-        <tr><td colspan="5"><div class="empty-state">Sem produtos que requerem atenção.</div></td></tr>
+        <tr><td colspan="5"><div class="empty-state">{{ tx("Sem produtos que requerem atenção.", user if user is defined else none) }}</div></td></tr>
       {% endfor %}
       </tbody>
     </table>
@@ -69,8 +69,8 @@
   {% if can_view_movements %}
   <div class="panel">
     <div class="panel-heading">
-      <h2>Movimentos recentes</h2>
-      <a href="/movimentos">Ver todos</a>
+      <h2>{{ tx("Movimentos recentes", user if user is defined else none) }}</h2>
+      <a href="/movimentos">{{ tx("Ver todos", user if user is defined else none) }}</a>
     </div>
     {% include "movements/_table.html" %}
   </div>
@@ -81,12 +81,12 @@
   <div class="panel">
     <div class="panel-heading"><h2>{{ t('pending_requests', user) }}</h2><span class="badge orange">{{ pending_count }}</span></div>
     <table>
-      <thead><tr><th>Nº</th><th>Departamento</th><th>Estado</th></tr></thead>
+      <thead><tr><th>{{ tx("Nº", user if user is defined else none) }}</th><th>{{ tx("Departamento", user if user is defined else none) }}</th><th>{{ tx("Estado", user if user is defined else none) }}</th></tr></thead>
       <tbody>
       {% for r in pending_requisitions %}
-        <tr><td><a href="/requisicoes/{{ r.id }}">{{ r.number }}</a></td><td>{{ r.department.name if r.department else '' }}</td><td><span class="badge orange">{{ r.status }}</span></td></tr>
+        <tr><td><a href="/requisicoes/{{ r.id }}">{{ r.number }}</a></td><td>{{ r.department.name if r.department else '' }}</td><td><span class="badge orange">{{ tv(r.status, user) }}</span></td></tr>
       {% else %}
-        <tr><td colspan="3"><div class="empty-state">Sem requisições pendentes.</div></td></tr>
+        <tr><td colspan="3"><div class="empty-state">{{ tx("Sem requisições pendentes.", user if user is defined else none) }}</div></td></tr>
       {% endfor %}
       </tbody>
     </table>
@@ -94,28 +94,28 @@
 
   {% if can_view_procurement %}
   <div class="panel">
-    <div class="panel-heading"><h2>Procurement aberto</h2><span class="badge orange">{{ procurement_pending_count }}</span></div>
+    <div class="panel-heading"><h2>{{ tx("Procurement aberto", user if user is defined else none) }}</h2><span class="badge orange">{{ procurement_pending_count }}</span></div>
     <table>
-      <thead><tr><th>Nº</th><th>Budget</th><th>Estado</th></tr></thead>
+      <thead><tr><th>{{ tx("Nº", user if user is defined else none) }}</th><th>{{ tx("Budget", user if user is defined else none) }}</th><th>{{ tx("Estado", user if user is defined else none) }}</th></tr></thead>
       <tbody>
       {% for case in pending_procurement %}
-        <tr><td><a href="/procurement/{{ case.id }}">{{ case.requisition.number }}</a></td><td>{{ "%.2f"|format(case.estimated_budget|float) }} MZN</td><td><span class="badge orange">{{ case.status }}</span></td></tr>
+        <tr><td><a href="/procurement/{{ case.id }}">{{ case.requisition.number }}</a></td><td>{{ "%.2f"|format(case.estimated_budget|float) }} MZN</td><td><span class="badge orange">{{ tv(case.status, user) }}</span></td></tr>
       {% else %}
-        <tr><td colspan="3"><div class="empty-state">Sem processos de procurement abertos.</div></td></tr>
+        <tr><td colspan="3"><div class="empty-state">{{ tx("Sem processos de procurement abertos.", user if user is defined else none) }}</div></td></tr>
       {% endfor %}
       </tbody>
     </table>
   </div>
   {% elif can_view_movements %}
   <div class="panel">
-    <div class="panel-heading"><h2>Produtos mais requisitados</h2></div>
+    <div class="panel-heading"><h2>{{ tx("Produtos mais requisitados", user if user is defined else none) }}</h2></div>
     <table>
-      <thead><tr><th>Produto</th><th>Total requisitado</th></tr></thead>
+      <thead><tr><th>{{ tx("Produto", user if user is defined else none) }}</th><th>{{ tx("Total requisitado", user if user is defined else none) }}</th></tr></thead>
       <tbody>
       {% for name, total in most_requested %}
         <tr><td>{{ name }}</td><td>{{ total }}</td></tr>
       {% else %}
-        <tr><td colspan="2"><div class="empty-state">Ainda não existem saídas suficientes para ranking.</div></td></tr>
+        <tr><td colspan="2"><div class="empty-state">{{ tx("Ainda não existem saídas suficientes para ranking.", user if user is defined else none) }}</div></td></tr>
       {% endfor %}
       </tbody>
     </table>

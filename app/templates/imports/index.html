@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 {% block content %}
-<header class="page-header"><h1>Importar Excel/CSV</h1></header>
-{% if error %}<div class="alert red">{{ error }}</div>{% endif %}
+<header class="page-header"><h1>{{ tx("Importar Excel/CSV", user if user is defined else none) }}</h1></header>
+{% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
 <section class="panel narrow">
-  <h2>Ficheiro de stock</h2>
-  <p class="muted">Aceita ficheiros com as colunas Item e Quantidade ou o formato antigo com as folhas ECONOMATO, USERS e MOVIMENTO. Se nenhuma linha for reconhecida, a importação será bloqueada.</p>
+  <h2>{{ tx("Ficheiro de stock", user if user is defined else none) }}</h2>
+  <p class="muted">{{ tx("Aceita ficheiros com as colunas Item e Quantidade ou o formato antigo com as folhas ECONOMATO, USERS e MOVIMENTO. Se nenhuma linha for reconhecida, a importação será bloqueada.", user if user is defined else none) }}</p>
   <form method="post" action="/importar/preview" enctype="multipart/form-data" class="form-stack">
-    <label>Ficheiro Excel/CSV<input type="file" name="file" accept=".xls,.xlsx,.csv" required></label>
-    <div class="actions"><a class="button secondary" href="/dashboard">Voltar</a><button>Validar e pré-visualizar</button></div>
+    <label>{{ tx("Ficheiro Excel/CSV", user if user is defined else none) }}<input type="file" name="file" accept=".xls,.xlsx,.csv" required></label>
+    <div class="actions"><a class="button secondary" href="/dashboard">{{ tx("Voltar", user if user is defined else none) }}</a><button>{{ tx("Validar e pré-visualizar", user if user is defined else none) }}</button></div>
   </form>
 </section>
 <section class="grid-two">
-  <div class="panel"><h2>Validações de produtos</h2><p class="muted">Códigos duplicados, nomes vazios, categorias nulas e stock negativo.</p></div>
-  <div class="panel"><h2>Validações de utilizadores</h2><p class="muted">Usernames duplicados no ficheiro ou já existentes na base de dados.</p></div>
-  <div class="panel"><h2>Validações de movimentos</h2><p class="muted">Acções inválidas, produtos inexistentes e quantidades inválidas ou negativas.</p></div>
-  <div class="panel"><h2>Confirmação segura</h2><p class="muted">A importação só é gravada após confirmação e apenas quando não existem erros.</p></div>
+  <div class="panel"><h2>{{ tx("Validações de produtos", user if user is defined else none) }}</h2><p class="muted">{{ tx("Códigos duplicados, nomes vazios, categorias nulas e stock negativo.", user if user is defined else none) }}</p></div>
+  <div class="panel"><h2>{{ tx("Validações de utilizadores", user if user is defined else none) }}</h2><p class="muted">{{ tx("Usernames duplicados no ficheiro ou já existentes na base de dados.", user if user is defined else none) }}</p></div>
+  <div class="panel"><h2>{{ tx("Validações de movimentos", user if user is defined else none) }}</h2><p class="muted">{{ tx("Acções inválidas, produtos inexistentes e quantidades inválidas ou negativas.", user if user is defined else none) }}</p></div>
+  <div class="panel"><h2>{{ tx("Confirmação segura", user if user is defined else none) }}</h2><p class="muted">{{ tx("A importação só é gravada após confirmação e apenas quando não existem erros.", user if user is defined else none) }}</p></div>
 </section>
 {% endblock %}

@@ -1,32 +1,32 @@
 {% extends "base.html" %}
 {% block content %}
-<header class="page-header"><h1>Notificacoes</h1></header>
+<header class="page-header"><h1>{{ tx("Notificacoes", user if user is defined else none) }}</h1></header>
 <section class="panel">
   {% if notifications %}
   <table class="responsive-table">
     <thead>
-      <tr><th>Data</th><th>Notificacao</th><th>Modulo</th><th>Estado</th><th></th></tr>
+      <tr><th>{{ tx("Data", user if user is defined else none) }}</th><th>{{ tx("Notificacao", user if user is defined else none) }}</th><th>{{ tx("Modulo", user if user is defined else none) }}</th><th>{{ tx("Estado", user if user is defined else none) }}</th><th></th></tr>
     </thead>
     <tbody>
       {% for notification in notifications %}
       <tr>
-        <td data-label="Data">{{ notification.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-        <td data-label="Notificacao">
+        <td data-label="{{ tx("Data", user if user is defined else none) }}">{{ notification.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td data-label="{{ tx("Notificacao", user if user is defined else none) }}">
           <strong>{{ notification.title }}</strong>
           <div class="notification-message">{{ notification.message }}</div>
         </td>
-        <td data-label="Modulo">{{ notification.module }}</td>
-        <td data-label="Estado">
+        <td data-label="{{ tx("Modulo", user if user is defined else none) }}">{{ tx(notification.module, user) }}</td>
+        <td data-label="{{ tx("Estado", user if user is defined else none) }}">
           <span class="badge {{ 'grey' if notification.is_read else 'orange' }}">
-            {{ 'Lida' if notification.is_read else 'Nova' }}
+            {{ tx('Lida', user) if notification.is_read else tx('Nova', user) }}
           </span>
         </td>
-        <td data-label="Acao">
-          {% if notification.module in ['Requisicoes', 'Requisições', 'RequisiÃ§Ãµes', 'Procurement'] and notification.record_id %}
-            <a class="button" href="/notificacoes/{{ notification.id }}/abrir">Abrir</a>
+        <td data-label="{{ tx("Acao", user if user is defined else none) }}">
+          {% if notification.module in ['Requisicoes', 'Requisições', 'Requisições', 'Procurement'] and notification.record_id %}
+            <a class="button" href="/notificacoes/{{ notification.id }}/abrir">{{ tx("Abrir", user if user is defined else none) }}</a>
           {% elif not notification.is_read %}
             <form method="post" action="/notificacoes/{{ notification.id }}/ler">
-              <button class="secondary">Marcar como lida</button>
+              <button class="secondary">{{ tx("Marcar como lida", user if user is defined else none) }}</button>
             </form>
           {% endif %}
         </td>
@@ -35,7 +35,7 @@
     </tbody>
   </table>
   {% else %}
-    <div class="empty-state">Nao existem notificacoes.</div>
+    <div class="empty-state">{{ tx("Nao existem notificacoes.", user if user is defined else none) }}</div>
   {% endif %}
 </section>
 {% endblock %}

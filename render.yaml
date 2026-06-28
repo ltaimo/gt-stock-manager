@@ -19,7 +19,9 @@ services:
       - key: APP_SHORT_NAME
         value: GT Stock Manager
       - key: APP_VERSION
-        value: "2.1.0"
+        value: "2.1.1"
+      - key: INITIAL_SUPERADMIN_PASSWORD
+        sync: false
       - key: DATABASE_URL
         sync: false
       - key: UPLOADS_DIR

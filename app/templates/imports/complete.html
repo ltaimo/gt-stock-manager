@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="panel narrow">
-  <h1>Importação concluída</h1>
-  <p>{{ result.imported }} registos foram gravados com sucesso.</p>
-  <p class="muted">Lote: {{ preview.batch_id }}</p>
-  <a class="button" href="/produtos">Ver Economato</a>
+  <h1>{{ tx("Importação concluída", user if user is defined else none) }}</h1>
+  <p>{{ result.imported }} {{ tx("registos foram gravados com sucesso.", user) }}</p>
+  <p class="muted">{{ tx("Lote:", user) }} {{ preview.batch_id }}</p>
+  <a class="button" href="/produtos">{{ tx("Ver Economato", user if user is defined else none) }}</a>
 </section>
 {% endblock %}

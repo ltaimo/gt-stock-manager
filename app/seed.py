@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 from sqlalchemy import or_, select
@@ -27,25 +28,28 @@ AC_TOOLS_FIXTURE = FIXTURE_DIR / "ac_tools_products.json"
 
 
 def repair_portuguese_labels(db) -> None:
+    def legacy_mojibake(value: str) -> str:
+        return value.encode("utf-8").decode("latin-1")
+
     replacements = {
         Department: {
-            "OperaÃ§Ãµes": "Operações",
-            "AdministraÃ§Ã£o": "Administração",
-            "ManutenÃ§Ã£o": "Manutenção",
-            "FaturaÃ§Ã£o": "Faturação",
-            "ArmazÃ©m": "Armazém",
+            legacy_mojibake(value): value
+            for value in ["Operações", "Administração", "Manutenção", "Faturação", "Armazém"]
         },
         Category: {
-            "Material de EscritÃ³rio": "Material de Escritório",
-            "ConsumÃ­veis": "Consumíveis",
-            "ClimatizaÃ§Ã£o": "Climatização",
-            "InformÃ¡tica e Equipamentos": "Informática e Equipamentos",
-            "ConsumÃ­veis de ImpressÃ£o": "Consumíveis de Impressão",
-            "Equipamentos de ProteÃ§Ã£o": "Equipamentos de Proteção",
-            "Material ElÃ©trico e IluminaÃ§Ã£o": "Material Elétrico e Iluminação",
-            "CanalizaÃ§Ã£o": "Canalização",
-            "Ferramentas e ManutenÃ§Ã£o": "Ferramentas e Manutenção",
-            "OperaÃ§Ãµes e Diversos": "Operações e Diversos",
+            legacy_mojibake(value): value
+            for value in [
+                "Material de Escritório",
+                "Consumíveis",
+                "Climatização",
+                "Informática e Equipamentos",
+                "Consumíveis de Impressão",
+                "Equipamentos de Proteção",
+                "Material Elétrico e Iluminação",
+                "Canalização",
+                "Ferramentas e Manutenção",
+                "Operações e Diversos",
+            ]
         },
     }
     for model, mapping in replacements.items():
@@ -217,11 +221,17 @@ def seed() -> None:
         geral = db.scalar(select(Department).where(Department.name == "Geral"))
         superadmin = db.scalar(select(User).where(User.username == "superadmin"))
         if not superadmin:
+            initial_password = os.getenv("INITIAL_SUPERADMIN_PASSWORD", "").strip()
+            if len(initial_password) < 12:
+                raise RuntimeError(
+                    "Defina INITIAL_SUPERADMIN_PASSWORD com pelo menos 12 caracteres "
+                    "antes de criar o primeiro SuperAdmin."
+                )
             superadmin = User(
                 full_name="Administrador Principal",
                 username="superadmin",
                 email="superadmin@gt.co.mz",
-                password_hash=hash_password("Admin@12345"),
+                password_hash=hash_password(initial_password),
                 role_id=super_role.id,
                 department_id=geral.id,
             )

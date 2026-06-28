@@ -1,25 +1,31 @@
 <!doctype html>
-<html lang="{{ current_language(user) if user else 'pt' }}">
+<html lang="{{ current_language(user if user is defined else none, request) }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}{{ app_name }}{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/app.css?v=20260627-v210">
+  <title>{% block title %}{{ tx(app_name, user if user is defined else none) }}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/app.css?v={{ app_version }}">
 </head>
-<body spellcheck="true">
+<body
+  spellcheck="true"
+  data-i18n-max-available="{{ tx("Máximo disponível", user if user is defined else none) }}"
+  data-i18n-no-stock="{{ tx("Este item não tem stock disponível.", user if user is defined else none) }}"
+  data-i18n-exceeds-stock="{{ tx("A quantidade total pedida excede o stock disponível ({stock}).", user if user is defined else none) }}"
+  data-i18n-select-replenishment="{{ tx("Selecione pelo menos um produto para reposição.", user if user is defined else none) }}"
+>
 {% if user %}
-<aside class="sidebar" id="app-sidebar" aria-label="Menu principal">
+<aside class="sidebar" id="app-sidebar" aria-label="{{ tx("Menu principal", user if user is defined else none) }}">
   <div class="sidebar-mobile-heading">
-    <span>Menu</span>
-    <button class="icon-button sidebar-close" type="button" data-menu-close aria-label="Fechar menu">&times;</button>
+    <span>{{ tx("Menu", user if user is defined else none) }}</span>
+    <button class="icon-button sidebar-close" type="button" data-menu-close aria-label="{{ tx("Fechar menu", user if user is defined else none) }}">&times;</button>
   </div>
-  <a class="brand" href="/dashboard" aria-label="{{ app_name }}">
+  <a class="brand" href="/dashboard" aria-label="{{ tx(app_name, user if user is defined else none) }}">
     {% if logo_available() %}
-      <img src="/static/img/logo-gt.png" alt="Gestao de Terminais, SA">
+      <img src="/static/img/logo-gt.png" alt="Gestão de Terminais, SA">
     {% else %}
       <span class="brand-mark">GT</span>
     {% endif %}
-    <span><strong>{{ app_name }}</strong><small>{{ app_subtitle }}</small></span>
+    <span><strong>{{ tx(app_name, user if user is defined else none) }}</strong><small>{{ app_subtitle }}</small></span>
   </a>
   <nav>
     <a href="/dashboard" data-nav-prefix="/dashboard">{{ t('dashboard', user) }}</a>
@@ -39,31 +45,31 @@
     {% if can(user, 'settings_manage') %}<a href="/configuracoes" data-nav-prefix="/configuracoes">{{ t('settings', user) }}</a>{% endif %}
     <a href="/sobre" data-nav-prefix="/sobre">{{ t('about', user) }}</a>
   </nav>
-  <form method="post" action="/logout"><button class="link-button">Sair</button></form>
+  <form method="post" action="/logout"><button class="link-button">{{ tx("Sair", user if user is defined else none) }}</button></form>
 </aside>
-<button class="menu-backdrop" type="button" data-menu-close aria-label="Fechar menu"></button>
+<button class="menu-backdrop" type="button" data-menu-close aria-label="{{ tx("Fechar menu", user if user is defined else none) }}"></button>
 <div class="app-shell">
   <header class="topbar">
     <button class="icon-button menu-toggle" type="button" data-menu-open aria-controls="app-sidebar" aria-expanded="false">
-      <span aria-hidden="true">&#9776;</span><span class="sr-only">Abrir menu</span>
+      <span aria-hidden="true">&#9776;</span><span class="sr-only">{{ tx("Abrir menu", user if user is defined else none) }}</span>
     </button>
     <div class="topbar-brand">
       <strong>{{ app_short_name }}</strong>
       <span>{{ app_subtitle }}</span>
     </div>
     <div class="topbar-actions">
-      <a class="notification-link" href="/notificacoes" aria-label="{{ t('notifications', user) }}: {{ unread_notifications(user.id) }} não lidas">
+      <a class="notification-link" href="/notificacoes" aria-label="{{ t('notifications', user) }}: {{ unread_notifications(user.id) }} {{ tx('não lidas', user) }}">
         <span class="notification-label">{{ t('notifications', user) }}</span>
         <span>{{ unread_notifications(user.id) }}</span>
       </a>
       <form method="post" action="/preferencias/idioma" class="language-form">
-        <select name="language" aria-label="Idioma">
+        <select name="language" aria-label="{{ tx("Idioma", user if user is defined else none) }}">
           <option value="pt" {% if current_language(user) == 'pt' %}selected{% endif %}>PT</option>
           <option value="en" {% if current_language(user) == 'en' %}selected{% endif %}>EN</option>
         </select>
         <button type="submit" class="compact secondary">{{ t('apply_language', user) }}</button>
       </form>
-      <div class="user-chip">{{ user.full_name }} &middot; {{ user.role.name }}</div>
+      <div class="user-chip">{{ user.full_name }} &middot; {{ tv(user.role.name, user) }}</div>
     </div>
   </header>
   <main class="content">
@@ -73,12 +79,12 @@
     {% block content %}{% endblock %}
 {% if user %}
   </main>
-  <footer class="app-footer">GT Stock Manager v{{ app_version }} &middot; Designed by Layton Taimo</footer>
+  <footer class="app-footer">GT Stock Manager v{{ app_version }} &middot; {{ tx("Designed by", user) }} Layton Taimo</footer>
 </div>
 {% else %}
-  <footer class="auth-footer">GT Stock Manager v{{ app_version }} &middot; Designed by Layton Taimo</footer>
+  <footer class="auth-footer">GT Stock Manager v{{ app_version }} &middot; {{ tx("Designed by", user if user is defined else none) }} Layton Taimo</footer>
 </main>
 {% endif %}
-<script src="/static/js/app.js?v=20260627-v210"></script>
+<script src="/static/js/app.js?v={{ app_version }}"></script>
 </body>
 </html>

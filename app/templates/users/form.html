@@ -1,36 +1,36 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="panel narrow">
-  <h1>{{ 'Editar Utilizador' if target else 'Novo Utilizador' }}</h1>
+  <h1>{{ tx('Editar Utilizador', user) if target else tx('Novo Utilizador', user) }}</h1>
   <form method="post" class="form-stack">
-    <label>Nome completo
+    <label>{{ tx("Nome completo", user if user is defined else none) }}
       <input name="full_name" value="{{ target.full_name if target else '' }}" required>
     </label>
     {% if not target %}
-      <label>Utilizador
+      <label>{{ tx("Utilizador", user if user is defined else none) }}
         <input name="username" required>
       </label>
-      <label>Senha inicial
+      <label>{{ tx("Senha inicial", user if user is defined else none) }}
         <input name="password" type="password" required>
       </label>
     {% endif %}
     <div class="form-grid">
-      <label>Email
+      <label>{{ tx("Email", user if user is defined else none) }}
         <input name="email" type="email" value="{{ target.email if target and target.email else '' }}">
       </label>
-      <label>Telefone / WhatsApp
+      <label>{{ tx("Telefone / WhatsApp", user if user is defined else none) }}
         <input name="phone" value="{{ target.phone if target and target.phone else '' }}" placeholder="+258...">
       </label>
-      <label>Perfil de acesso
+      <label>{{ tx("Perfil de acesso", user if user is defined else none) }}
         <select name="role_id">
           {% for r in roles %}
             {% if user.role.name == 'SuperAdmin' or r.name != 'SuperAdmin' %}
-              <option value="{{ r.id }}" {% if target and target.role_id==r.id %}selected{% endif %}>{{ r.name }}</option>
+              <option value="{{ r.id }}" {% if target and target.role_id==r.id %}selected{% endif %}>{{ tv(r.name, user) }}</option>
             {% endif %}
           {% endfor %}
         </select>
       </label>
-      <label>Departamento
+      <label>{{ tx("Departamento", user if user is defined else none) }}
         <select name="department_id">
           <option value="">-</option>
           {% for d in departments %}
@@ -38,31 +38,31 @@
           {% endfor %}
         </select>
       </label>
-      <label>Idioma
+      <label>{{ tx("Idioma", user if user is defined else none) }}
         <select name="preferred_language">
-          <option value="pt" {% if not target or target.preferred_language == 'pt' %}selected{% endif %}>Portugues</option>
-          <option value="en" {% if target and target.preferred_language == 'en' %}selected{% endif %}>English</option>
+          <option value="pt" {% if not target or target.preferred_language == 'pt' %}selected{% endif %}>{{ tx("Portugues", user if user is defined else none) }}</option>
+          <option value="en" {% if target and target.preferred_language == 'en' %}selected{% endif %}>{{ tx("English", user if user is defined else none) }}</option>
         </select>
       </label>
     </div>
     <fieldset>
-      <legend>Notificacoes</legend>
+      <legend>{{ tx("Notificacoes", user if user is defined else none) }}</legend>
       <label class="check">
         <input type="checkbox" name="notify_email" value="1" {% if not target or target.notify_email %}checked{% endif %}>
-        Receber por email
+        {{ tx("Receber por email", user if user is defined else none) }}
       </label>
       <label class="check">
         <input type="checkbox" name="notify_whatsapp" value="1" {% if target and target.notify_whatsapp %}checked{% endif %}>
-        Receber por WhatsApp
+        {{ tx("Receber por WhatsApp", user if user is defined else none) }}
       </label>
-      <p class="muted">Sem provedor WhatsApp configurado, as mensagens ficam guardadas no outbox para auditoria/teste.</p>
+      <p class="muted">{{ tx("Sem provedor WhatsApp configurado, as mensagens ficam guardadas no outbox para auditoria/teste.", user if user is defined else none) }}</p>
     </fieldset>
     {% if target %}
-      <label class="check"><input type="checkbox" name="is_active" value="true" {% if target.is_active %}checked{% endif %}> Ativo</label>
+      <label class="check"><input type="checkbox" name="is_active" value="true" {% if target.is_active %}checked{% endif %}> {{ tx("Ativo", user if user is defined else none) }}</label>
     {% endif %}
     <div class="actions">
-      <a class="button secondary" href="/utilizadores">Cancelar</a>
-      <button>Guardar</button>
+      <a class="button secondary" href="/utilizadores">{{ tx("Cancelar", user if user is defined else none) }}</a>
+      <button>{{ tx("Guardar", user if user is defined else none) }}</button>
     </div>
   </form>
 </section>

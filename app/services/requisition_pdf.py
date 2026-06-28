@@ -5,6 +5,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
+from app.i18n import language_for, localized_name, translate_text, translate_value
 from app.models.core import Requisition, User
 from app.services.pdf_branding import (
     brand_header,
@@ -28,6 +29,9 @@ def fmt_qty(value) -> str:
 
 
 def requisition_to_pdf(req: Requisition, generated_by: User | None = None, client_ip: str | None = None) -> bytes:
+    language = language_for(generated_by)
+    text = lambda value: translate_text(value, language)
+    value = lambda item: translate_value(item, language)
     stream = BytesIO()
     doc = SimpleDocTemplate(
         stream,
@@ -40,30 +44,30 @@ def requisition_to_pdf(req: Requisition, generated_by: User | None = None, clien
     styles, _regular, _bold = branded_styles()
     normal = styles["Normal"]
     small = styles["GTNormalSmall"]
-    generated_by_name = generated_by.full_name if generated_by else "Sistema"
+    generated_by_name = generated_by.full_name if generated_by else text("Sistema")
     number = req.number.replace("REQ-", "").replace("-", "/")
 
     story = [
         brand_header(
-            "REQUISIÇÃO",
-            subtitle=f"Requisição nº: {number}",
-            meta=[f"Data: {fmt_date(req.request_date)}", *generated_meta(generated_by_name)],
+            text("REQUISIÇÃO"),
+            subtitle=f"{text('Requisição nº')}: {number}",
+            meta=[f"{text('Data')}: {fmt_date(req.request_date)}", *generated_meta(generated_by_name, language)],
         ),
         Spacer(1, 0.35 * cm),
     ]
 
     company_rows = [
-        ["Localização", "EN4 - KM 5,5 - R.G - MATOLA"],
+        [text("Localização"), "EN4 - KM 5,5 - R.G - MATOLA"],
         ["E-mail", "info@gtsa.co.mz"],
-        ["Telefone", "844231830"],
+        [text("Telefone"), "844231830"],
     ]
     request_rows = [
-        ["Por autorizar", req.authorization_person or "Definido pela matriz de aprovações"],
-        ["Valor estimado", f"{float(req.estimated_value or 0):.2f} MZN"],
-        ["Requisitante", req.requesting_user.full_name],
-        ["Departamento", req.department.name if req.department else ""],
-        ["Gestor Operacional", req.operational_manager or ""],
-        ["Estado", req.status],
+        [text("Por autorizar"), req.authorization_person or text("Definido pela matriz de aprovações")],
+        [text("Valor estimado"), f"{float(req.estimated_value or 0):.2f} MZN"],
+        [text("Requisitante"), req.requesting_user.full_name],
+        [text("Departamento"), req.department.name if req.department else ""],
+        [text("Gestor Operacional"), req.operational_manager or ""],
+        [text("Estado"), value(req.status)],
     ]
     story.extend(
         [
@@ -74,17 +78,17 @@ def requisition_to_pdf(req: Requisition, generated_by: User | None = None, clien
         ]
     )
 
-    rows = [["Código", "Item", "Pedido", "Aprov.", "Rejeit.", "Estado", "Obs."]]
+    rows = [[text(label) for label in ["Código", "Item", "Pedido", "Aprov.", "Rejeit.", "Estado", "Obs."]]]
     for item in req.items:
         item_obs = item.review_observation or item.observation or ""
         rows.append(
             [
                 item.product.code,
-                Paragraph(item.product.name, normal),
+                Paragraph(localized_name(item.product, generated_by), normal),
                 fmt_qty(item.quantity_requested),
                 fmt_qty(item.quantity_issued),
                 fmt_qty(item.quantity_rejected),
-                item.review_status,
+                value(item.review_status),
                 Paragraph(item_obs, small),
             ]
         )
@@ -96,9 +100,9 @@ def requisition_to_pdf(req: Requisition, generated_by: User | None = None, clien
     )
 
     if req.notes:
-        story.extend([Spacer(1, 0.35 * cm), label_value_table([["Observações", Paragraph(req.notes, normal)]], [3.2 * cm, 13.9 * cm])])
+        story.extend([Spacer(1, 0.35 * cm), label_value_table([[text("Observações"), Paragraph(req.notes, normal)]], [3.2 * cm, 13.9 * cm])])
     if client_ip:
-        story.extend([Spacer(1, 0.2 * cm), Paragraph(f"IP de acesso: {client_ip}", small)])
+        story.extend([Spacer(1, 0.2 * cm), Paragraph(f"{text('IP de acesso')}: {client_ip}", small)])
 
-    doc.build(story, onFirstPage=lambda c, d: branded_footer(c, d, generated_by_name), onLaterPages=lambda c, d: branded_footer(c, d, generated_by_name))
+    doc.build(story, onFirstPage=lambda c, d: branded_footer(c, d, generated_by_name, language), onLaterPages=lambda c, d: branded_footer(c, d, generated_by_name, language))
     return stream.getvalue()

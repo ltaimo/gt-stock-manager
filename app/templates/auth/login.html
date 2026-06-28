@@ -8,13 +8,13 @@
       <span class="brand-mark large">GT</span>
     {% endif %}
   </div>
-  <h1>{{ app_name }}</h1>
+  <h1>{{ tx(app_name, user if user is defined else none) }}</h1>
   <p>{{ app_subtitle }}</p>
-  {% if error %}<div class="alert red">{{ error }}</div>{% endif %}
+  {% if error %}<div class="alert red">{{ tm(error, user if user is defined else none, request) }}</div>{% endif %}
   <form method="post" class="form-stack">
-    <label>Nome de utilizador<input name="username" required autofocus></label>
-    <label>Senha<input name="password" type="password" required></label>
-    <button>Entrar</button>
+    <label>{{ tx("Nome de utilizador", user if user is defined else none) }}<input name="username" required autofocus></label>
+    <label>{{ tx("Senha", user if user is defined else none) }}<input name="password" type="password" required></label>
+    <button>{{ tx("Entrar", user if user is defined else none) }}</button>
   </form>
 </section>
 {% endblock %}

@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="panel narrow">
-  <h1>Não foi possível concluir</h1>
+  <h1>{{ tx("Não foi possível concluir", user if user is defined else none) }}</h1>
   <div class="alert red">{{ message }}</div>
   <div class="actions">
-    <a class="button secondary" href="{{ back_url }}">Voltar e corrigir</a>
-    {% if user %}<a class="button" href="/dashboard">Ir ao Dashboard</a>{% endif %}
+    <a class="button secondary" href="{{ back_url }}">{{ tx("Voltar e corrigir", user if user is defined else none) }}</a>
+    {% if user %}<a class="button" href="/dashboard">{{ tx("Ir ao Dashboard", user if user is defined else none) }}</a>{% endif %}
   </div>
 </section>
 {% endblock %}

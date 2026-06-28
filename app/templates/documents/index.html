@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
-<header class="page-header"><h1>Documentos de Stock</h1><a class="button" href="/movimentos/novo">Novo Movimento</a></header>
+<header class="page-header"><h1>{{ tx("Documentos de Stock", user if user is defined else none) }}</h1><a class="button" href="/movimentos/novo">{{ tx("Novo Movimento", user if user is defined else none) }}</a></header>
 <section class="panel">
   <table>
-    <thead><tr><th>Data</th><th>Tipo</th><th>Nº Documento</th><th>Ficheiro</th><th>Produtos</th><th>Carregado por</th><th></th></tr></thead>
+    <thead><tr><th>{{ tx("Data", user if user is defined else none) }}</th><th>{{ tx("Tipo", user if user is defined else none) }}</th><th>{{ tx("Nº Documento", user if user is defined else none) }}</th><th>{{ tx("Ficheiro", user if user is defined else none) }}</th><th>{{ tx("Produtos", user if user is defined else none) }}</th><th>{{ tx("Carregado por", user if user is defined else none) }}</th><th></th></tr></thead>
     <tbody>
     {% for d in documents %}
       <tr>
@@ -13,10 +13,10 @@
         <td>{{ d.original_filename }}</td>
         <td>{% for link in d.products %}<span class="badge grey">{{ link.product.code }}</span> {% endfor %}</td>
         <td>{{ d.uploaded_by.full_name }}</td>
-        <td><a href="/documentos/{{ d.id }}/download">Baixar</a></td>
+        <td><a href="/documentos/{{ d.id }}/download">{{ tx("Baixar", user if user is defined else none) }}</a></td>
       </tr>
     {% else %}
-      <tr><td colspan="7"><div class="empty-state">Ainda não existem documentos anexados.</div></td></tr>
+      <tr><td colspan="7"><div class="empty-state">{{ tx("Ainda não existem documentos anexados.", user if user is defined else none) }}</div></td></tr>
     {% endfor %}
     </tbody>
   </table>

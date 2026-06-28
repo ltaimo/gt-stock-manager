@@ -21,4 +21,5 @@ def set_language(
         language = "pt"
     with atomic(db):
         user.preferred_language = language
+        request.session["language"] = language
     return RedirectResponse(request.headers.get("referer") or "/dashboard", status_code=303)

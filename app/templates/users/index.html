@@ -1,47 +1,47 @@
 {% extends "base.html" %}
 {% block content %}
 <header class="page-header">
-  <h1>Utilizadores</h1>
-  <a class="button" href="/utilizadores/novo">Adicionar</a>
+  <h1>{{ tx("Utilizadores", user if user is defined else none) }}</h1>
+  <a class="button" href="/utilizadores/novo">{{ tx("Adicionar", user if user is defined else none) }}</a>
 </header>
 <div class="panel">
   <table class="responsive-table">
     <thead>
       <tr>
-        <th>ID</th>
-        <th>Nome</th>
-        <th>Utilizador</th>
-        <th>Contacto</th>
-        <th>Perfil</th>
-        <th>Departamento</th>
-        <th>Estado</th>
-        <th>Notificacoes</th>
-        <th>Ultimo login</th>
+        <th>{{ tx("ID", user if user is defined else none) }}</th>
+        <th>{{ tx("Nome", user if user is defined else none) }}</th>
+        <th>{{ tx("Utilizador", user if user is defined else none) }}</th>
+        <th>{{ tx("Contacto", user if user is defined else none) }}</th>
+        <th>{{ tx("Perfil", user if user is defined else none) }}</th>
+        <th>{{ tx("Departamento", user if user is defined else none) }}</th>
+        <th>{{ tx("Estado", user if user is defined else none) }}</th>
+        <th>{{ tx("Notificacoes", user if user is defined else none) }}</th>
+        <th>{{ tx("Ultimo login", user if user is defined else none) }}</th>
         <th></th>
       </tr>
     </thead>
     <tbody>
       {% for u in users %}
       <tr>
-        <td data-label="ID">{{ u.id }}</td>
-        <td data-label="Nome">{{ u.full_name }}</td>
-        <td data-label="Utilizador">{{ u.username }}</td>
-        <td data-label="Contacto">{{ u.email or '' }}{% if u.phone %}<br>{{ u.phone }}{% endif %}</td>
-        <td data-label="Perfil">{{ u.role.name }}</td>
-        <td data-label="Departamento">{{ u.department.name if u.department else '' }}</td>
-        <td data-label="Estado"><span class="badge {{ 'green' if u.is_active else 'grey' }}">{{ 'Ativo' if u.is_active else 'Inativo' }}</span></td>
-        <td data-label="Notificacoes">
-          {% if u.notify_email %}<span class="badge blue">Email</span>{% endif %}
+        <td data-label="{{ tx("ID", user if user is defined else none) }}">{{ u.id }}</td>
+        <td data-label="{{ tx("Nome", user if user is defined else none) }}">{{ u.full_name }}</td>
+        <td data-label="{{ tx("Utilizador", user if user is defined else none) }}">{{ u.username }}</td>
+        <td data-label="{{ tx("Contacto", user if user is defined else none) }}">{{ u.email or '' }}{% if u.phone %}<br>{{ u.phone }}{% endif %}</td>
+        <td data-label="{{ tx("Perfil", user if user is defined else none) }}">{{ tv(u.role.name, user) }}</td>
+        <td data-label="{{ tx("Departamento", user if user is defined else none) }}">{{ u.department.name if u.department else '' }}</td>
+        <td data-label="{{ tx('Estado', user) }}"><span class="badge {{ 'green' if u.is_active else 'grey' }}">{{ tx('Ativo', user) if u.is_active else tx('Inativo', user) }}</span></td>
+        <td data-label="{{ tx("Notificacoes", user if user is defined else none) }}">
+          {% if u.notify_email %}<span class="badge blue">{{ tx("Email", user if user is defined else none) }}</span>{% endif %}
           {% if u.notify_whatsapp %}<span class="badge green">WhatsApp</span>{% endif %}
-          {% if not u.notify_email and not u.notify_whatsapp %}<span class="badge grey">In-app</span>{% endif %}
+          {% if not u.notify_email and not u.notify_whatsapp %}<span class="badge grey">{{ tx("In-app", user if user is defined else none) }}</span>{% endif %}
         </td>
-        <td data-label="Ultimo login">{{ u.last_login_at.strftime('%Y-%m-%d %H:%M') if u.last_login_at else '' }}</td>
-        <td data-label="Acao">
+        <td data-label="{{ tx("Ultimo login", user if user is defined else none) }}">{{ u.last_login_at.strftime('%Y-%m-%d %H:%M') if u.last_login_at else '' }}</td>
+        <td data-label="{{ tx("Acao", user if user is defined else none) }}">
           <div class="actions">
-            <a href="/utilizadores/{{ u.id }}/editar">Editar</a>
+            <a href="/utilizadores/{{ u.id }}/editar">{{ tx("Editar", user if user is defined else none) }}</a>
             {% if u.id != user.id and u.role.name != 'SuperAdmin' and u.is_active %}
-            <form method="post" action="/utilizadores/{{ u.id }}/remover" data-confirm="Remover o acesso deste utilizador? O historico sera preservado.">
-              <button class="link-button danger">Remover acesso</button>
+            <form method="post" action="/utilizadores/{{ u.id }}/remover" data-confirm="{{ tx("Remover o acesso deste utilizador? O historico sera preservado.", user if user is defined else none) }}">
+              <button class="link-button danger">{{ tx("Remover acesso", user if user is defined else none) }}</button>
             </form>
             {% endif %}
           </div>

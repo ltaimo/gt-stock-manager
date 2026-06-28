@@ -3,51 +3,51 @@
 <header class="page-header">
   <h1>{{ req.number }}</h1>
   <div class="actions">
-    <a class="button secondary" href="/requisicoes">Voltar</a>
-    <a class="button secondary" href="/requisicoes/{{ req.id }}/pdf" target="_blank">Visualizar PDF</a>
-    <a class="button" href="/requisicoes/{{ req.id }}/pdf?download=1">Baixar PDF</a>
+    <a class="button secondary" href="/requisicoes">{{ tx("Voltar", user if user is defined else none) }}</a>
+    <a class="button secondary" href="/requisicoes/{{ req.id }}/pdf" target="_blank">{{ tx("Visualizar PDF", user if user is defined else none) }}</a>
+    <a class="button" href="/requisicoes/{{ req.id }}/pdf?download=1">{{ tx("Baixar PDF", user if user is defined else none) }}</a>
   </div>
 </header>
 
-{% if error %}<div class="alert red">{{ error }}</div>{% endif %}
+{% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
 
 <section class="panel">
   <p>
-    <strong>Estado:</strong> <span class="badge orange">{{ req.status }}</span>
-    <strong>Tipo:</strong> {{ req.req_type }}
-    <strong>Valor estimado:</strong> {{ "%.2f"|format(req.estimated_value|float) }} MZN
-    <strong>Requisitante:</strong> {{ req.requesting_user.full_name }}
-    <strong>Departamento:</strong> {{ req.department.name if req.department else '' }}
+    <strong>{{ tx("Estado:", user if user is defined else none) }}</strong> <span class="badge orange">{{ tv(req.status, user) }}</span>
+    <strong>{{ tx("Tipo:", user if user is defined else none) }}</strong> {{ req.req_type }}
+    <strong>{{ tx("Valor estimado:", user if user is defined else none) }}</strong> {{ "%.2f"|format(req.estimated_value|float) }} MZN
+    <strong>{{ tx("Requisitante:", user if user is defined else none) }}</strong> {{ req.requesting_user.full_name }}
+    <strong>{{ tx("Departamento:", user if user is defined else none) }}</strong> {{ req.department.name if req.department else '' }}
   </p>
   <p>
-    <strong>Gestor Operacional:</strong> {{ req.operational_manager or '' }}
-    <strong>A ser autorizado por:</strong> {{ req.authorization_person or 'Gestor de Estoque' }}
+    <strong>{{ tx("Gestor Operacional:", user if user is defined else none) }}</strong> {{ req.operational_manager or '' }}
+    <strong>{{ tx("A ser autorizado por:", user if user is defined else none) }}</strong> {{ req.authorization_person or 'Gestor de Estoque' }}
   </p>
-  {% if req.notes %}<p><strong>Observações da decisão:</strong> {{ req.notes }}</p>{% endif %}
+  {% if req.notes %}<p><strong>{{ tx("Observações da decisão:", user if user is defined else none) }}</strong> {{ req.notes }}</p>{% endif %}
 
   <table>
     <thead>
       <tr>
-        <th>Código</th>
-        <th>Item</th>
-        <th>Qtde pedida</th>
-        <th>Qtde aprovada</th>
-        <th>Qtde rejeitada</th>
-        <th>Disponível</th>
-        <th>Estado do item</th>
-        <th>Obs</th>
+        <th>{{ tx("Código", user if user is defined else none) }}</th>
+        <th>{{ tx("Item", user if user is defined else none) }}</th>
+        <th>{{ tx("Qtde pedida", user if user is defined else none) }}</th>
+        <th>{{ tx("Qtde aprovada", user if user is defined else none) }}</th>
+        <th>{{ tx("Qtde rejeitada", user if user is defined else none) }}</th>
+        <th>{{ tx("Disponível", user if user is defined else none) }}</th>
+        <th>{{ tx("Estado do item", user if user is defined else none) }}</th>
+        <th>{{ tx("Obs", user if user is defined else none) }}</th>
       </tr>
     </thead>
     <tbody>
       {% for i in req.items %}
       <tr>
         <td>{{ i.product.code }}</td>
-        <td>{{ i.product.name }}</td>
+        <td>{{ lname(i.product, user) }}</td>
         <td>{{ i.quantity_requested }} {{ i.product.unit }}</td>
         <td>{{ i.quantity_issued or 0 }} {{ i.product.unit }}</td>
         <td>{{ i.quantity_rejected or 0 }} {{ i.product.unit }}</td>
         <td>{{ i.product.current_stock }} {{ i.product.unit }}</td>
-        <td><span class="badge {{ 'green' if i.review_status == 'Aprovado' else 'orange' if i.review_status == 'Parcial' else 'red' if i.review_status == 'Rejeitado' else 'grey' }}">{{ i.review_status or 'Pendente' }}</span></td>
+        <td><span class="badge {{ 'green' if i.review_status == 'Aprovado' else 'orange' if i.review_status == 'Parcial' else 'red' if i.review_status == 'Rejeitado' else 'grey' }}">{{ tv(i.review_status or 'Pendente', user) }}</span></td>
         <td>{{ i.review_observation or i.observation or '' }}</td>
       </tr>
       {% endfor %}
@@ -56,32 +56,31 @@
 
   <div class="actions">
     {% if req.status == 'Draft' and req.requesting_user_id == user.id %}
-      <form method="post" action="/requisicoes/{{ req.id }}/submit"><button>Submeter</button></form>
+      <form method="post" action="/requisicoes/{{ req.id }}/submit"><button>{{ tx("Submeter", user if user is defined else none) }}</button></form>
     {% endif %}
     {% if req.status in ['Draft', 'Submitted'] and (req.requesting_user_id == user.id or can(user, 'requisitions_review')) %}
-      <form method="post" action="/requisicoes/{{ req.id }}/cancel" data-confirm="Cancelar esta requisição? Esta ação não movimenta stock.">
-        <button class="danger">Cancelar requisição</button>
+      <form method="post" action="/requisicoes/{{ req.id }}/cancel" data-confirm="{{ tx("Cancelar esta requisição? Esta ação não movimenta stock.", user if user is defined else none) }}">
+        <button class="danger">{{ tx("Cancelar requisição", user if user is defined else none) }}</button>
       </form>
     {% endif %}
   </div>
 
   {% if can(user, 'requisitions_review') and req.status == 'Submitted' %}
   <form method="post" action="/requisicoes/{{ req.id }}/review" class="form-stack">
-    <h2>Decisão da Requisição</h2>
+    <h2>{{ tx("Decisão da Requisição", user if user is defined else none) }}</h2>
     <p class="muted">
-      Defina quanto aprovar em cada item. O restante será rejeitado automaticamente.
-      Sempre que existir quantidade rejeitada, indique o respetivo motivo.
+      {{ tx("Defina quanto aprovar em cada item. O restante será rejeitado automaticamente. Sempre que existir quantidade rejeitada, indique o respetivo motivo.", user if user is defined else none) }}
     </p>
 
     <table>
       <thead>
         <tr>
-          <th>Produto</th>
-          <th>Pedido</th>
-          <th>Disponível</th>
-          <th>Qtde a aprovar</th>
-          <th>Qtde a rejeitar</th>
-          <th>Motivo da rejeição</th>
+          <th>{{ tx("Produto", user if user is defined else none) }}</th>
+          <th>{{ tx("Pedido", user if user is defined else none) }}</th>
+          <th>{{ tx("Disponível", user if user is defined else none) }}</th>
+          <th>{{ tx("Qtde a aprovar", user if user is defined else none) }}</th>
+          <th>{{ tx("Qtde a rejeitar", user if user is defined else none) }}</th>
+          <th>{{ tx("Motivo da rejeição", user if user is defined else none) }}</th>
         </tr>
       </thead>
       <tbody>
@@ -92,7 +91,7 @@
         <tr data-review-row data-requested="{{ requested }}">
           <td>
             <input type="hidden" name="item_id" value="{{ i.id }}">
-            <strong>{{ i.product.code }}</strong><br>{{ i.product.name }}
+            <strong>{{ i.product.code }}</strong><br>{{ lname(i.product, user) }}
           </td>
           <td>{{ i.quantity_requested }} {{ i.product.unit }}</td>
           <td>{{ i.product.current_stock }} {{ i.product.unit }}</td>
@@ -100,29 +99,29 @@
             <input class="approved-quantity" type="number" name="approved_quantity" min="0" max="{{ i.quantity_requested }}" step="0.01" value="{{ suggested if suggested > 0 else 0 }}">
           </td>
           <td><output class="rejected-quantity">0</output> {{ i.product.unit }}</td>
-          <td><input class="review-observation" name="review_observation" placeholder="Obrigatório se rejeitar total ou parcialmente"></td>
+          <td><input class="review-observation" name="review_observation" placeholder="{{ tx("Obrigatório se rejeitar total ou parcialmente", user if user is defined else none) }}"></td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
 
-    <label>Observação geral da decisão
-      <input name="rejection_reason" placeholder="Obrigatória para rejeitar toda a requisição">
+    <label>{{ tx("Observação geral da decisão", user if user is defined else none) }}
+      <input name="rejection_reason" placeholder="{{ tx("Obrigatória para rejeitar toda a requisição", user if user is defined else none) }}">
     </label>
 
     <div class="actions">
-      <button name="decision" value="approve">Aprovar todos os itens</button>
-      <button name="decision" value="partial" class="secondary">Confirmar seleção / aprovação parcial</button>
-      <button name="decision" value="reject" class="danger">Rejeitar requisição</button>
+      <button name="decision" value="approve">{{ tx("Aprovar todos os itens", user if user is defined else none) }}</button>
+      <button name="decision" value="partial" class="secondary">{{ tx("Confirmar seleção / aprovação parcial", user if user is defined else none) }}</button>
+      <button name="decision" value="reject" class="danger">{{ tx("Rejeitar requisição", user if user is defined else none) }}</button>
     </div>
   </form>
   {% endif %}
   {% if can(user, 'requisitions_issue') and req.status == 'Approved' %}
   <div class="panel">
-    <h2>Emissão dos itens aprovados</h2>
-    <p class="muted">A aprovação não altera o stock. A saída será registada uma única vez ao confirmar esta emissão.</p>
-    <form method="post" action="/requisicoes/{{ req.id }}/issue" data-confirm="Confirmar a entrega e retirar do stock apenas as quantidades aprovadas?">
-      <button>Emitir itens aprovados</button>
+    <h2>{{ tx("Emissão dos itens aprovados", user if user is defined else none) }}</h2>
+    <p class="muted">{{ tx("A aprovação não altera o stock. A saída será registada uma única vez ao confirmar esta emissão.", user if user is defined else none) }}</p>
+    <form method="post" action="/requisicoes/{{ req.id }}/issue" data-confirm="{{ tx("Confirmar a entrega e retirar do stock apenas as quantidades aprovadas?", user if user is defined else none) }}">
+      <button>{{ tx("Emitir itens aprovados", user if user is defined else none) }}</button>
     </form>
   </div>
   {% endif %}

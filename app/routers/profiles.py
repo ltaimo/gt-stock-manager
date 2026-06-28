@@ -29,12 +29,12 @@ def profile_context(request: Request, db: Session, user: User, target: Role | No
 
 @router.get("")
 def profiles(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("profiles_manage"))):
-    return templates.TemplateResponse("profiles/index.html", profile_context(request, db, user))
+    return templates.TemplateResponse(request, "profiles/index.html", profile_context(request, db, user))
 
 
 @router.get("/novo")
 def new_profile(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("profiles_manage"))):
-    return templates.TemplateResponse("profiles/form.html", profile_context(request, db, user))
+    return templates.TemplateResponse(request, "profiles/form.html", profile_context(request, db, user))
 
 
 @router.post("/novo")
@@ -64,7 +64,7 @@ def edit_profile(role_id: int, request: Request, db: Session = Depends(get_db), 
     role = db.get(Role, role_id)
     if not role:
         raise HTTPException(404)
-    return templates.TemplateResponse("profiles/form.html", profile_context(request, db, user, role))
+    return templates.TemplateResponse(request, "profiles/form.html", profile_context(request, db, user, role))
 
 
 @router.post("/{role_id}/editar")

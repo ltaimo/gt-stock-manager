@@ -1,63 +1,63 @@
 {% extends "base.html" %}
 {% block content %}
 <header class="page-header">
-  <h1>Novo Movimento</h1>
-  <a class="button secondary" href="/movimentos">Voltar aos movimentos</a>
+  <h1>{{ tx("Novo Movimento", user if user is defined else none) }}</h1>
+  <a class="button secondary" href="/movimentos">{{ tx("Voltar aos movimentos", user if user is defined else none) }}</a>
 </header>
 <section class="panel narrow">
-{% if error %}<div class="alert red">{{ error }}</div>{% endif %}
+{% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
 <form method="post" class="form-stack" enctype="multipart/form-data">
-  <label>Produto<select name="product_id" required>{% for p in products %}<option value="{{ p.id }}">{{ p.code }} · {{ p.name }} · disponível {{ p.current_stock }} {{ p.unit }}</option>{% endfor %}</select></label>
+  <label>{{ tx("Produto", user if user is defined else none) }}<select name="product_id" required>{% for p in products %}<option value="{{ p.id }}">{{ p.code }} · {{ lname(p, user) }} · {{ tx("disponível", user) }} {{ p.current_stock }} {{ p.unit }}</option>{% endfor %}</select></label>
   <fieldset class="movement-action-fieldset">
-    <legend>Acção</legend>
+    <legend>{{ tx("Acção", user if user is defined else none) }}</legend>
     <div class="movement-actions" id="movement-action">
       <label class="movement-action entry">
         <input type="radio" name="action_type" value="ENTRADA" checked>
-        <strong>Entrada</strong><span>Adicionar ao stock</span>
+        <strong>{{ tx("Entrada", user if user is defined else none) }}</strong><span>{{ tx("Adicionar ao stock", user if user is defined else none) }}</span>
       </label>
       <label class="movement-action exit">
         <input type="radio" name="action_type" value="SAÍDA">
-        <strong>Saída</strong><span>Retirar do stock</span>
+        <strong>{{ tx("Saída", user if user is defined else none) }}</strong><span>{{ tx("Retirar do stock", user if user is defined else none) }}</span>
       </label>
       <label class="movement-action return">
         <input type="radio" name="action_type" value="DEVOLUÇÃO">
-        <strong>Devolução</strong><span>Devolver ao stock</span>
+        <strong>{{ tx("Devolução", user if user is defined else none) }}</strong><span>{{ tx("Devolver ao stock", user if user is defined else none) }}</span>
       </label>
     </div>
   </fieldset>
-  <label>Quantidade<input name="quantity" type="number" step="0.01" min="0.01" required></label>
+  <label>{{ tx("Quantidade", user if user is defined else none) }}<input name="quantity" type="number" step="0.01" min="0.01" required></label>
   <div data-movement-entry>
-    <label>Origem / Fornecedor
-      <input name="origin" placeholder="Empresa, fornecedor ou local de origem">
+    <label>{{ tx("Origem / Fornecedor", user if user is defined else none) }}
+      <input name="origin" placeholder="{{ tx("Empresa, fornecedor ou local de origem", user if user is defined else none) }}">
     </label>
   </div>
   <div class="form-grid" data-movement-exit hidden>
-    <label>Departamento / Destino
+    <label>{{ tx("Departamento / Destino", user if user is defined else none) }}
       <select name="department_id">
-        <option value="">Escolher departamento</option>
+        <option value="">{{ tx("Escolher departamento", user if user is defined else none) }}</option>
         {% for d in departments %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}
       </select>
     </label>
-    <label>Requisitante
+    <label>{{ tx("Requisitante", user if user is defined else none) }}
       <select name="requesting_user_id">
-        <option value="">Escolher utilizador, se aplicável</option>
+        <option value="">{{ tx("Escolher utilizador, se aplicável", user if user is defined else none) }}</option>
         {% for requester in requesters %}<option value="{{ requester.id }}">{{ requester.full_name }}</option>{% endfor %}
       </select>
     </label>
-    <label>Responsável pela entrega
-      <input name="responsible_person" placeholder="Nome de quem entregou ou autorizou">
+    <label>{{ tx("Responsável pela entrega", user if user is defined else none) }}
+      <input name="responsible_person" placeholder="{{ tx("Nome de quem entregou ou autorizou", user if user is defined else none) }}">
     </label>
   </div>
-  <label>Referência do movimento<input name="reference_number" placeholder="Guia, requisição, fatura ou outra referência"></label>
+  <label>{{ tx("Referência do movimento", user if user is defined else none) }}<input name="reference_number" placeholder="{{ tx("Guia, requisição, fatura ou outra referência", user if user is defined else none) }}"></label>
   <div class="form-grid" data-movement-document>
-    <label>Tipo de documento<select name="document_type"><option>Guia</option><option>Fatura</option><option>Proforma</option><option>Outro</option></select></label>
-    <label>Nº do documento<input name="document_number"></label>
+    <label>{{ tx("Tipo de documento", user if user is defined else none) }}<select name="document_type"><option value="Guia">{{ tx("Guia", user if user is defined else none) }}</option><option value="Fatura">{{ tx("Fatura", user if user is defined else none) }}</option><option value="Proforma">{{ tx("Proforma", user if user is defined else none) }}</option><option value="Outro">{{ tx("Outro", user if user is defined else none) }}</option></select></label>
+    <label>{{ tx("Nº do documento", user if user is defined else none) }}<input name="document_number"></label>
   </div>
-  <label data-movement-document>Documento anexo<input type="file" name="document_file" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"></label>
-  <label>Observações<textarea name="notes"></textarea></label>
+  <label data-movement-document>{{ tx("Documento anexo", user if user is defined else none) }}<input type="file" name="document_file" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"></label>
+  <label>{{ tx("Observações", user if user is defined else none) }}<textarea name="notes"></textarea></label>
   <div class="actions">
-    <a class="button secondary" href="/movimentos">Cancelar</a>
-    <button class="success">Registar movimento</button>
+    <a class="button secondary" href="/movimentos">{{ tx("Cancelar", user if user is defined else none) }}</a>
+    <button class="success">{{ tx("Registar movimento", user if user is defined else none) }}</button>
   </div>
 </form></section>
 {% endblock %}

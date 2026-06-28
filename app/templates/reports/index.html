@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
-<header class="page-header"><h1>Relatórios</h1></header>
+<header class="page-header"><h1>{{ tx("Relatórios", user if user is defined else none) }}</h1></header>
 <section class="quick-links">
-  <a href="/relatorios/stock">Stock<small>Cadastro completo, estados e monitorização</small></a>
-  <a href="/relatorios/movimentos">Movimentos<small>Entradas, saídas, devoluções e acertos</small></a>
-  <a href="/relatorios/requisicoes">Requisições SR<small>Pedidos internos e respetivas aprovações</small></a>
-  <a href="/relatorios/procurement">Procurement e reposições<small>Compras, PO, receções e estados do processo</small></a>
-  <a href="/relatorios/critico">Stock que Requer Atenção<small>Apenas itens ativos e monitorizados</small></a>
+  <a href="/relatorios/stock">{{ tx("Stock", user if user is defined else none) }}<small>{{ tx("Cadastro completo, estados e monitorização", user if user is defined else none) }}</small></a>
+  <a href="/relatorios/movimentos">{{ tx("Movimentos", user if user is defined else none) }}<small>{{ tx("Entradas, saídas, devoluções e acertos", user if user is defined else none) }}</small></a>
+  <a href="/relatorios/requisicoes">{{ tx("Requisições SR", user if user is defined else none) }}<small>{{ tx("Pedidos internos e respetivas aprovações", user if user is defined else none) }}</small></a>
+  <a href="/relatorios/procurement">{{ tx("Procurement e reposições", user if user is defined else none) }}<small>{{ tx("Compras, PO, receções e estados do processo", user if user is defined else none) }}</small></a>
+  <a href="/relatorios/critico">{{ tx("Stock que Requer Atenção", user if user is defined else none) }}<small>{{ tx("Apenas itens ativos e monitorizados", user if user is defined else none) }}</small></a>
 </section>
 {% endblock %}

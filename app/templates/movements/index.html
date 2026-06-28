@@ -1,5 +1,5 @@
 {% extends "base.html" %}
 {% block content %}
-<header class="page-header"><h1>Movimentos</h1><a class="button" href="/movimentos/novo">Novo Movimento</a></header>
+<header class="page-header"><h1>{{ tx("Movimentos", user if user is defined else none) }}</h1><a class="button" href="/movimentos/novo">{{ tx("Novo Movimento", user if user is defined else none) }}</a></header>
 <div class="panel">{% include "movements/_table.html" %}</div>
 {% endblock %}

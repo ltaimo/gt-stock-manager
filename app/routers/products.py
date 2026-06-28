@@ -41,17 +41,24 @@ def list_products(request: Request, q: str = "", status: str = "", db: Session =
     stmt = select(Product).outerjoin(Category)
     if q:
         like = f"%{q}%"
-        stmt = stmt.where(or_(Product.code.ilike(like), Product.name.ilike(like), Category.name.ilike(like)))
+        stmt = stmt.where(
+            or_(
+                Product.code.ilike(like),
+                Product.name.ilike(like),
+                Product.name_en.ilike(like),
+                Category.name.ilike(like),
+                Category.name_en.ilike(like),
+            )
+        )
     if status:
         stmt = stmt.where(Product.status == status)
     products = db.scalars(stmt.order_by(Product.name)).all()
-    return templates.TemplateResponse("products/index.html", {"request": request, "user": user, "products": products, "q": q, "status": status})
+    return templates.TemplateResponse(request, "products/index.html", {"request": request, "user": user, "products": products, "q": q, "status": status})
 
 
 @router.get("/novo")
 def new_product(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("products_manage"))):
-    return templates.TemplateResponse(
-        "products/form.html",
+    return templates.TemplateResponse(request, "products/form.html",
         {"request": request, "user": user, "product": None, "categories": product_categories(db), "next_code": next_product_code(db), "error": None, "duplicate": None},
     )
 
@@ -60,6 +67,7 @@ def new_product(request: Request, db: Session = Depends(get_db), user: User = De
 def create_product(
     request: Request,
     name: str | None = Form(None),
+    name_en: str | None = Form(None),
     category_id: str | None = Form(None),
     unit: str = Form("un"),
     unit_price: str | None = Form("0"),
@@ -69,6 +77,7 @@ def create_product(
     user: User = Depends(require_permission("products_manage")),
 ):
     clean_name = required_text(name, "Nome do produto", 220)
+    clean_name_en = required_text(name_en, "Nome do produto em inglês", 220) if str(name_en or "").strip() else None
     parsed_category_id = optional_int(category_id, "Categoria")
     parsed_minimum = optional_float(minimum_stock, "Stock mínimo", 0) or 0
     parsed_price = optional_float(unit_price, "Preço unitário", 0) or 0
@@ -83,8 +92,7 @@ def create_product(
         raise HTTPException(400, "A categoria selecionada não existe.")
     duplicate = db.scalar(select(Product).where(Product.name.ilike(clean_name)))
     if duplicate:
-        return templates.TemplateResponse(
-            "products/form.html",
+        return templates.TemplateResponse(request, "products/form.html",
             {
                 "request": request,
                 "user": user,
@@ -101,6 +109,7 @@ def create_product(
         product = Product(
             code=code.strip(),
             name=clean_name,
+            name_en=clean_name_en,
             category_id=parsed_category_id,
             unit=clean_unit,
             unit_price=parsed_price,
@@ -119,7 +128,7 @@ def edit_product(product_id: int, request: Request, db: Session = Depends(get_db
     product = db.get(Product, product_id)
     if not product:
         raise HTTPException(404)
-    return templates.TemplateResponse("products/form.html", {"request": request, "user": user, "product": product, "categories": product_categories(db, product)})
+    return templates.TemplateResponse(request, "products/form.html", {"request": request, "user": user, "product": product, "categories": product_categories(db, product)})
 
 
 @router.post("/{product_id}/editar")
@@ -127,6 +136,7 @@ def update_product(
     product_id: int,
     request: Request,
     name: str | None = Form(None),
+    name_en: str | None = Form(None),
     category_id: str | None = Form(None),
     unit: str = Form("un"),
     unit_price: str | None = Form("0"),
@@ -140,6 +150,7 @@ def update_product(
     if not product:
         raise HTTPException(404)
     clean_name = required_text(name, "Nome do produto", 220)
+    clean_name_en = required_text(name_en, "Nome do produto em inglês", 220) if str(name_en or "").strip() else None
     clean_unit = required_text(unit, "Unidade de medida", 30)
     if clean_unit not in {"un", "caixa", "embalagem", "rolo", "par", "garrafa", "resma", "kg", "g", "L", "ml", "m"}:
         raise HTTPException(400, "Unidade de medida inválida.")
@@ -159,6 +170,7 @@ def update_product(
         raise HTTPException(400, "Já existe outro produto com este nome.")
     old = {
         "name": product.name,
+        "name_en": product.name_en,
         "unit_price": float(product.unit_price or 0),
         "minimum_stock": float(product.minimum_stock or 0),
         "requires_stock_control": product.requires_stock_control,
@@ -166,6 +178,7 @@ def update_product(
     }
     with atomic(db):
         product.name = clean_name
+        product.name_en = clean_name_en
         product.category_id = parsed_category_id
         product.unit = clean_unit
         product.unit_price = parsed_price
@@ -181,6 +194,7 @@ def update_product(
             old_value=old,
             new_value={
                 "name": clean_name,
+                "name_en": clean_name_en,
                 "unit_price": parsed_price,
                 "minimum_stock": parsed_minimum,
                 "requires_stock_control": product.requires_stock_control,
@@ -220,8 +234,7 @@ def adjust_stock(
                 request=request,
             )
     except StockError as exc:
-        return templates.TemplateResponse(
-            "products/form.html",
+        return templates.TemplateResponse(request, "products/form.html",
             {"request": request, "user": user, "product": product, "categories": product_categories(db, product), "adjustment_error": str(exc)},
             status_code=400,
         )

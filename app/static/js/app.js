@@ -20,6 +20,10 @@ document.addEventListener("click", (event) => {
   }
 });
 
+function uiMessage(key) {
+  return document.body?.dataset[key] || "";
+}
+
 function initNavigation() {
   const body = document.body;
   const openButton = document.querySelector("[data-menu-open]");
@@ -112,7 +116,7 @@ function updateRequisitionItemRow(row) {
 
   quantity.max = isStockRequisition() ? String(stock) : "";
   if (isStockRequisition() && Number(quantity.value || 0) > stock) quantity.value = String(stock);
-  if (hint) hint.textContent = isStockRequisition() ? `Máximo disponível: ${stock} ${unit}` : "";
+  if (hint) hint.textContent = isStockRequisition() ? `${uiMessage("i18nMaxAvailable")}: ${stock} ${unit}` : "";
 }
 
 function validateRequisitionTotals() {
@@ -132,10 +136,10 @@ function validateRequisitionTotals() {
   let valid = true;
   totals.forEach(({ total, stock, quantity }) => {
     if (stock <= 0) {
-      quantity.setCustomValidity("Este item não tem stock disponível.");
+      quantity.setCustomValidity(uiMessage("i18nNoStock"));
       valid = false;
     } else if (total > stock) {
-      quantity.setCustomValidity(`A quantidade total pedida excede o stock disponível (${stock}).`);
+      quantity.setCustomValidity(uiMessage("i18nExceedsStock").replace("{stock}", stock));
       valid = false;
     }
   });
@@ -264,7 +268,7 @@ function initReplenishmentForm() {
     if (totalOutput) totalOutput.textContent = total.toFixed(2);
     const firstCheckbox = rows[0]?.querySelector("[data-replenishment-check]");
     if (firstCheckbox) {
-      firstCheckbox.setCustomValidity(selectedCount ? "" : "Selecione pelo menos um produto para reposição.");
+      firstCheckbox.setCustomValidity(selectedCount ? "" : uiMessage("i18nSelectReplenishment"));
     }
   };
 
@@ -280,9 +284,9 @@ function initReplenishmentForm() {
     });
   });
   search?.addEventListener("input", () => {
-    const query = search.value.trim().toLocaleLowerCase("pt");
+    const query = search.value.trim().toLocaleLowerCase(document.documentElement.lang || "pt");
     rows.forEach((row) => {
-      row.hidden = Boolean(query) && !row.dataset.searchText.toLocaleLowerCase("pt").includes(query);
+      row.hidden = Boolean(query) && !row.dataset.searchText.toLocaleLowerCase(document.documentElement.lang || "pt").includes(query);
     });
   });
   form.addEventListener("submit", update);
@@ -423,7 +427,7 @@ function updateRequisitionItemRow(row) {
 
   quantity.max = isStockRequisition() ? String(stock) : "";
   if (isStockRequisition() && Number(quantity.value || 0) > stock) quantity.value = String(stock);
-  if (hint) hint.textContent = isStockRequisition() ? `Máximo disponível: ${stock} ${unit}` : "";
+  if (hint) hint.textContent = isStockRequisition() ? `${uiMessage("i18nMaxAvailable")}: ${stock} ${unit}` : "";
   if (priceEl) priceEl.textContent = price.toFixed(2);
   if (totalEl) totalEl.textContent = (price * Number(quantity.value || 0)).toFixed(2);
 }
@@ -452,10 +456,10 @@ function validateRequisitionTotals() {
   let valid = true;
   totals.forEach(({ total, stock, quantity }) => {
     if (stock <= 0) {
-      quantity.setCustomValidity("Este item não tem stock disponível.");
+      quantity.setCustomValidity(uiMessage("i18nNoStock"));
       valid = false;
     } else if (total > stock) {
-      quantity.setCustomValidity(`A quantidade total pedida excede o stock disponível (${stock}).`);
+      quantity.setCustomValidity(uiMessage("i18nExceedsStock").replace("{stock}", stock));
       valid = false;
     }
   });

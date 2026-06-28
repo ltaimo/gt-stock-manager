@@ -114,9 +114,9 @@ def can_review_by_matrix(req: Requisition, user: User) -> bool:
 
 def normalize_req_type(req_type: str) -> str:
     normalized = (req_type or "").strip().upper()
-    if normalized in {"REQUISIÇÃO", "REQUISIÃ‡ÃƒO"}:
+    if normalized in {"REQUISIÇÃO", "REQUISIÇÃO"}:
         return "REQUISIÇÃO"
-    if normalized in {"DEVOLUÇÃO", "DEVOLUÃ‡ÃƒO"}:
+    if normalized in {"DEVOLUÇÃO", "DEVOLUÇÃO"}:
         return "DEVOLUÇÃO"
     if normalized == "OUTRO":
         return "OUTRO"
@@ -132,12 +132,12 @@ def list_requisitions(request: Request, db: Session = Depends(get_db), user: Use
     )
     if not has_permission(user, "requisitions_all"):
         stmt = stmt.where(Requisition.requesting_user_id == user.id)
-    return templates.TemplateResponse("requisitions/index.html", {"request": request, "user": user, "requisitions": db.scalars(stmt).all()})
+    return templates.TemplateResponse(request, "requisitions/index.html", {"request": request, "user": user, "requisitions": db.scalars(stmt).all()})
 
 
 @router.get("/nova")
 def new_requisition(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("stock_requisitions_create"))):
-    return templates.TemplateResponse("requisitions/form.html", requisition_form_context(request, db, user))
+    return templates.TemplateResponse(request, "requisitions/form.html", requisition_form_context(request, db, user))
 
 
 @router.post("/nova")
@@ -194,8 +194,7 @@ def create_requisition(
                 notify_requisition_pending(db, req)
             audit_log(db, user, "Criou requisição", "Requisições", req.number, request=request)
     except StockError as exc:
-        return templates.TemplateResponse(
-            "requisitions/form.html",
+        return templates.TemplateResponse(request, "requisitions/form.html",
             requisition_form_context(request, db, user, str(exc)),
             status_code=400,
         )
@@ -209,7 +208,7 @@ def view_requisition(req_id: int, request: Request, db: Session = Depends(get_db
         raise HTTPException(404)
     if not has_permission(user, "requisitions_all") and req.requesting_user_id != user.id:
         raise HTTPException(403)
-    return templates.TemplateResponse("requisitions/detail.html", {"request": request, "user": user, "req": req, "error": None})
+    return templates.TemplateResponse(request, "requisitions/detail.html", {"request": request, "user": user, "req": req, "error": None})
 
 
 @router.post("/{req_id}/submit")
@@ -234,8 +233,7 @@ def submit_requisition(req_id: int, request: Request, db: Session = Depends(get_
             notify_requisition_pending(db, req)
             audit_log(db, user, "Submeteu requisição", "Requisições", req.number, request=request)
     except StockError as exc:
-        return templates.TemplateResponse(
-            "requisitions/detail.html",
+        return templates.TemplateResponse(request, "requisitions/detail.html",
             {"request": request, "user": user, "req": req, "error": str(exc)},
             status_code=400,
         )
@@ -330,7 +328,7 @@ def review_requisition(
                 request=request,
             )
     except StockError as exc:
-        return templates.TemplateResponse("requisitions/detail.html", {"request": request, "user": user, "req": req, "error": str(exc)}, status_code=400)
+        return templates.TemplateResponse(request, "requisitions/detail.html", {"request": request, "user": user, "req": req, "error": str(exc)}, status_code=400)
     return RedirectResponse(f"/requisicoes/{req.id}", status_code=303)
 
 
@@ -344,7 +342,7 @@ def issue(req_id: int, request: Request, db: Session = Depends(get_db), user: Us
             issue_requisition(db, req, user)
             audit_log(db, user, "Emitiu requisição", "Requisições", req.number, request=request)
     except StockError as exc:
-        return templates.TemplateResponse("requisitions/detail.html", {"request": request, "user": user, "req": req, "error": str(exc)}, status_code=400)
+        return templates.TemplateResponse(request, "requisitions/detail.html", {"request": request, "user": user, "req": req, "error": str(exc)}, status_code=400)
     return RedirectResponse(f"/requisicoes/{req.id}", status_code=303)
 
 

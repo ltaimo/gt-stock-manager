@@ -19,7 +19,7 @@ def list_notifications(request: Request, db: Session = Depends(get_db), user: Us
     notifications = db.scalars(
         select(Notification).where(Notification.user_id == user.id).order_by(Notification.created_at.desc()).limit(100)
     ).all()
-    return templates.TemplateResponse("notifications/index.html", {"request": request, "user": user, "notifications": notifications})
+    return templates.TemplateResponse(request, "notifications/index.html", {"request": request, "user": user, "notifications": notifications})
 
 
 @router.post("/{notification_id}/ler")
@@ -42,7 +42,7 @@ def open_notification(notification_id: int, db: Session = Depends(get_db), user:
         notification.is_read = True
         notification.read_at = datetime.now(timezone.utc)
 
-    if notification.module in {"Requisicoes", "Requisições", "RequisiÃ§Ãµes"} and notification.record_id:
+    if notification.module in {"Requisicoes", "Requisições", "Requisições"} and notification.record_id:
         requisition = db.scalar(select(Requisition).where(Requisition.number == notification.record_id))
         if requisition:
             return RedirectResponse(f"/requisicoes/{requisition.id}", status_code=303)

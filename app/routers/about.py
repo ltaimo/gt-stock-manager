@@ -9,4 +9,4 @@ router = APIRouter()
 
 @router.get("/sobre")
 def about(request: Request, user: User = Depends(current_user)):
-    return templates.TemplateResponse("about.html", {"request": request, "user": user})
+    return templates.TemplateResponse(request, "about.html", {"request": request, "user": user})

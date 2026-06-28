@@ -141,8 +141,7 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
         else 100
     )
 
-    return templates.TemplateResponse(
-        "dashboard/index.html",
+    return templates.TemplateResponse(request, "dashboard/index.html",
         {
             "request": request,
             "user": user,

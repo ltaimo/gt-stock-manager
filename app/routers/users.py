@@ -17,12 +17,12 @@ router = APIRouter(prefix="/utilizadores", tags=["utilizadores"])
 @router.get("")
 def list_users(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("users_manage"))):
     users = db.scalars(select(User).order_by(User.full_name)).all()
-    return templates.TemplateResponse("users/index.html", {"request": request, "user": user, "users": users})
+    return templates.TemplateResponse(request, "users/index.html", {"request": request, "user": user, "users": users})
 
 
 @router.get("/novo")
 def new_user(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("users_manage"))):
-    return templates.TemplateResponse("users/form.html", {"request": request, "user": user, "target": None, "roles": db.scalars(select(Role).order_by(Role.name)).all(), "departments": db.scalars(select(Department).where(Department.is_active == True).order_by(Department.name)).all()})
+    return templates.TemplateResponse(request, "users/form.html", {"request": request, "user": user, "target": None, "roles": db.scalars(select(Role).order_by(Role.name)).all(), "departments": db.scalars(select(Department).where(Department.is_active == True).order_by(Department.name)).all()})
 
 
 @router.post("/novo")
@@ -49,7 +49,7 @@ def create_user(
     parsed_role_id = required_int(role_id, "Perfil")
     parsed_department_id = optional_int(department_id, "Departamento")
     if preferred_language not in {"pt", "en"}:
-        raise HTTPException(400, "Idioma invalido.")
+        raise HTTPException(400, "Idioma inválido.")
     role = db.get(Role, parsed_role_id)
     if not role or not can_manage_user(user, None, role.name):
         raise HTTPException(403)
@@ -82,7 +82,7 @@ def edit_user(target_id: int, request: Request, db: Session = Depends(get_db), u
     target = db.get(User, target_id)
     if not target or not can_manage_user(user, target):
         raise HTTPException(403)
-    return templates.TemplateResponse("users/form.html", {"request": request, "user": user, "target": target, "roles": db.scalars(select(Role).order_by(Role.name)).all(), "departments": db.scalars(select(Department).where(Department.is_active == True).order_by(Department.name)).all()})
+    return templates.TemplateResponse(request, "users/form.html", {"request": request, "user": user, "target": target, "roles": db.scalars(select(Role).order_by(Role.name)).all(), "departments": db.scalars(select(Department).where(Department.is_active == True).order_by(Department.name)).all()})
 
 
 @router.post("/{target_id}/editar")
@@ -105,7 +105,7 @@ def update_user(
     parsed_role_id = required_int(role_id, "Perfil")
     parsed_department_id = optional_int(department_id, "Departamento")
     if preferred_language not in {"pt", "en"}:
-        raise HTTPException(400, "Idioma invalido.")
+        raise HTTPException(400, "Idioma inválido.")
     target = db.get(User, target_id)
     role = db.get(Role, parsed_role_id)
     if not target or not role or not can_manage_user(user, target, role.name):

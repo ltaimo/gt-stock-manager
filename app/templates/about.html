@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<header class="page-header"><h1>Sobre</h1></header>
+<header class="page-header"><h1>{{ tx("Sobre", user if user is defined else none) }}</h1></header>
 <section class="panel narrow">
   <div class="login-logo">
     {% if logo_available() %}
@@ -9,10 +9,10 @@
       <span class="brand-mark large">GT</span>
     {% endif %}
   </div>
-  <h2>{{ app_name }}</h2>
+  <h2>{{ tx(app_name, user) }}</h2>
   <p class="muted">{{ app_subtitle }}</p>
-  <p><span class="badge green">Versão {{ app_version }}</span></p>
-  <p>Sistema web para gestão de economato, movimentos, requisições, relatórios, importação do Excel legado e auditoria operacional.</p>
-  <p class="muted">Designed by Layton Taimo</p>
+  <p><span class="badge green">{{ tx('Versão', user) }} {{ app_version }}</span></p>
+  <p>{{ tx("Sistema web para gestão de economato, movimentos, requisições, relatórios, importação do Excel legado e auditoria operacional.", user if user is defined else none) }}</p>
+  <p class="muted">{{ tx("Designed by", user) }} Layton Taimo</p>
 </section>
 {% endblock %}

@@ -2,64 +2,64 @@
 {% block content %}
 <header class="page-header">
   <div>
-    <h1>Novo pedido de reposição</h1>
-    <p class="muted">Selecione produtos do stock, indique a quantidade a comprar e confirme o preço estimado.</p>
+    <h1>{{ tx("Novo pedido de reposição", user if user is defined else none) }}</h1>
+    <p class="muted">{{ tx("Selecione produtos do stock, indique a quantidade a comprar e confirme o preço estimado.", user if user is defined else none) }}</p>
   </div>
-  <a class="button secondary" href="/procurement">Cancelar</a>
+  <a class="button secondary" href="/procurement">{{ tx("Cancelar", user if user is defined else none) }}</a>
 </header>
 
-{% if error %}<div class="alert red">{{ error }}</div>{% endif %}
+{% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
 
 <form method="post" class="form-stack" data-replenishment-form>
   <section class="panel">
     <div class="panel-heading">
       <div>
-        <h2>Produtos para compra</h2>
-        <span class="muted">Os itens em falta ou no mínimo aparecem primeiro. Pode escolher qualquer produto ativo.</span>
+        <h2>{{ tx("Produtos para compra", user if user is defined else none) }}</h2>
+        <span class="muted">{{ tx("Os itens em falta ou no mínimo aparecem primeiro. Pode escolher qualquer produto ativo.", user if user is defined else none) }}</span>
       </div>
-      <label class="search-field">Pesquisar
-        <input type="search" placeholder="Código ou produto" data-replenishment-search>
+      <label class="search-field">{{ tx("Pesquisar", user if user is defined else none) }}
+        <input type="search" placeholder="{{ tx("Código ou produto", user if user is defined else none) }}" data-replenishment-search>
       </label>
     </div>
     <table class="responsive-table replenishment-table">
       <thead>
         <tr>
-          <th>Selecionar</th>
-          <th>Produto</th>
-          <th>Stock atual</th>
-          <th>Mínimo</th>
-          <th>Sugestão</th>
-          <th>Quantidade</th>
-          <th>Preço estimado</th>
-          <th>Total</th>
+          <th>{{ tx("Selecionar", user if user is defined else none) }}</th>
+          <th>{{ tx("Produto", user if user is defined else none) }}</th>
+          <th>{{ tx("Stock atual", user if user is defined else none) }}</th>
+          <th>{{ tx("Mínimo", user if user is defined else none) }}</th>
+          <th>{{ tx("Sugestão", user if user is defined else none) }}</th>
+          <th>{{ tx("Quantidade", user if user is defined else none) }}</th>
+          <th>{{ tx("Preço estimado", user if user is defined else none) }}</th>
+          <th>{{ tx("Total", user if user is defined else none) }}</th>
         </tr>
       </thead>
       <tbody>
         {% for product in products %}
         {% set suggested = suggested_quantity(product) %}
         {% set selected = product.id in selected_ids %}
-        <tr data-replenishment-row data-search-text="{{ product.code }} {{ product.name }}">
-          <td data-label="Selecionar">
+        <tr data-replenishment-row data-search-text="{{ product.code }} {{ product.name }} {{ product.name_en or '' }}">
+          <td data-label="{{ tx("Selecionar", user if user is defined else none) }}">
             <label class="check">
               <input type="checkbox" name="product_id" value="{{ product.id }}" data-replenishment-check {% if selected %}checked{% endif %}>
-              <span class="sr-only">Selecionar {{ product.name }}</span>
+              <span class="sr-only">{{ tx("Selecionar", user) }} {{ lname(product, user) }}</span>
             </label>
           </td>
-          <td data-label="Produto">
+          <td data-label="{{ tx("Produto", user if user is defined else none) }}">
             <strong>{{ product.code }}</strong><br>
-            {{ product.name }}
-            {% if suggested > 0 or not product.requires_stock_control %}<br><span class="badge {{ product.alert_badge }}">{{ product.alert_status }}</span>{% endif %}
+            {{ lname(product, user) }}
+            {% if suggested > 0 or not product.requires_stock_control %}<br><span class="badge {{ product.alert_badge }}">{{ tv(product.alert_status, user) }}</span>{% endif %}
           </td>
-          <td data-label="Stock atual">{{ product.current_stock }} {{ product.unit }}</td>
-          <td data-label="Mínimo">{{ product.minimum_stock }} {{ product.unit }}</td>
-          <td data-label="Sugestão">{{ suggested|round(2) if suggested > 0 else '-' }}</td>
-          <td data-label="Quantidade">
+          <td data-label="{{ tx("Stock atual", user if user is defined else none) }}">{{ product.current_stock }} {{ product.unit }}</td>
+          <td data-label="{{ tx("Mínimo", user if user is defined else none) }}">{{ product.minimum_stock }} {{ product.unit }}</td>
+          <td data-label="{{ tx('Sugestão', user) }}">{{ suggested|round(2) if suggested > 0 else '-' }}</td>
+          <td data-label="{{ tx("Quantidade", user if user is defined else none) }}">
             <input name="quantity" type="number" min="0.01" step="0.01" value="{{ suggested if suggested > 0 else 1 }}" data-replenishment-quantity {% if not selected %}disabled{% endif %}>
           </td>
-          <td data-label="Preço estimado">
+          <td data-label="{{ tx("Preço estimado", user if user is defined else none) }}">
             <input name="estimated_unit_price" type="number" min="0.01" step="0.01" value="{{ product.unit_price or '' }}" data-replenishment-price {% if not selected %}disabled{% endif %}>
           </td>
-          <td data-label="Total"><strong><output data-replenishment-line-total>0.00</output> MZN</strong></td>
+          <td data-label="{{ tx("Total", user if user is defined else none) }}"><strong><output data-replenishment-line-total>0.00</output> MZN</strong></td>
         </tr>
         {% endfor %}
       </tbody>
@@ -67,36 +67,36 @@
   </section>
 
   <section class="panel">
-    <h2>Dados do pedido</h2>
+    <h2>{{ tx("Dados do pedido", user if user is defined else none) }}</h2>
     <div class="form-grid">
-      <label>Centro de custo
-        <input name="cost_center" placeholder="Opcional">
+      <label>{{ tx("Centro de custo", user if user is defined else none) }}
+        <input name="cost_center" placeholder="{{ tx("Opcional", user if user is defined else none) }}">
       </label>
-      <label>Prioridade
+      <label>{{ tx("Prioridade", user if user is defined else none) }}
         <select name="priority">
-          <option>Normal</option>
-          <option>Baixa</option>
-          <option>Alta</option>
-          <option>Urgente</option>
+          <option value="Normal">{{ tx("Normal", user if user is defined else none) }}</option>
+          <option value="Baixa">{{ tx("Baixa", user if user is defined else none) }}</option>
+          <option value="Alta">{{ tx("Alta", user if user is defined else none) }}</option>
+          <option value="Urgente">{{ tx("Urgente", user if user is defined else none) }}</option>
         </select>
       </label>
-      <label>Data requerida
+      <label>{{ tx("Data requerida", user if user is defined else none) }}
         <input name="required_date" type="date">
       </label>
       <div class="replenishment-total-card">
-        <span>Valor total estimado</span>
+        <span>{{ tx("Valor total estimado", user if user is defined else none) }}</span>
         <strong><output data-replenishment-total>0.00</output> MZN</strong>
-        <small>A rota de aprovação será definida por este valor.</small>
+        <small>{{ tx("A rota de aprovação será definida por este valor.", user if user is defined else none) }}</small>
       </div>
     </div>
-    <label>Justificação
-      <textarea name="justification" placeholder="Motivo da reposição e impacto operacional"></textarea>
+    <label>{{ tx("Justificação", user if user is defined else none) }}
+      <textarea name="justification" placeholder="{{ tx("Motivo da reposição e impacto operacional", user if user is defined else none) }}"></textarea>
     </label>
   </section>
 
   <div class="actions sticky-actions">
-    <a class="button secondary" href="/procurement">Cancelar</a>
-    <button type="submit">Criar e enviar para aprovação</button>
+    <a class="button secondary" href="/procurement">{{ tx("Cancelar", user if user is defined else none) }}</a>
+    <button type="submit">{{ tx("Criar e enviar para aprovação", user if user is defined else none) }}</button>
   </div>
 </form>
 {% endblock %}

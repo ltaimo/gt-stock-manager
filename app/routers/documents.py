@@ -14,7 +14,7 @@ router = APIRouter(prefix="/documentos", tags=["documentos"])
 @router.get("")
 def list_documents(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("documents"))):
     documents = db.scalars(select(StockDocument).order_by(StockDocument.created_at.desc()).limit(300)).all()
-    return templates.TemplateResponse("documents/index.html", {"request": request, "user": user, "documents": documents})
+    return templates.TemplateResponse(request, "documents/index.html", {"request": request, "user": user, "documents": documents})
 
 
 @router.get("/{document_id}/download")

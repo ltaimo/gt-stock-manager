@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.i18n import language_for
 from app.models.core import MovementAction, ProcurementCase, Product, Requisition, RequisitionItem, RequisitionStatus, User
 from app.routers.common import templates
 from app.security import current_user, has_permission, require_permission
@@ -53,7 +54,7 @@ def parse_date(value: str | None) -> datetime | None:
     try:
         return datetime.fromisoformat(cleaned).replace(tzinfo=timezone.utc)
     except ValueError as exc:
-        raise HTTPException(400, "Data requerida deve ser uma data valida.") from exc
+        raise HTTPException(400, "A data requerida deve ser uma data válida.") from exc
 
 
 def can_view_case(user: User, case: ProcurementCase) -> bool:
@@ -94,15 +95,14 @@ def tracker(request: Request, db: Session = Depends(get_db), user: User = Depend
     if not any(has_permission(user, permission) for permission in PROCUREMENT_WORKFLOW_PERMISSIONS):
         stmt = stmt.where(Requisition.requesting_user_id == user.id)
     cases = db.scalars(stmt).all()
-    return templates.TemplateResponse(
-        "procurement/index.html",
+    return templates.TemplateResponse(request, "procurement/index.html",
         {"request": request, "user": user, "cases": cases, "days_open": days_open},
     )
 
 
 @router.get("/nova")
 def new_non_stock(request: Request, user: User = Depends(require_permission("non_stock_requisitions_create"))):
-    return templates.TemplateResponse("procurement/form.html", {"request": request, "user": user, "error": None})
+    return templates.TemplateResponse(request, "procurement/form.html", {"request": request, "user": user, "error": None})
 
 
 @router.post("/nova")
@@ -125,11 +125,11 @@ def create_non_stock(
     clean_description = required_text(description, "Descricao / escopo", 2000)
     budget = required_float(estimated_budget, "Orcamento estimado")
     if budget < 0:
-        raise HTTPException(400, "Orcamento estimado nao pode ser negativo.")
+        raise HTTPException(400, "O orçamento estimado não pode ser negativo.")
     if priority not in {"Baixa", "Normal", "Alta", "Urgente"}:
-        raise HTTPException(400, "Prioridade invalida.")
+        raise HTTPException(400, "Prioridade inválida.")
     if item_type not in {"Bem", "Serviço", "Obra"}:
-        raise HTTPException(400, "Tipo invalido.")
+        raise HTTPException(400, "Tipo inválido.")
 
     with atomic(db):
         req = Requisition(
@@ -169,7 +169,7 @@ def create_non_stock(
             f"TdR para aprovação HOD: {req.number}",
             f"O processo {req.number} aguarda aprovação do HOD/Chefe do Departamento.",
         )
-        audit_log(db, user, "Criou requisicao non-stock", "Procurement", req.number, request=request)
+        audit_log(db, user, "Criou requisição non-stock", "Procurement", req.number, request=request)
     return RedirectResponse(f"/procurement/{case.id}", status_code=303)
 
 
@@ -204,8 +204,7 @@ def new_replenishment(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("stock_replenishment_create")),
 ):
-    return templates.TemplateResponse(
-        "procurement/replenishment_form.html",
+    return templates.TemplateResponse(request, "procurement/replenishment_form.html",
         replenishment_form_context(request, db, user),
     )
 
@@ -333,8 +332,7 @@ def save_matrix(user: User = Depends(require_permission("procurement_settings"))
 def detail(case_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
     case = case_or_404(db, case_id, user)
     officers = db.scalars(select(User).where(User.is_active == True).order_by(User.full_name)).all()
-    return templates.TemplateResponse(
-        "procurement/detail.html",
+    return templates.TemplateResponse(request, "procurement/detail.html",
         {
             "request": request,
             "user": user,
@@ -435,9 +433,9 @@ def verify_budget(
 ):
     case = case_or_404(db, case_id, user)
     if case.tor_status != "Approved":
-        raise HTTPException(400, "O TdR deve estar aprovado pelo HOD e Terminal Manager antes da verificacao de budget.")
+        raise HTTPException(400, "O TdR deve estar aprovado pelo HOD e pelo Diretor do Terminal antes da verificação do orçamento.")
     if decision not in {"confirm", "return"}:
-        raise HTTPException(400, "Escolha uma decisao valida.")
+        raise HTTPException(400, "Escolha uma decisão válida.")
     with atomic(db):
         case.budget_confirmed = decision == "confirm"
         case.budget_confirmed_at = datetime.now(timezone.utc)
@@ -450,7 +448,7 @@ def verify_budget(
         else:
             case.status = "Returned - No Budget"
             case.requisition.status = RequisitionStatus.rejected.value
-        audit_log(db, user, "Verificou orcamento", "Procurement", case.requisition.number, new_value={"status": case.status}, request=request)
+        audit_log(db, user, "Verificou orçamento", "Procurement", case.requisition.number, new_value={"status": case.status}, request=request)
     return RedirectResponse(f"/procurement/{case.id}", status_code=303)
 
 
@@ -468,7 +466,7 @@ def classify_case(
     officer = db.get(User, officer_id) if officer_id else None
     rule = classify_procurement(db, case.estimated_budget)
     if not rule:
-        raise HTTPException(400, "Nao existe regra ativa na matriz para este valor.")
+        raise HTTPException(400, "Não existe uma regra ativa na matriz para este valor.")
     with atomic(db):
         case.procurement_officer_id = officer.id if officer else None
         case.modality = rule.modality
@@ -569,18 +567,32 @@ def send_tdr_email(
         else f"{case.tdr_number or 'TdR-' + case.requisition.number}.pdf"
     )
     pdf = procurement_form_to_pdf(case, user) if is_replenishment else terms_of_reference_to_pdf(case, user)
-    subject = (
-        f"Pedido de Reposição de Stock - {case.requisition.number}"
-        if is_replenishment
-        else f"Termo de Referência - {case.tdr_number or case.requisition.number}"
-    )
-    body = (
-        f"Segue o {'pedido de reposição de stock' if is_replenishment else 'Termo de Referência'} do processo {case.requisition.number}.\n\n"
-        f"Job title: {case.job_title or case.description[:120]}\n"
-        f"Valor base: {float(case.po_value or case.estimated_budget or 0):.2f} MZN\n"
-        f"Aprovação por valor: {case.approval_route or 'Por definir'}\n\n"
-        "O PDF segue anexado."
-    )
+    if language_for(user, request) == "en":
+        subject = (
+            f"Stock Replenishment Request - {case.requisition.number}"
+            if is_replenishment
+            else f"Term of Reference - {case.tdr_number or case.requisition.number}"
+        )
+        body = (
+            f"Please find attached the {'stock replenishment request' if is_replenishment else 'Term of Reference'} for process {case.requisition.number}.\n\n"
+            f"Job title: {case.job_title or case.description[:120]}\n"
+            f"Base value: {float(case.po_value or case.estimated_budget or 0):.2f} MZN\n"
+            f"Value-based approval: {case.approval_route or 'To be defined'}\n\n"
+            "The PDF is attached."
+        )
+    else:
+        subject = (
+            f"Pedido de Reposição de Stock - {case.requisition.number}"
+            if is_replenishment
+            else f"Termo de Referência - {case.tdr_number or case.requisition.number}"
+        )
+        body = (
+            f"Segue, em anexo, o {'pedido de reposição de stock' if is_replenishment else 'Termo de Referência'} do processo {case.requisition.number}.\n\n"
+            f"Título do trabalho: {case.job_title or case.description[:120]}\n"
+            f"Valor base: {float(case.po_value or case.estimated_budget or 0):.2f} MZN\n"
+            f"Aprovação por valor: {case.approval_route or 'Por definir'}\n\n"
+            "O PDF segue em anexo."
+        )
     with atomic(db):
         send_email(target, subject, body, attachments=[(filename, pdf, "application/pdf")])
         audit_log(
@@ -733,12 +745,12 @@ def update_tracker(
     case = case_or_404(db, case_id, user)
     next_status = required_text(status, "Estado", 80)
     next_approval_status = case.approval_status
-    next_technical_status = required_text(technical_evaluation_status, "Estado da avaliacao tecnica", 60)
-    next_financial_status = required_text(financial_evaluation_status, "Estado da avaliacao financeira", 60)
+    next_technical_status = required_text(technical_evaluation_status, "Estado da avaliação técnica", 60)
+    next_financial_status = required_text(financial_evaluation_status, "Estado da avaliação financeira", 60)
     next_bid_status = required_text(bid_analysis_status, "Estado da bid analysis", 60)
     next_receipt_status = required_text(receipt_status, "Estado da recepcao", 60)
     next_hse_status = required_text(hse_documents_status, "Estado HSE", 60)
-    next_technical_report_status = required_text(technical_report_status, "Relatorio tecnico", 60)
+    next_technical_report_status = required_text(technical_report_status, "Relatório técnico", 60)
     next_execution_status = required_text(execution_status, "Execucao / entrega", 60)
     next_archive_status = required_text(archive_status, "Arquivo", 60)
     next_quotations = int(optional_int(quotations_received, "Cotacoes recebidas") or 0)

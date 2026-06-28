@@ -1,41 +1,41 @@
 {% extends "base.html" %}
 {% block content %}
 <header class="page-header">
-  <h1>Economato / Produtos</h1>
+  <h1>{{ tx("Economato / Produtos", user if user is defined else none) }}</h1>
   <div class="actions">
-    {% if can(user, 'stock_replenishment_create') %}<a class="button success" href="/procurement/reposicao/nova">Criar reposição</a>{% endif %}
-    {% if can(user, 'products_manage') %}<a class="button" href="/produtos/novo">Novo Produto</a>{% endif %}
+    {% if can(user, 'stock_replenishment_create') %}<a class="button success" href="/procurement/reposicao/nova">{{ tx("Criar reposição", user if user is defined else none) }}</a>{% endif %}
+    {% if can(user, 'products_manage') %}<a class="button" href="/produtos/novo">{{ tx("Novo Produto", user if user is defined else none) }}</a>{% endif %}
   </div>
 </header>
 <form class="filters">
-  <input name="q" value="{{ q }}" placeholder="Pesquisar código, produto ou categoria" spellcheck="true">
+  <input name="q" value="{{ q }}" placeholder="{{ tx("Pesquisar código, produto ou categoria", user if user is defined else none) }}" spellcheck="true">
   <select name="status">
-    <option value="">Todos</option>
-    <option value="active" {% if status=='active' %}selected{% endif %}>Ativo</option>
-    <option value="inactive" {% if status=='inactive' %}selected{% endif %}>Inativo</option>
+    <option value="">{{ tx("Todos", user if user is defined else none) }}</option>
+    <option value="active" {% if status=='active' %}selected{% endif %}>{{ tx("Ativo", user if user is defined else none) }}</option>
+    <option value="inactive" {% if status=='inactive' %}selected{% endif %}>{{ tx("Inativo", user if user is defined else none) }}</option>
   </select>
-  <button>Filtrar</button>
+  <button>{{ tx("Filtrar", user if user is defined else none) }}</button>
 </form>
 <div class="panel">
   <table>
     <thead>
-      <tr><th>Código</th><th>Produto/Marca</th><th>Categoria</th><th>Unidade</th><th>Preço Unit.</th><th>Qtde</th><th>Entrada</th><th>Saída</th><th>Controlo</th><th>Alerta</th><th>Estado</th><th></th></tr>
+      <tr><th>{{ tx("Código", user if user is defined else none) }}</th><th>{{ tx("Produto/Marca", user if user is defined else none) }}</th><th>{{ tx("Categoria", user if user is defined else none) }}</th><th>{{ tx("Unidade", user if user is defined else none) }}</th><th>{{ tx("Preço Unit.", user if user is defined else none) }}</th><th>{{ tx("Qtde", user if user is defined else none) }}</th><th>{{ tx("Entrada", user if user is defined else none) }}</th><th>{{ tx("Saída", user if user is defined else none) }}</th><th>{{ tx("Controlo", user if user is defined else none) }}</th><th>{{ tx("Alerta", user if user is defined else none) }}</th><th>{{ tx("Estado", user if user is defined else none) }}</th><th></th></tr>
     </thead>
     <tbody>
     {% for p in products %}
       <tr>
         <td>{{ p.code }}</td>
-        <td>{{ p.name }}</td>
-        <td>{{ p.category.name if p.category else 'Sem Categoria' }}</td>
+        <td>{{ lname(p, user) }}</td>
+        <td>{{ lname(p.category, user) if p.category else tx('Sem Categoria', user) }}</td>
         <td>{{ p.unit }}</td>
         <td>{{ "%.2f"|format(p.unit_price|float) }} MZN</td>
         <td>{{ p.current_stock }}</td>
         <td>{{ p.total_entries }}</td>
         <td>{{ p.total_exits }}</td>
-        <td><span class="badge {{ 'green' if p.requires_stock_control else 'grey' }}">{{ 'Monitorizado' if p.requires_stock_control else 'Pontual' }}</span></td>
-        <td><span class="badge {{ p.alert_badge }}">{{ p.alert_status }}</span></td>
-        <td><span class="badge grey">{{ p.status }}</span></td>
-        <td>{% if can(user, 'products_manage') %}<a href="/produtos/{{ p.id }}/editar">Editar</a>{% endif %}</td>
+        <td><span class="badge {{ 'green' if p.requires_stock_control else 'grey' }}">{{ tx('Monitorizado', user) if p.requires_stock_control else tx('Pontual', user) }}</span></td>
+        <td><span class="badge {{ p.alert_badge }}">{{ tv(p.alert_status, user) }}</span></td>
+        <td><span class="badge grey">{{ tv(p.status, user) }}</span></td>
+        <td>{% if can(user, 'products_manage') %}<a href="/produtos/{{ p.id }}/editar">{{ tx("Editar", user if user is defined else none) }}</a>{% endif %}</td>
       </tr>
     {% endfor %}
     </tbody>

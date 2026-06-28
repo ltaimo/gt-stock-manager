@@ -1,62 +1,62 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="panel narrow">
-  <h1>Nova requisição non-stock</h1>
-  <p class="muted">Use este fluxo para bens, serviços ou obras que não existem no stock. Anexe aqui a descrição/TdR inicial, requisitos técnicos e HSE quando aplicável.</p>
-  {% if error %}<div class="alert red">{{ error }}</div>{% endif %}
+  <h1>{{ tx("Nova requisição non-stock", user if user is defined else none) }}</h1>
+  <p class="muted">{{ tx("Use este fluxo para bens, serviços ou obras que não existem no stock. Anexe aqui a descrição/TdR inicial, requisitos técnicos e HSE quando aplicável.", user if user is defined else none) }}</p>
+  {% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
   <form method="post" class="form-stack">
     <div class="form-grid">
-      <label>TdR No.
-        <input name="tdr_number" placeholder="Gerado automaticamente se vazio">
+      <label>{{ tx("TdR No.", user if user is defined else none) }}
+        <input name="tdr_number" placeholder="{{ tx("Gerado automaticamente se vazio", user if user is defined else none) }}">
       </label>
-      <label>Job title
-        <input name="job_title" placeholder="Título do trabalho / contratação">
+      <label>{{ tx("Job title", user if user is defined else none) }}
+        <input name="job_title" placeholder="{{ tx("Título do trabalho / contratação", user if user is defined else none) }}">
       </label>
     </div>
-    <label>Descrição / TdR / escopo
-      <textarea name="description" required placeholder="Descreva claramente o bem, serviço ou obra"></textarea>
+    <label>{{ tx("Descrição / TdR / escopo", user if user is defined else none) }}
+      <textarea name="description" required placeholder="{{ tx("Descreva claramente o bem, serviço ou obra", user if user is defined else none) }}"></textarea>
     </label>
-    <label>Requisitos técnicos
-      <textarea name="technical_requirements" placeholder="Especificações, quantidades, normas técnicas, desenhos, escopo detalhado"></textarea>
+    <label>{{ tx("Requisitos técnicos", user if user is defined else none) }}
+      <textarea name="technical_requirements" placeholder="{{ tx("Especificações, quantidades, normas técnicas, desenhos, escopo detalhado", user if user is defined else none) }}"></textarea>
     </label>
-    <label>Requisitos HSE / segurança
-      <textarea name="hse_requirements" placeholder="Permissões, documentação HSE, EPIs, riscos, requisitos obrigatórios"></textarea>
+    <label>{{ tx("Requisitos HSE / segurança", user if user is defined else none) }}
+      <textarea name="hse_requirements" placeholder="{{ tx("Permissões, documentação HSE, EPIs, riscos, requisitos obrigatórios", user if user is defined else none) }}"></textarea>
     </label>
-    <label>Justificação
-      <textarea name="justification" placeholder="Explique o motivo e contexto do pedido"></textarea>
+    <label>{{ tx("Justificação", user if user is defined else none) }}
+      <textarea name="justification" placeholder="{{ tx("Explique o motivo e contexto do pedido", user if user is defined else none) }}"></textarea>
     </label>
     <div class="form-grid">
-      <label>Tipo
+      <label>{{ tx("Tipo", user if user is defined else none) }}
         <select name="item_type">
-          <option>Bem</option>
-          <option>Serviço</option>
-          <option>Obra</option>
+          <option value="Bem">{{ tx("Bem", user if user is defined else none) }}</option>
+          <option value="Serviço">{{ tx("Serviço", user if user is defined else none) }}</option>
+          <option value="Obra">{{ tx("Obra", user if user is defined else none) }}</option>
         </select>
       </label>
-      <label>Centro de custo
-        <input name="cost_center" placeholder="Opcional">
+      <label>{{ tx("Centro de custo", user if user is defined else none) }}
+        <input name="cost_center" placeholder="{{ tx("Opcional", user if user is defined else none) }}">
       </label>
-      <label>Prioridade
+      <label>{{ tx("Prioridade", user if user is defined else none) }}
         <select name="priority">
-          <option>Normal</option>
-          <option>Baixa</option>
-          <option>Alta</option>
-          <option>Urgente</option>
+          <option value="Normal">{{ tx("Normal", user if user is defined else none) }}</option>
+          <option value="Baixa">{{ tx("Baixa", user if user is defined else none) }}</option>
+          <option value="Alta">{{ tx("Alta", user if user is defined else none) }}</option>
+          <option value="Urgente">{{ tx("Urgente", user if user is defined else none) }}</option>
         </select>
       </label>
-      <label>Budget estimado (MZN)
+      <label>{{ tx("Budget estimado (MZN)", user if user is defined else none) }}
         <input name="estimated_budget" type="number" min="0" step="0.01" required>
       </label>
-      <label>Data requerida
+      <label>{{ tx("Data requerida", user if user is defined else none) }}
         <input name="required_date" type="date">
       </label>
     </div>
     <div class="alert">
-      Fluxo: criação da necessidade → aprovação HOD → aprovação Terminal Manager → budget → procurement/tracker → avaliação técnica/financeira → PO → entrega/execução → nota de recebimento → arquivo.
+      {{ tx("Fluxo: criação da necessidade → aprovação HOD → aprovação Terminal Manager → budget → procurement/tracker → avaliação técnica/financeira → PO → entrega/execução → nota de recebimento → arquivo.", user if user is defined else none) }}
     </div>
     <div class="actions">
-      <a class="button secondary" href="/procurement">Cancelar</a>
-      <button>Submeter TdR para aprovação HOD</button>
+      <a class="button secondary" href="/procurement">{{ tx("Cancelar", user if user is defined else none) }}</a>
+      <button>{{ tx("Submeter TdR para aprovação HOD", user if user is defined else none) }}</button>
     </div>
   </form>
 </section>

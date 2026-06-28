@@ -3,84 +3,84 @@
 <header class="page-header">
   <h1>{{ case.requisition.number }}</h1>
   <div class="actions">
-    <a class="button secondary" href="/procurement">Voltar</a>
+    <a class="button secondary" href="/procurement">{{ tx("Voltar", user if user is defined else none) }}</a>
     {% if case.requisition.req_type == 'REPOSICAO' %}
-      <a class="button secondary" href="/procurement/{{ case.id }}/formulario" target="_blank">Visualizar pedido</a>
-      <a class="button" href="/procurement/{{ case.id }}/formulario?download=1">Baixar pedido</a>
+      <a class="button secondary" href="/procurement/{{ case.id }}/formulario" target="_blank">{{ tx("Visualizar pedido", user if user is defined else none) }}</a>
+      <a class="button" href="/procurement/{{ case.id }}/formulario?download=1">{{ tx("Baixar pedido", user if user is defined else none) }}</a>
     {% else %}
-      <a class="button secondary" href="/procurement/{{ case.id }}/tdr" target="_blank">Visualizar TdR</a>
-      <a class="button" href="/procurement/{{ case.id }}/tdr?download=1">Baixar TdR</a>
-      <a class="button secondary" href="/procurement/{{ case.id }}/formulario" target="_blank">Visualizar formulário</a>
-      <a class="button" href="/procurement/{{ case.id }}/formulario?download=1">Baixar formulário</a>
+      <a class="button secondary" href="/procurement/{{ case.id }}/tdr" target="_blank">{{ tx("Visualizar TdR", user if user is defined else none) }}</a>
+      <a class="button" href="/procurement/{{ case.id }}/tdr?download=1">{{ tx("Baixar TdR", user if user is defined else none) }}</a>
+      <a class="button secondary" href="/procurement/{{ case.id }}/formulario" target="_blank">{{ tx("Visualizar formulário", user if user is defined else none) }}</a>
+      <a class="button" href="/procurement/{{ case.id }}/formulario?download=1">{{ tx("Baixar formulário", user if user is defined else none) }}</a>
     {% endif %}
-    {% if can(user, 'procurement_settings') %}<a class="button secondary" href="/configuracoes/matriz">Matriz</a>{% endif %}
+    {% if can(user, 'procurement_settings') %}<a class="button secondary" href="/configuracoes/matriz">{{ tx("Matriz", user if user is defined else none) }}</a>{% endif %}
   </div>
 </header>
 
-{% if error %}<div class="alert red">{{ error }}</div>{% endif %}
+{% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
 
 <section class="panel">
-  <h2>Resumo do processo</h2>
+  <h2>{{ tx("Resumo do processo", user if user is defined else none) }}</h2>
   {% if case.requisition.req_type == 'REPOSICAO' %}
-  <div class="alert green"><strong>Pedido de reposição de stock.</strong> A receção aprovada criará movimentos de entrada e atualizará automaticamente os saldos.</div>
+  <div class="alert green"><strong>{{ tx("Pedido de reposição de stock.", user if user is defined else none) }}</strong> {{ tx("A receção aprovada criará movimentos de entrada e atualizará automaticamente os saldos.", user if user is defined else none) }}</div>
   {% endif %}
   <div class="grid-two">
     <div>
-      <p><strong>Requisitante:</strong> {{ case.requisition.requesting_user.full_name }}</p>
-      <p><strong>Departamento:</strong> {{ case.requisition.department.name if case.requisition.department else '' }}</p>
-      <p><strong>Tipo:</strong> {{ case.item_type or 'Bem' }}</p>
-      <p><strong>TdR No.:</strong> {{ case.tdr_number or ('TdR-' ~ case.requisition.number) }}</p>
-      <p><strong>Job title:</strong> {{ case.job_title or '-' }}</p>
-      <p><strong>Prioridade:</strong> {{ case.priority }}</p>
-      <p><strong>Budget estimado:</strong> {{ "%.2f"|format(case.estimated_budget|float) }} MZN</p>
+      <p><strong>{{ tx("Requisitante:", user if user is defined else none) }}</strong> {{ case.requisition.requesting_user.full_name }}</p>
+      <p><strong>{{ tx("Departamento:", user if user is defined else none) }}</strong> {{ case.requisition.department.name if case.requisition.department else '' }}</p>
+      <p><strong>{{ tx("Tipo:", user if user is defined else none) }}</strong> {{ tx(case.item_type or 'Bem', user) }}</p>
+      <p><strong>{{ tx("TdR No.:", user if user is defined else none) }}</strong> {{ case.tdr_number or ('TdR-' ~ case.requisition.number) }}</p>
+      <p><strong>{{ tx("Job title:", user if user is defined else none) }}</strong> {{ case.job_title or '-' }}</p>
+      <p><strong>{{ tx("Prioridade:", user if user is defined else none) }}</strong> {{ case.priority }}</p>
+      <p><strong>{{ tx("Budget estimado:", user if user is defined else none) }}</strong> {{ "%.2f"|format(case.estimated_budget|float) }} MZN</p>
     </div>
     <div>
-      <p><strong>Estado:</strong> <span class="badge orange">{{ case.status }}</span></p>
-      <p><strong>TdR:</strong> {{ case.tor_status or '-' }}</p>
-      <p><strong>Budget:</strong> {{ 'Confirmado' if case.budget_confirmed else 'Sem budget' if case.budget_confirmed == false else 'Pendente' }}</p>
-      <p><strong>Modalidade:</strong> {{ case.modality or '-' }}</p>
-      <p><strong>Aprovação final:</strong> {{ case.approval_route or '-' }}</p>
-      <p><strong>Base da aprovação:</strong> {{ "%.2f"|format((case.po_value or case.estimated_budget)|float) }} MZN</p>
+      <p><strong>{{ tx("Estado:", user if user is defined else none) }}</strong> <span class="badge orange">{{ tv(case.status, user) }}</span></p>
+      <p><strong>{{ tx("TdR:", user if user is defined else none) }}</strong> {{ tv(case.tor_status, user) if case.tor_status else '-' }}</p>
+      <p><strong>{{ tx("Budget:", user if user is defined else none) }}</strong> {{ tx('Confirmado', user) if case.budget_confirmed else tx('Sem budget', user) if case.budget_confirmed == false else tx('Pendente', user) }}</p>
+      <p><strong>{{ tx("Modalidade:", user if user is defined else none) }}</strong> {{ case.modality or '-' }}</p>
+      <p><strong>{{ tx("Aprovação final:", user if user is defined else none) }}</strong> {{ case.approval_route or '-' }}</p>
+      <p><strong>{{ tx("Base da aprovação:", user if user is defined else none) }}</strong> {{ "%.2f"|format((case.po_value or case.estimated_budget)|float) }} MZN</p>
     </div>
   </div>
-  <p><strong>Descrição / TdR / escopo:</strong><br>{{ case.description }}</p>
-  {% if case.technical_requirements %}<p><strong>Requisitos técnicos:</strong><br>{{ case.technical_requirements }}</p>{% endif %}
-  {% if case.hse_requirements %}<p><strong>Requisitos HSE:</strong><br>{{ case.hse_requirements }}</p>{% endif %}
-  {% if case.justification %}<p><strong>Justificação:</strong><br>{{ case.justification }}</p>{% endif %}
-  {% if case.comments %}<p><strong>Comentários:</strong><br>{{ case.comments }}</p>{% endif %}
+  <p><strong>{{ tx("Descrição / TdR / escopo:", user if user is defined else none) }}</strong><br>{{ case.description }}</p>
+  {% if case.technical_requirements %}<p><strong>{{ tx("Requisitos técnicos:", user if user is defined else none) }}</strong><br>{{ case.technical_requirements }}</p>{% endif %}
+  {% if case.hse_requirements %}<p><strong>{{ tx("Requisitos HSE:", user if user is defined else none) }}</strong><br>{{ case.hse_requirements }}</p>{% endif %}
+  {% if case.justification %}<p><strong>{{ tx("Justificação:", user if user is defined else none) }}</strong><br>{{ case.justification }}</p>{% endif %}
+  {% if case.comments %}<p><strong>{{ tx("Comentários:", user if user is defined else none) }}</strong><br>{{ case.comments }}</p>{% endif %}
 </section>
 
 {% if case.requisition.req_type == 'REPOSICAO' %}
 <section class="panel">
   <div class="panel-heading">
     <div>
-      <h2>Produtos da reposição</h2>
-      <span class="muted">Valor estimado: {{ "%.2f"|format(case.requisition.estimated_value|float) }} MZN</span>
+      <h2>{{ tx("Produtos da reposição", user if user is defined else none) }}</h2>
+      <span class="muted">{{ tx("Valor estimado:", user) }} {{ "%.2f"|format(case.requisition.estimated_value|float) }} MZN</span>
     </div>
   </div>
   <table class="responsive-table">
     <thead>
       <tr>
-        <th>Produto</th>
-        <th>Stock atual</th>
-        <th>Quantidade pedida</th>
-        <th>Preço estimado</th>
-        <th>Total</th>
-        <th>Recebido</th>
-        <th>Pendente</th>
+        <th>{{ tx("Produto", user if user is defined else none) }}</th>
+        <th>{{ tx("Stock atual", user if user is defined else none) }}</th>
+        <th>{{ tx("Quantidade pedida", user if user is defined else none) }}</th>
+        <th>{{ tx("Preço estimado", user if user is defined else none) }}</th>
+        <th>{{ tx("Total", user if user is defined else none) }}</th>
+        <th>{{ tx("Recebido", user if user is defined else none) }}</th>
+        <th>{{ tx("Pendente", user if user is defined else none) }}</th>
       </tr>
     </thead>
     <tbody>
       {% for item in case.requisition.items %}
       {% set pending = (item.quantity_requested|float) - (item.quantity_received|float) %}
       <tr>
-        <td data-label="Produto"><strong>{{ item.product.code }}</strong><br>{{ item.product.name }}</td>
-        <td data-label="Stock atual">{{ item.product.current_stock }} {{ item.product.unit }}</td>
-        <td data-label="Quantidade pedida">{{ item.quantity_requested }} {{ item.product.unit }}</td>
-        <td data-label="Preço estimado">{{ "%.2f"|format(item.estimated_unit_price|float) }} MZN</td>
-        <td data-label="Total">{{ "%.2f"|format((item.quantity_requested|float) * (item.estimated_unit_price|float)) }} MZN</td>
-        <td data-label="Recebido">{{ item.quantity_received }} {{ item.product.unit }}</td>
-        <td data-label="Pendente"><span class="badge {{ 'green' if pending <= 0 else 'orange' }}">{{ pending|round(2) }} {{ item.product.unit }}</span></td>
+        <td data-label="{{ tx("Produto", user if user is defined else none) }}"><strong>{{ item.product.code }}</strong><br>{{ lname(item.product, user) }}</td>
+        <td data-label="{{ tx("Stock atual", user if user is defined else none) }}">{{ item.product.current_stock }} {{ item.product.unit }}</td>
+        <td data-label="{{ tx("Quantidade pedida", user if user is defined else none) }}">{{ item.quantity_requested }} {{ item.product.unit }}</td>
+        <td data-label="{{ tx("Preço estimado", user if user is defined else none) }}">{{ "%.2f"|format(item.estimated_unit_price|float) }} MZN</td>
+        <td data-label="{{ tx("Total", user if user is defined else none) }}">{{ "%.2f"|format((item.quantity_requested|float) * (item.estimated_unit_price|float)) }} MZN</td>
+        <td data-label="{{ tx("Recebido", user if user is defined else none) }}">{{ item.quantity_received }} {{ item.product.unit }}</td>
+        <td data-label="{{ tx("Pendente", user if user is defined else none) }}"><span class="badge {{ 'green' if pending <= 0 else 'orange' }}">{{ pending|round(2) }} {{ item.product.unit }}</span></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -89,24 +89,24 @@
 
 {% if can(user, 'procurement_receive') %}
 <section class="panel">
-  <h2>Receber produtos no stock</h2>
+  <h2>{{ tx("Receber produtos no stock", user if user is defined else none) }}</h2>
   {% if not case.po_number %}
-    <div class="alert orange">Registe primeiro o número da PO no tracker.</div>
+    <div class="alert orange">{{ tx("Registe primeiro o número da PO no tracker.", user if user is defined else none) }}</div>
   {% elif case.approval_status != 'Approved' %}
-    <div class="alert orange">Conclua a aprovação do processo antes de receber os produtos.</div>
+    <div class="alert orange">{{ tx("Conclua a aprovação do processo antes de receber os produtos.", user if user is defined else none) }}</div>
   {% else %}
-    <p class="muted">Registe apenas o que chegou fisicamente. Cada quantidade cria uma entrada ligada à PO {{ case.po_number }}.</p>
+    <p class="muted">{{ tx("Registe apenas o que chegou fisicamente. Cada quantidade cria uma entrada ligada à PO", user) }} {{ case.po_number }}.</p>
     <form method="post" action="/procurement/{{ case.id }}/receber-reposicao" class="form-stack">
       <table class="responsive-table">
-        <thead><tr><th>Produto</th><th>Pendente</th><th>Receber agora</th></tr></thead>
+        <thead><tr><th>{{ tx("Produto", user if user is defined else none) }}</th><th>{{ tx("Pendente", user if user is defined else none) }}</th><th>{{ tx("Receber agora", user if user is defined else none) }}</th></tr></thead>
         <tbody>
           {% for item in case.requisition.items %}
           {% set pending = (item.quantity_requested|float) - (item.quantity_received|float) %}
           {% if pending > 0 %}
           <tr>
-            <td data-label="Produto">{{ item.product.code }} - {{ item.product.name }}</td>
-            <td data-label="Pendente">{{ pending|round(2) }} {{ item.product.unit }}</td>
-            <td data-label="Receber agora">
+            <td data-label="{{ tx("Produto", user if user is defined else none) }}">{{ item.product.code }} - {{ lname(item.product, user) }}</td>
+            <td data-label="{{ tx("Pendente", user if user is defined else none) }}">{{ pending|round(2) }} {{ item.product.unit }}</td>
+            <td data-label="{{ tx("Receber agora", user if user is defined else none) }}">
               <input type="hidden" name="item_id" value="{{ item.id }}">
               <input name="received_quantity" type="number" min="0" max="{{ pending }}" step="0.01" value="0">
             </td>
@@ -115,10 +115,10 @@
           {% endfor %}
         </tbody>
       </table>
-      <label>Nota de recebimento
-        <textarea name="receipt_note" required placeholder="Estado dos produtos, conformidade com a PO e observações"></textarea>
+      <label>{{ tx("Nota de recebimento", user if user is defined else none) }}
+        <textarea name="receipt_note" required placeholder="{{ tx("Estado dos produtos, conformidade com a PO e observações", user if user is defined else none) }}"></textarea>
       </label>
-      <div class="actions"><button class="success">Confirmar entrada no stock</button></div>
+      <div class="actions"><button class="success">{{ tx("Confirmar entrada no stock", user if user is defined else none) }}</button></div>
     </form>
   {% endif %}
 </section>
@@ -126,42 +126,42 @@
 {% endif %}
 
 <section class="panel">
-  <h2>{{ 'Pedido de Reposição' if case.requisition.req_type == 'REPOSICAO' else 'Termo de Referência' }}</h2>
+  <h2>{{ tx('Pedido de Reposição', user) if case.requisition.req_type == 'REPOSICAO' else tx('Termo de Referência', user) }}</h2>
   {% if case.requisition.req_type == 'REPOSICAO' %}
-    <p class="muted">O pedido apresenta os produtos, quantidades, preços estimados, valor total e rota de aprovação, com o branding oficial da GT.</p>
+    <p class="muted">{{ tx("O pedido apresenta os produtos, quantidades, preços estimados, valor total e rota de aprovação, com o branding oficial da GT.", user if user is defined else none) }}</p>
   {% else %}
-    <p class="muted">O TdR segue o modelo GT: âmbito, condições de oferta, requisitos, prestação de serviços/fornecimento, EPI, documentos HSE/SSA, condições financeiras e aprovações. A aprovação por valor usa a matriz configurável; quando houver valor de PO/cotação, esse valor passa a ser a base da rota de aprovação.</p>
+    <p class="muted">{{ tx("O TdR segue o modelo GT: âmbito, condições de oferta, requisitos, prestação de serviços/fornecimento, EPI, documentos HSE/SSA, condições financeiras e aprovações. A aprovação por valor usa a matriz configurável; quando houver valor de PO/cotação, esse valor passa a ser a base da rota de aprovação.", user if user is defined else none) }}</p>
   {% endif %}
   <form method="post" action="/procurement/{{ case.id }}/tdr/enviar" class="inline-form">
-    <input name="email_to" type="email" placeholder="E-mail de destino">
-    <button class="secondary">Enviar {{ 'pedido' if case.requisition.req_type == 'REPOSICAO' else 'TdR' }} por e-mail</button>
+    <input name="email_to" type="email" placeholder="{{ tx("E-mail de destino", user if user is defined else none) }}">
+    <button class="secondary">{{ tx('Enviar pedido por e-mail', user) if case.requisition.req_type == 'REPOSICAO' else tx('Enviar TdR por e-mail', user) }}</button>
   </form>
 </section>
 
 <section class="panel">
-  <h2>Fluxo obrigatório</h2>
+  <h2>{{ tx("Fluxo obrigatório", user if user is defined else none) }}</h2>
   <div class="timeline">
-    <div><strong>1. Necessidade/{{ 'Pedido' if case.requisition.req_type == 'REPOSICAO' else 'TdR' }}</strong><span>{{ case.tor_status or 'Pendente' }}</span></div>
-    <div><strong>2. Budget</strong><span>{{ 'Confirmado' if case.budget_confirmed else 'Sem budget' if case.budget_confirmed == false else 'Pendente' }}</span></div>
-    <div><strong>3. Concurso</strong><span>{{ case.modality or 'Por classificar' }}</span></div>
-    <div><strong>4. Avaliação técnica</strong><span>{{ case.technical_evaluation_status }}</span></div>
-    <div><strong>5. Avaliação financeira</strong><span>{{ case.financial_evaluation_status }}</span></div>
-    <div><strong>6. PO</strong><span>{{ case.po_number or 'Pendente' }}</span></div>
-    <div><strong>7. Receção/execução</strong><span>{{ case.receipt_status }}</span></div>
-    <div><strong>8. Arquivo</strong><span>{{ case.archive_status }}</span></div>
+    <div><strong>{{ tx('1. Necessidade/Pedido', user) if case.requisition.req_type == 'REPOSICAO' else tx('1. Necessidade/TdR', user) }}</strong><span>{{ tv(case.tor_status or 'Pendente', user) }}</span></div>
+    <div><strong>{{ tx("2. Budget", user if user is defined else none) }}</strong><span>{{ tx('Confirmado', user) if case.budget_confirmed else tx('Sem budget', user) if case.budget_confirmed == false else tx('Pendente', user) }}</span></div>
+    <div><strong>{{ tx("3. Concurso", user if user is defined else none) }}</strong><span>{{ case.modality or 'Por classificar' }}</span></div>
+    <div><strong>{{ tx("4. Avaliação técnica", user if user is defined else none) }}</strong><span>{{ tv(case.technical_evaluation_status, user) }}</span></div>
+    <div><strong>{{ tx("5. Avaliação financeira", user if user is defined else none) }}</strong><span>{{ tv(case.financial_evaluation_status, user) }}</span></div>
+    <div><strong>{{ tx("6. PO", user if user is defined else none) }}</strong><span>{{ case.po_number or tx('Pendente', user) }}</span></div>
+    <div><strong>{{ tx("7. Receção/execução", user if user is defined else none) }}</strong><span>{{ tv(case.receipt_status, user) }}</span></div>
+    <div><strong>{{ tx("8. Arquivo", user if user is defined else none) }}</strong><span>{{ tv(case.archive_status, user) }}</span></div>
   </div>
 </section>
 
 {% if can(user, 'procurement_tor_approve_hod') and case.tor_status == 'Pending HOD Approval' %}
 <section class="panel">
-  <h2>Aprovação HOD / Chefe do Departamento {{ 'do pedido' if case.requisition.req_type == 'REPOSICAO' else '' }}</h2>
+  <h2>{{ tx('Aprovação HOD / Chefe do Departamento do pedido', user) if case.requisition.req_type == 'REPOSICAO' else tx('Aprovação HOD / Chefe do Departamento', user) }}</h2>
   <form method="post" action="/procurement/{{ case.id }}/tdr/hod" class="form-stack">
-    <label>Comentários
-      <textarea name="comments" placeholder="Obrigatório se devolver para correção"></textarea>
+    <label>{{ tx("Comentários", user if user is defined else none) }}
+      <textarea name="comments" placeholder="{{ tx("Obrigatório se devolver para correção", user if user is defined else none) }}"></textarea>
     </label>
     <div class="actions">
-      <button name="decision" value="approve" class="success">Aprovar {{ 'pedido' if case.requisition.req_type == 'REPOSICAO' else 'TdR' }}</button>
-      <button name="decision" value="return" class="danger">Devolver para correção</button>
+      <button name="decision" value="approve" class="success">{{ tx('Aprovar pedido', user) if case.requisition.req_type == 'REPOSICAO' else tx('Aprovar TdR', user) }}</button>
+      <button name="decision" value="return" class="danger">{{ tx("Devolver para correção", user if user is defined else none) }}</button>
     </div>
   </form>
 </section>
@@ -169,14 +169,14 @@
 
 {% if can(user, 'procurement_tor_approve_terminal') and case.tor_status == 'Pending Terminal Manager Approval' %}
 <section class="panel">
-  <h2>Aprovação Director do Terminal / Terminal Manager</h2>
+  <h2>{{ tx("Aprovação Director do Terminal / Terminal Manager", user if user is defined else none) }}</h2>
   <form method="post" action="/procurement/{{ case.id }}/tdr/terminal" class="form-stack">
-    <label>Comentários
-      <textarea name="comments" placeholder="Obrigatório se devolver para correção"></textarea>
+    <label>{{ tx("Comentários", user if user is defined else none) }}
+      <textarea name="comments" placeholder="{{ tx("Obrigatório se devolver para correção", user if user is defined else none) }}"></textarea>
     </label>
     <div class="actions">
-      <button name="decision" value="approve" class="success">Aprovar TdR final</button>
-      <button name="decision" value="return" class="danger">Devolver para correção</button>
+      <button name="decision" value="approve" class="success">{{ tx("Aprovar TdR final", user if user is defined else none) }}</button>
+      <button name="decision" value="return" class="danger">{{ tx("Devolver para correção", user if user is defined else none) }}</button>
     </div>
   </form>
 </section>
@@ -184,14 +184,14 @@
 
 {% if can(user, 'budget_verify') and case.status == 'Pending Budget Verification' %}
 <section class="panel">
-  <h2>Verificação de budget</h2>
+  <h2>{{ tx("Verificação de budget", user if user is defined else none) }}</h2>
   <form method="post" action="/procurement/{{ case.id }}/orcamento" class="form-stack">
-    <label>Comentários do financeiro
-      <textarea name="comments" placeholder="Opcional, mas recomendado se devolver por falta de budget"></textarea>
+    <label>{{ tx("Comentários do financeiro", user if user is defined else none) }}
+      <textarea name="comments" placeholder="{{ tx("Opcional, mas recomendado se devolver por falta de budget", user if user is defined else none) }}"></textarea>
     </label>
     <div class="actions">
-      <button name="decision" value="confirm" class="success">Confirmar budget</button>
-      <button name="decision" value="return" class="danger">Devolver por falta de budget</button>
+      <button name="decision" value="confirm" class="success">{{ tx("Confirmar budget", user if user is defined else none) }}</button>
+      <button name="decision" value="return" class="danger">{{ tx("Devolver por falta de budget", user if user is defined else none) }}</button>
     </div>
   </form>
 </section>
@@ -199,156 +199,156 @@
 
 {% if can(user, 'procurement_manage') and case.budget_confirmed %}
 <section class="panel">
-  <h2>Classificação pelo Procurement</h2>
-  <p class="muted">A modalidade e a aprovação final são definidas pela matriz configurável com base no budget estimado.</p>
+  <h2>{{ tx("Classificação pelo Procurement", user if user is defined else none) }}</h2>
+  <p class="muted">{{ tx("A modalidade e a aprovação final são definidas pela matriz configurável com base no budget estimado.", user if user is defined else none) }}</p>
   <form method="post" action="/procurement/{{ case.id }}/classificar" class="form-stack">
     <div class="form-grid">
-      <label>Procurement officer
+      <label>{{ tx("Procurement officer", user if user is defined else none) }}
         <select name="procurement_officer_id">
-          <option value="">Sem atribuição</option>
+          <option value="">{{ tx("Sem atribuição", user if user is defined else none) }}</option>
           {% for officer in officers %}
-            <option value="{{ officer.id }}" {% if case.procurement_officer_id == officer.id %}selected{% endif %}>{{ officer.full_name }} - {{ officer.role.name }}</option>
+            <option value="{{ officer.id }}" {% if case.procurement_officer_id == officer.id %}selected{% endif %}>{{ officer.full_name }} - {{ tv(officer.role.name, user) }}</option>
           {% endfor %}
         </select>
       </label>
       <label class="check">
         <input type="checkbox" name="technical_evaluation_required" value="1" {% if case.technical_evaluation_required %}checked{% endif %}>
-        Requer avaliação técnica
+        {{ tx("Requer avaliação técnica", user if user is defined else none) }}
       </label>
     </div>
-    <div class="actions"><button>Classificar pela matriz</button></div>
+    <div class="actions"><button>{{ tx("Classificar pela matriz", user if user is defined else none) }}</button></div>
   </form>
 </section>
 {% endif %}
 
 {% if case.status == 'Pending Approval' and case.approval_status == 'Pending' %}
 <section class="panel">
-  <h2>Aprovação por valor</h2>
+  <h2>{{ tx("Aprovação por valor", user if user is defined else none) }}</h2>
   <p>
-    <strong>Valor base:</strong> {{ "%.2f"|format((case.po_value or case.estimated_budget)|float) }} MZN<br>
-    <strong>Perfil aprovador:</strong> {{ case.approval_route or 'Por definir na matriz' }}<br>
-    <strong>Modalidade:</strong> {{ case.modality or 'Por definir' }}
+    <strong>{{ tx("Valor base:", user if user is defined else none) }}</strong> {{ "%.2f"|format((case.po_value or case.estimated_budget)|float) }} MZN<br>
+    <strong>{{ tx("Perfil aprovador:", user if user is defined else none) }}</strong> {{ case.approval_route or 'Por definir na matriz' }}<br>
+    <strong>{{ tx("Modalidade:", user if user is defined else none) }}</strong> {{ case.modality or 'Por definir' }}
   </p>
   {% if can_approve_by_matrix %}
   <form method="post" action="/procurement/{{ case.id }}/aprovar-valor" class="form-stack">
-    <label>Comentários
-      <textarea name="comments" placeholder="Obrigatório ao devolver o processo"></textarea>
+    <label>{{ tx("Comentários", user if user is defined else none) }}
+      <textarea name="comments" placeholder="{{ tx("Obrigatório ao devolver o processo", user if user is defined else none) }}"></textarea>
     </label>
     <div class="actions">
-      <button name="decision" value="approve" class="success">Aprovar processo</button>
-      <button name="decision" value="return" class="danger">Devolver para correção</button>
+      <button name="decision" value="approve" class="success">{{ tx("Aprovar processo", user if user is defined else none) }}</button>
+      <button name="decision" value="return" class="danger">{{ tx("Devolver para correção", user if user is defined else none) }}</button>
     </div>
   </form>
   {% else %}
-    <div class="alert orange">Aguarda decisão de um utilizador com o perfil {{ case.approval_route or 'configurado na matriz' }}.</div>
+    <div class="alert orange">{{ tx('Aguarda decisão de um utilizador com o perfil', user) }} {{ case.approval_route or tx('configurado na matriz', user) }}.</div>
   {% endif %}
 </section>
 {% endif %}
 
 {% if can_update_tracker %}
 <section class="panel">
-  <h2>Tracker de procurement</h2>
+  <h2>{{ tx("Tracker de procurement", user if user is defined else none) }}</h2>
   <form method="post" action="/procurement/{{ case.id }}/tracker" class="form-stack">
     <div class="form-grid">
-      <label>Estado do processo
+      <label>{{ tx("Estado do processo", user if user is defined else none) }}
         <select name="status">
           {% for value in ['Pending HOD TdR Approval','Pending Terminal Manager TdR Approval','Pending Budget Verification','Pending Procurement Classification','Pending Approval','RFQ/RFP/Tender Running','Technical Evaluation','Financial Evaluation','Bid Analysis','Supplier Selected','PO Issued','Mobilization / Delivery','Receiving','Ready for Archive','Closed','Cancelled','Returned - TdR Correction','Returned - No Budget','Returned - Approval'] %}
-            <option {% if case.status == value %}selected{% endif %}>{{ value }}</option>
+            <option value="{{ value }}" {% if case.status == value %}selected{% endif %}>{{ tv(value, user) }}</option>
           {% endfor %}
         </select>
       </label>
-      <label>Estado da aprovação
-        <input value="{{ case.approval_status }}" readonly>
+      <label>{{ tx("Estado da aprovação", user if user is defined else none) }}
+        <input value="{{ tv(case.approval_status, user) }}" readonly>
         <input type="hidden" name="approval_status" value="{{ case.approval_status }}">
       </label>
-      <label>Número RFQ/RFP/Tender
+      <label>{{ tx("Número RFQ/RFP/Tender", user if user is defined else none) }}
         <input name="rfq_rfp_tender_number" value="{{ case.rfq_rfp_tender_number or '' }}">
       </label>
-      <label>Fornecedores convidados
+      <label>{{ tx("Fornecedores convidados", user if user is defined else none) }}
         <input name="suppliers_invited" type="number" min="0" value="{{ case.suppliers_invited or 0 }}">
       </label>
-      <label>Cotações recebidas
+      <label>{{ tx("Cotações recebidas", user if user is defined else none) }}
         <input name="quotations_received" type="number" min="0" value="{{ case.quotations_received or 0 }}">
       </label>
-      <label>Estado avaliação técnica
+      <label>{{ tx("Estado avaliação técnica", user if user is defined else none) }}
         <select name="technical_evaluation_status">
           {% for value in ['Not Required','Pending','Approved','Rejected','Returned'] %}
-            <option {% if case.technical_evaluation_status == value %}selected{% endif %}>{{ value }}</option>
+            <option value="{{ value }}" {% if case.technical_evaluation_status == value %}selected{% endif %}>{{ tv(value, user) }}</option>
           {% endfor %}
         </select>
       </label>
-      <label>Relatório técnico
+      <label>{{ tx("Relatório técnico", user if user is defined else none) }}
         <select name="technical_report_status">
           {% for value in ['Pending','Received','Approved','Returned','Not Required'] %}
-            <option {% if case.technical_report_status == value %}selected{% endif %}>{{ value }}</option>
+            <option value="{{ value }}" {% if case.technical_report_status == value %}selected{% endif %}>{{ tv(value, user) }}</option>
           {% endfor %}
         </select>
       </label>
-      <label>Estado avaliação financeira
+      <label>{{ tx("Estado avaliação financeira", user if user is defined else none) }}
         <select name="financial_evaluation_status">
           {% for value in ['Pending','Approved','Rejected','Returned'] %}
-            <option {% if case.financial_evaluation_status == value %}selected{% endif %}>{{ value }}</option>
+            <option value="{{ value }}" {% if case.financial_evaluation_status == value %}selected{% endif %}>{{ tv(value, user) }}</option>
           {% endfor %}
         </select>
       </label>
-      <label>Estado Bid Analysis
+      <label>{{ tx("Estado Bid Analysis", user if user is defined else none) }}
         <select name="bid_analysis_status">
           {% for value in ['Pending','Completed','Returned','Not Required'] %}
-            <option {% if case.bid_analysis_status == value %}selected{% endif %}>{{ value }}</option>
+            <option value="{{ value }}" {% if case.bid_analysis_status == value %}selected{% endif %}>{{ tv(value, user) }}</option>
           {% endfor %}
         </select>
       </label>
-      <label>Documentos HSE
+      <label>{{ tx("Documentos HSE", user if user is defined else none) }}
         <select name="hse_documents_status">
           {% for value in ['Not Required','Pending','Approved','Rejected','Returned'] %}
-            <option {% if case.hse_documents_status == value %}selected{% endif %}>{{ value }}</option>
+            <option value="{{ value }}" {% if case.hse_documents_status == value %}selected{% endif %}>{{ tv(value, user) }}</option>
           {% endfor %}
         </select>
       </label>
-      <label>Fornecedor selecionado
+      <label>{{ tx("Fornecedor selecionado", user if user is defined else none) }}
         <input name="selected_supplier" value="{{ case.selected_supplier or '' }}">
       </label>
-      <label>PO número
+      <label>{{ tx("PO número", user if user is defined else none) }}
         <input name="po_number" value="{{ case.po_number or '' }}">
       </label>
-      <label>PO data
+      <label>{{ tx("PO data", user if user is defined else none) }}
         <input name="po_date" type="date" value="{{ case.po_date.strftime('%Y-%m-%d') if case.po_date else '' }}">
       </label>
-      <label>PO valor
+      <label>{{ tx("PO valor", user if user is defined else none) }}
         <input name="po_value" type="number" min="0" step="0.01" value="{{ case.po_value or '' }}">
       </label>
-      <label>Execução / entrega
+      <label>{{ tx("Execução / entrega", user if user is defined else none) }}
         <select name="execution_status">
           {% for value in ['Not Started','Mobilizing','In Progress','Delivered','Completed','Suspended'] %}
-            <option {% if case.execution_status == value %}selected{% endif %}>{{ value }}</option>
+            <option value="{{ value }}" {% if case.execution_status == value %}selected{% endif %}>{{ tv(value, user) }}</option>
           {% endfor %}
         </select>
       </label>
-      <label>Estado de receção
+      <label>{{ tx("Estado de receção", user if user is defined else none) }}
         <select name="receipt_status">
           {% for value in ['Pending','Partial','Received','Completed','Rejected'] %}
-            <option {% if case.receipt_status == value %}selected{% endif %}>{{ value }}</option>
+            <option value="{{ value }}" {% if case.receipt_status == value %}selected{% endif %}>{{ tv(value, user) }}</option>
           {% endfor %}
         </select>
       </label>
-      <label>Arquivo
+      <label>{{ tx("Arquivo", user if user is defined else none) }}
         <select name="archive_status">
           {% for value in ['Pending','Ready for Archive','Archived','Returned'] %}
-            <option {% if case.archive_status == value %}selected{% endif %}>{{ value }}</option>
+            <option value="{{ value }}" {% if case.archive_status == value %}selected{% endif %}>{{ tv(value, user) }}</option>
           {% endfor %}
         </select>
       </label>
-      <label>Data de fecho
+      <label>{{ tx("Data de fecho", user if user is defined else none) }}
         <input name="closure_date" type="date" value="{{ case.closure_date.strftime('%Y-%m-%d') if case.closure_date else '' }}">
       </label>
     </div>
-    <label>Nota de recebimento / confirmação de entrega ou execução
-      <textarea name="receipt_note" placeholder="Quantidade recebida, estado, conformidade com PO, validação técnica">{{ case.receipt_note or '' }}</textarea>
+    <label>{{ tx("Nota de recebimento / confirmação de entrega ou execução", user if user is defined else none) }}
+      <textarea name="receipt_note" placeholder="{{ tx("Quantidade recebida, estado, conformidade com PO, validação técnica", user if user is defined else none) }}">{{ case.receipt_note or '' }}</textarea>
     </label>
-    <label>Comentários / justificativas
-      <textarea name="comments" placeholder="Obrigatório se aprovar avaliação financeira com menos de 3 cotações">{{ case.comments or '' }}</textarea>
+    <label>{{ tx("Comentários / justificativas", user if user is defined else none) }}
+      <textarea name="comments" placeholder="{{ tx("Obrigatório se aprovar avaliação financeira com menos de 3 cotações", user if user is defined else none) }}">{{ case.comments or '' }}</textarea>
     </label>
-    <div class="actions"><button>Guardar tracker</button></div>
+    <div class="actions"><button>{{ tx("Guardar tracker", user if user is defined else none) }}</button></div>
   </form>
 </section>
 {% endif %}

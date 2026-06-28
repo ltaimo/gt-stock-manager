@@ -23,8 +23,7 @@ settings = get_settings()
 
 @router.get("")
 def settings_home(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("settings_manage"))):
-    return templates.TemplateResponse(
-        "settings/index.html",
+    return templates.TemplateResponse(request, "settings/index.html",
         {
             "request": request,
             "user": user,
@@ -41,22 +40,25 @@ def settings_home(request: Request, db: Session = Depends(get_db), user: User = 
 def add_category(
     request: Request,
     name: str | None = Form(None),
+    name_en: str | None = Form(None),
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("settings_manage")),
 ):
     clean_name = required_text(name, "Nome da categoria", 120)
+    clean_name_en = required_text(name_en, "Nome da categoria em inglês", 120) if str(name_en or "").strip() else None
     normalized = normalize_text(clean_name)
     existing = db.scalar(select(Category).where(Category.normalized_name == normalized))
     with atomic(db):
         if existing:
             existing.name = clean_name.title()
+            existing.name_en = clean_name_en
             existing.is_active = True
             category = existing
         else:
-            category = Category(name=clean_name.title(), normalized_name=normalized, is_active=True)
+            category = Category(name=clean_name.title(), name_en=clean_name_en, normalized_name=normalized, is_active=True)
             db.add(category)
             db.flush()
-        audit_log(db, user, "Guardou categoria de produto", "Configuracoes", category.id, new_value={"name": category.name}, request=request)
+        audit_log(db, user, "Guardou categoria de produto", "Configurações", category.id, new_value={"name": category.name, "name_en": category.name_en}, request=request)
     return RedirectResponse("/configuracoes", status_code=303)
 
 
@@ -74,7 +76,7 @@ def remove_category(category_id: int, request: Request, db: Session = Depends(ge
         else:
             action = "Removeu categoria de produto"
             db.delete(category)
-        audit_log(db, user, action, "Configuracoes", category_id, old_value=old, request=request)
+        audit_log(db, user, action, "Configurações", category_id, old_value=old, request=request)
     return RedirectResponse("/configuracoes", status_code=303)
 
 
@@ -96,7 +98,7 @@ def add_department(
             department = Department(name=clean_name.title(), is_active=True)
             db.add(department)
             db.flush()
-        audit_log(db, user, "Guardou departamento", "Configuracoes", department.id, new_value={"name": department.name}, request=request)
+        audit_log(db, user, "Guardou departamento", "Configurações", department.id, new_value={"name": department.name}, request=request)
     return RedirectResponse("/configuracoes", status_code=303)
 
 
@@ -118,7 +120,7 @@ def remove_department(department_id: int, request: Request, db: Session = Depend
         else:
             action = "Removeu departamento"
             db.delete(department)
-        audit_log(db, user, action, "Configuracoes", department_id, old_value=old, request=request)
+        audit_log(db, user, action, "Configurações", department_id, old_value=old, request=request)
     return RedirectResponse("/configuracoes", status_code=303)
 
 
@@ -126,7 +128,7 @@ def remove_department(department_id: int, request: Request, db: Session = Depend
 def matrix(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("procurement_settings"))):
     rules = db.scalars(select(ApprovalMatrixRule).order_by(ApprovalMatrixRule.sort_order, ApprovalMatrixRule.min_value)).all()
     roles = db.scalars(select(Role).order_by(Role.name)).all()
-    return templates.TemplateResponse("settings/matrix.html", {"request": request, "user": user, "rules": rules, "roles": roles, "error": None})
+    return templates.TemplateResponse(request, "settings/matrix.html", {"request": request, "user": user, "rules": rules, "roles": roles, "error": None})
 
 
 @router.post("/matriz")
@@ -144,7 +146,7 @@ def save_matrix(
 ):
     active_ids = {int(value) for value in is_active if str(value).strip().isdigit()}
     if not (len(rule_id) == len(min_value) == len(max_value) == len(modality) == len(final_approval) == len(approver_role_id)):
-        raise HTTPException(400, "A matriz enviada esta incompleta.")
+        raise HTTPException(400, "A matriz enviada está incompleta.")
     with atomic(db):
         for idx, raw_id in enumerate(rule_id):
             parsed_id = optional_int(raw_id, "Regra")
@@ -154,7 +156,7 @@ def save_matrix(
             min_amount = required_float(min_value[idx], "Valor minimo")
             max_amount = optional_float(max_value[idx], "Valor maximo")
             if min_amount < 0 or (max_amount is not None and max_amount < min_amount):
-                raise HTTPException(400, "Intervalo de valor invalido na matriz.")
+                raise HTTPException(400, "Intervalo de valor inválido na matriz.")
             rule = db.get(ApprovalMatrixRule, parsed_id) if parsed_id else ApprovalMatrixRule()
             if not rule:
                 raise HTTPException(404)
@@ -168,7 +170,7 @@ def save_matrix(
             rule.sort_order = idx
             rule.is_active = bool(parsed_id and parsed_id in active_ids) or not parsed_id
             db.add(rule)
-        audit_log(db, user, "Atualizou matriz de aprovacao", "Configuracoes", request=request)
+        audit_log(db, user, "Atualizou matriz de aprovação", "Configurações", request=request)
     return RedirectResponse("/configuracoes/matriz", status_code=303)
 
 
@@ -182,13 +184,13 @@ def reset_stock(
 ):
     configured_code = settings.reset_stock_security_code
     if not configured_code:
-        message = quote("O codigo de seguranca para reset de stock nao esta configurado.")
+        message = quote("O código de segurança para o reset de stock não está configurado.")
         return RedirectResponse(f"/configuracoes?reset_error={message}", status_code=303)
     if confirmation.strip().upper() != "RESETAR STOCK":
         message = quote('Escreva exatamente "RESETAR STOCK" para confirmar.')
         return RedirectResponse(f"/configuracoes?reset_error={message}", status_code=303)
     if not secrets.compare_digest(security_code.strip(), configured_code):
-        message = quote("Codigo de seguranca invalido.")
+        message = quote("Código de segurança inválido.")
         return RedirectResponse(f"/configuracoes?reset_error={message}", status_code=303)
 
     with atomic(db):

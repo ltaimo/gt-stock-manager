@@ -1,50 +1,50 @@
 {% extends "base.html" %}
 {% block content %}
 <header class="page-header">
-  <h1>Matriz de aprovacao</h1>
-  <a class="button secondary" href="/procurement">Voltar</a>
+  <h1>{{ tx("Matriz de aprovacao", user if user is defined else none) }}</h1>
+  <a class="button secondary" href="/procurement">{{ tx("Voltar", user if user is defined else none) }}</a>
 </header>
 
 <section class="panel">
-  <p class="muted">Estas regras classificam automaticamente a modalidade e a aprovacao final das requisicoes non-stock.</p>
-  {% if error %}<div class="alert red">{{ error }}</div>{% endif %}
+  <p class="muted">{{ tx("Estas regras classificam automaticamente a modalidade e a aprovacao final das requisicoes non-stock.", user if user is defined else none) }}</p>
+  {% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
   <form method="post" class="form-stack">
     <table class="responsive-table">
       <thead>
         <tr>
-          <th>Minimo</th>
-          <th>Maximo</th>
-          <th>Modalidade</th>
-          <th>Aprovacao final</th>
-          <th>Ativa</th>
+          <th>{{ tx("Minimo", user if user is defined else none) }}</th>
+          <th>{{ tx("Maximo", user if user is defined else none) }}</th>
+          <th>{{ tx("Modalidade", user if user is defined else none) }}</th>
+          <th>{{ tx("Aprovacao final", user if user is defined else none) }}</th>
+          <th>{{ tx("Ativa", user if user is defined else none) }}</th>
         </tr>
       </thead>
       <tbody>
         {% for rule in rules %}
         <tr>
-          <td data-label="Minimo">
+          <td data-label="{{ tx("Minimo", user if user is defined else none) }}">
             <input type="hidden" name="rule_id" value="{{ rule.id }}">
             <input name="min_value" type="number" min="0" step="0.01" value="{{ rule.min_value }}">
           </td>
-          <td data-label="Maximo"><input name="max_value" type="number" min="0" step="0.01" value="{{ rule.max_value or '' }}" placeholder="Sem limite"></td>
-          <td data-label="Modalidade"><input name="modality" value="{{ rule.modality }}" required></td>
-          <td data-label="Aprovacao final"><input name="final_approval" value="{{ rule.final_approval }}" required></td>
-          <td data-label="Ativa"><label class="check"><input type="checkbox" name="is_active" value="{{ rule.id }}" {% if rule.is_active %}checked{% endif %}> Sim</label></td>
+          <td data-label="{{ tx("Maximo", user if user is defined else none) }}"><input name="max_value" type="number" min="0" step="0.01" value="{{ rule.max_value or '' }}" placeholder="{{ tx("Sem limite", user if user is defined else none) }}"></td>
+          <td data-label="{{ tx("Modalidade", user if user is defined else none) }}"><input name="modality" value="{{ rule.modality }}" required></td>
+          <td data-label="{{ tx("Aprovacao final", user if user is defined else none) }}"><input name="final_approval" value="{{ rule.final_approval }}" required></td>
+          <td data-label="{{ tx("Ativa", user if user is defined else none) }}"><label class="check"><input type="checkbox" name="is_active" value="{{ rule.id }}" {% if rule.is_active %}checked{% endif %}> {{ tx("Sim", user if user is defined else none) }}</label></td>
         </tr>
         {% endfor %}
         <tr>
-          <td data-label="Minimo">
+          <td data-label="{{ tx("Minimo", user if user is defined else none) }}">
             <input type="hidden" name="rule_id" value="">
-            <input name="min_value" type="number" min="0" step="0.01" placeholder="Novo minimo">
+            <input name="min_value" type="number" min="0" step="0.01" placeholder="{{ tx("Novo minimo", user if user is defined else none) }}">
           </td>
-          <td data-label="Maximo"><input name="max_value" type="number" min="0" step="0.01" placeholder="Novo maximo"></td>
-          <td data-label="Modalidade"><input name="modality" placeholder="Nova modalidade"></td>
-          <td data-label="Aprovacao final"><input name="final_approval" placeholder="Novo aprovador"></td>
-          <td data-label="Ativa"><span class="muted">Ativa ao guardar</span></td>
+          <td data-label="{{ tx("Maximo", user if user is defined else none) }}"><input name="max_value" type="number" min="0" step="0.01" placeholder="{{ tx("Novo maximo", user if user is defined else none) }}"></td>
+          <td data-label="{{ tx("Modalidade", user if user is defined else none) }}"><input name="modality" placeholder="{{ tx("Nova modalidade", user if user is defined else none) }}"></td>
+          <td data-label="{{ tx("Aprovacao final", user if user is defined else none) }}"><input name="final_approval" placeholder="{{ tx("Novo aprovador", user if user is defined else none) }}"></td>
+          <td data-label="{{ tx("Ativa", user if user is defined else none) }}"><span class="muted">{{ tx("Ativa ao guardar", user if user is defined else none) }}</span></td>
         </tr>
       </tbody>
     </table>
-    <div class="actions"><button>Guardar matriz</button></div>
+    <div class="actions"><button>{{ tx("Guardar matriz", user if user is defined else none) }}</button></div>
   </form>
 </section>
 {% endblock %}

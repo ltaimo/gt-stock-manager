@@ -2,8 +2,8 @@
 {% block content %}
 <header class="page-header">
   <div>
-    <h1>Stock que Requer Atenção</h1>
-    <p class="muted">Apenas produtos ativos com monitorização de stock ligada.</p>
+    <h1>{{ tx("Stock que Requer Atenção", user if user is defined else none) }}</h1>
+    <p class="muted">{{ tx("Apenas produtos ativos com monitorização de stock ligada.", user if user is defined else none) }}</p>
   </div>
   <div class="actions">
     <a class="button secondary" href="?export=xlsx">Excel</a>
@@ -12,12 +12,12 @@
 </header>
 <div class="panel">
   <table>
-    <thead><tr><th>Código</th><th>Produto</th><th>Atual</th><th>Mínimo</th><th>Estado</th></tr></thead>
+    <thead><tr><th>{{ tx("Código", user if user is defined else none) }}</th><th>{{ tx("Produto", user if user is defined else none) }}</th><th>{{ tx("Atual", user if user is defined else none) }}</th><th>{{ tx("Mínimo", user if user is defined else none) }}</th><th>{{ tx("Estado", user if user is defined else none) }}</th></tr></thead>
     <tbody>
       {% for p in products %}
-      <tr><td>{{ p.code }}</td><td>{{ p.name }}</td><td>{{ p.current_stock }}</td><td>{{ p.minimum_stock }}</td><td><span class="badge {{ p.alert_badge }}">{{ p.alert_status }}</span></td></tr>
+      <tr><td>{{ p.code }}</td><td>{{ lname(p, user) }}</td><td>{{ p.current_stock }}</td><td>{{ p.minimum_stock }}</td><td><span class="badge {{ p.alert_badge }}">{{ tv(p.alert_status, user) }}</span></td></tr>
       {% else %}
-      <tr><td colspan="5"><div class="empty-state">Não existem produtos que requeiram atenção.</div></td></tr>
+      <tr><td colspan="5"><div class="empty-state">{{ tx("Não existem produtos que requeiram atenção.", user if user is defined else none) }}</div></td></tr>
       {% endfor %}
     </tbody>
   </table>

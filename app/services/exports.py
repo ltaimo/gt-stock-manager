@@ -1,4 +1,5 @@
 import csv
+from copy import copy
 from datetime import datetime
 from io import BytesIO, StringIO
 from typing import Iterable
@@ -24,18 +25,21 @@ def rows_to_csv(headers: list[str], rows: Iterable[Iterable]) -> str:
     return output.getvalue()
 
 
-def rows_to_xlsx(headers: list[str], rows: Iterable[Iterable], title: str = "Relatório") -> bytes:
+def rows_to_xlsx(headers: list[str], rows: Iterable[Iterable], title: str = "Relatório", language: str = "pt") -> bytes:
+    lang = "en" if language == "en" else "pt"
     wb = Workbook()
     ws = wb.active
     ws.title = title[:31]
-    ws.append(["Sistema de Gestão de Stock", "Gestão de Terminais, SA"])
-    ws.append([title, f"Gerado em {datetime.now().strftime('%Y-%m-%d %H:%M')}"])
+    ws.append(["Stock Management System" if lang == "en" else "Sistema de Gestão de Stock", "Gestão de Terminais, SA"])
+    ws.append([title, f"{'Generated on' if lang == 'en' else 'Gerado em'} {datetime.now().strftime('%Y-%m-%d %H:%M')}"])
     ws.append([])
     ws.append(headers)
     for row in rows:
         ws.append(list(row))
     for cell in ws[4]:
-        cell.font = cell.font.copy(bold=True)
+        font = copy(cell.font)
+        font.bold = True
+        cell.font = font
     for column in ws.columns:
         width = min(max(len(display_value(cell.value)) for cell in column) + 2, 42)
         ws.column_dimensions[column[0].column_letter].width = width
@@ -44,7 +48,13 @@ def rows_to_xlsx(headers: list[str], rows: Iterable[Iterable], title: str = "Rel
     return stream.getvalue()
 
 
-def rows_to_pdf(headers: list[str], rows: Iterable[Iterable], title: str = "Relatório", generated_by: str = "") -> bytes:
+def rows_to_pdf(
+    headers: list[str],
+    rows: Iterable[Iterable],
+    title: str = "Relatório",
+    generated_by: str = "",
+    language: str = "pt",
+) -> bytes:
     stream = BytesIO()
     doc = SimpleDocTemplate(
         stream,
@@ -54,7 +64,7 @@ def rows_to_pdf(headers: list[str], rows: Iterable[Iterable], title: str = "Rela
         topMargin=1 * cm,
         bottomMargin=1.4 * cm,
     )
-    story = [brand_header(title, meta=generated_meta(generated_by), width=26 * cm), Spacer(1, 0.35 * cm)]
+    story = [brand_header(title, meta=generated_meta(generated_by, language), width=26 * cm), Spacer(1, 0.35 * cm)]
     styles, _regular, bold = branded_styles()
     cell_style = styles["GTNormalSmall"]
     header_style = cell_style.clone("GTReportHeader")
@@ -74,7 +84,7 @@ def rows_to_pdf(headers: list[str], rows: Iterable[Iterable], title: str = "Rela
     story.append(data_table(rows_list, col_widths=[(26 * cm) * weight / total_weight for weight in weights]))
     doc.build(
         story,
-        onFirstPage=lambda canvas, d: branded_footer(canvas, d, generated_by),
-        onLaterPages=lambda canvas, d: branded_footer(canvas, d, generated_by),
+        onFirstPage=lambda canvas, d: branded_footer(canvas, d, generated_by, language),
+        onLaterPages=lambda canvas, d: branded_footer(canvas, d, generated_by, language),
     )
     return stream.getvalue()

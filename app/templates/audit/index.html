@@ -1,24 +1,24 @@
 {% extends "base.html" %}
 {% block content %}
-<header class="page-header"><h1>Auditoria</h1></header>
+<header class="page-header"><h1>{{ tx("Auditoria", user if user is defined else none) }}</h1></header>
 <form class="filters">
-  <input name="module" value="{{ module }}" placeholder="Módulo">
-  <input name="action" value="{{ action }}" placeholder="Acção">
-  <button>Filtrar</button>
+  <input name="module" value="{{ module }}" placeholder="{{ tx("Módulo", user if user is defined else none) }}">
+  <input name="action" value="{{ action }}" placeholder="{{ tx("Acção", user if user is defined else none) }}">
+  <button>{{ tx("Filtrar", user if user is defined else none) }}</button>
 </form>
 <div class="panel">
   <table>
-    <thead><tr><th>Data</th><th>Utilizador</th><th>Acção</th><th>Módulo</th><th>Registo</th><th>Anterior</th><th>Novo</th><th>IP/Dispositivo</th></tr></thead>
+    <thead><tr><th>{{ tx("Data", user if user is defined else none) }}</th><th>{{ tx("Utilizador", user if user is defined else none) }}</th><th>{{ tx("Acção", user if user is defined else none) }}</th><th>{{ tx("Módulo", user if user is defined else none) }}</th><th>{{ tx("Registo", user if user is defined else none) }}</th><th>{{ tx("Anterior", user if user is defined else none) }}</th><th>{{ tx("Novo", user if user is defined else none) }}</th><th>{{ tx("IP/Dispositivo", user if user is defined else none) }}</th></tr></thead>
     <tbody>
     {% for log in logs %}
       <tr>
         <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
         <td>{{ log.user.full_name if log.user else '' }}</td>
-        <td>{{ log.action }}</td>
-        <td>{{ log.module }}</td>
+        <td>{{ tx(log.action, user) }}</td>
+        <td>{{ tx(log.module, user) }}</td>
         <td>{{ log.record_id or '' }}</td>
-        <td><code>{{ log.old_value or '' }}</code></td>
-        <td><code>{{ log.new_value or '' }}</code></td>
+        <td><code>{{ audit_value(log.old_value, user) }}</code></td>
+        <td><code>{{ audit_value(log.new_value, user) }}</code></td>
         <td>{{ log.ip_device or '' }}</td>
       </tr>
     {% endfor %}

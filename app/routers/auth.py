@@ -16,7 +16,7 @@ router = APIRouter()
 
 @router.get("/login")
 def login_form(request: Request):
-    return templates.TemplateResponse("auth/login.html", {"request": request, "error": None})
+    return templates.TemplateResponse(request, "auth/login.html", {"request": request, "error": None})
 
 
 @router.post("/login")
@@ -27,8 +27,9 @@ def login(request: Request, username: str | None = Form(None), password: str | N
     if not user or not user.is_active or not verify_password(clean_password, user.password_hash):
         with atomic(db):
             audit_log(db, None, "Login falhou", "Auth", clean_username, request=request)
-        return templates.TemplateResponse("auth/login.html", {"request": request, "error": "Credenciais inválidas."}, status_code=400)
+        return templates.TemplateResponse(request, "auth/login.html", {"request": request, "error": "Credenciais inválidas."}, status_code=400)
     request.session["user_id"] = user.id
+    request.session["language"] = user.preferred_language or "pt"
     with atomic(db):
         touch_last_login(user)
         audit_log(db, user, "Login", "Auth", user.id, request=request)
@@ -39,7 +40,7 @@ def login(request: Request, username: str | None = Form(None), password: str | N
 
 @router.get("/reset-password")
 def reset_form(request: Request, user: User = Depends(current_user)):
-    return templates.TemplateResponse("auth/reset_password.html", {"request": request, "user": user, "error": None})
+    return templates.TemplateResponse(request, "auth/reset_password.html", {"request": request, "user": user, "error": None})
 
 
 @router.post("/reset-password")
@@ -51,8 +52,7 @@ def reset_password(
     user: User = Depends(current_user),
 ):
     if len(password) < 8 or password != confirm_password:
-        return templates.TemplateResponse(
-            "auth/reset_password.html",
+        return templates.TemplateResponse(request, "auth/reset_password.html",
             {"request": request, "user": user, "error": "Confirme uma senha com pelo menos 8 caracteres."},
             status_code=400,
         )
@@ -67,5 +67,7 @@ def reset_password(
 def logout(request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
     with atomic(db):
         audit_log(db, user, "Logout", "Auth", user.id, request=request)
+    language = user.preferred_language or request.session.get("language") or "pt"
     request.session.clear()
+    request.session["language"] = language
     return RedirectResponse("/login", status_code=303)
