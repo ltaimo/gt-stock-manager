@@ -12,7 +12,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.database import Base, get_db
-from app.i18n import PHRASES_EN, localized_name, translate_message, translate_value
+from app.i18n import PHRASES_EN, localized_name, translate_message, translate_text, translate_value
 from app.main import app
 from app.models.core import Category, Department, ProcurementCase, Product, Requisition, RequisitionItem, Role, User
 from app.security import PERMISSIONS, hash_password
@@ -53,6 +53,28 @@ class TranslationCatalogTests(unittest.TestCase):
         self.assertTrue(sheet["B2"].value.startswith("Generated on "))
         self.assertEqual(sheet["A4"].value, "Code")
         self.assertEqual(sheet["B5"].value, "Original user data")
+
+    def test_all_stock_report_headers_are_translated(self):
+        expected = {
+            "Código": "Code",
+            "Produto": "Product",
+            "Categoria": "Category",
+            "Unidade": "Unit",
+            "Preço Unit.": "Unit price",
+            "Stock Atual": "Current stock",
+            "Stock Mínimo": "Minimum stock",
+            "Entradas": "Entries",
+            "Saídas": "Issues",
+            "Estado": "Status",
+            "Monitorizado": "Monitored",
+            "Alerta": "Alert",
+            "Fornecedor": "Supplier",
+            "Valor PO": "PO value",
+        }
+        self.assertEqual(
+            {source: translate_text(source, "en") for source in expected},
+            expected,
+        )
 
 
 class I18nApplicationTests(unittest.TestCase):
