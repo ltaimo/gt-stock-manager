@@ -9,7 +9,7 @@ from app.database import get_db
 from app.i18n import language_for
 from app.models.core import MovementAction, ProcurementCase, Product, Requisition, RequisitionItem, RequisitionStatus, User
 from app.routers.common import templates
-from app.security import current_user, has_permission, require_permission
+from app.security import current_user, has_permission, matches_approval_assignment, require_permission
 from app.services.audit import audit_log
 from app.services.forms import optional_float, optional_int, parse_float_list, parse_int_list, required_float, required_text
 from app.services.inventory import StockError, post_movement
@@ -39,6 +39,7 @@ PROCUREMENT_WORKFLOW_PERMISSIONS = {
     "budget_verify",
     "procurement_tor_approve_hod",
     "procurement_tor_approve_terminal",
+    "procurement_value_approve",
     "procurement_technical_evaluate",
     "procurement_financial_evaluate",
     "procurement_hse_validate",
@@ -69,15 +70,16 @@ def can_update_tracker(user: User) -> bool:
 
 
 def can_approve_by_matrix(db: Session, case: ProcurementCase, user: User) -> bool:
-    if user.role.name == "SuperAdmin":
-        return True
     amount = case.po_value if case.po_value is not None else case.estimated_budget
     rule = classify_procurement(db, amount)
     if not rule:
         return False
-    if rule.approver_role_id:
-        return user.role_id == rule.approver_role_id
-    return user.role.name.strip().casefold() == rule.final_approval.strip().casefold()
+    return matches_approval_assignment(
+        user,
+        "procurement_value_approve",
+        rule.approver_role_id,
+        rule.final_approval,
+    )
 
 
 def case_or_404(db: Session, case_id: int, user: User) -> ProcurementCase:

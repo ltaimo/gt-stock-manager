@@ -39,6 +39,10 @@ class ProcurementMatrixTests(unittest.TestCase):
         self.assertEqual(middle.final_approval, "Chefe do terminal")
         self.assertEqual(high.modality, "Tender formal")
 
+    def test_gap_between_rules_uses_next_higher_approval_level(self):
+        rule = classify_procurement(self.db, 5000.50)
+        self.assertEqual(rule.final_approval, "Chefe do terminal")
+
 
 class ProcurementPermissionTests(unittest.TestCase):
     def test_user_can_create_stock_and_non_stock_requests_by_default(self):

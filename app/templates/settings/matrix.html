@@ -7,6 +7,7 @@
 
 <section class="panel">
   <p class="muted">{{ tx("Estas regras classificam automaticamente a modalidade e a aprovacao final das requisicoes non-stock.", user if user is defined else none) }}</p>
+  <p class="muted">{{ tx("Ao selecionar um perfil aprovador, o sistema garante automaticamente as permissões mínimas para visualizar e decidir pedidos atribuídos pela matriz.", user) }}</p>
   {% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
   <form method="post" class="form-stack">
     <table class="responsive-table">
@@ -33,9 +34,12 @@
             <select name="approver_role_id">
               <option value="">{{ tx("Texto manual", user if user is defined else none) }}</option>
               {% for role in roles %}
-                <option value="{{ role.id }}" {% if rule.approver_role_id == role.id %}selected{% endif %}>{{ tv(role.name, user) }}</option>
+                <option value="{{ role.id }}" {% if rule.approver_role_id == role.id %}selected{% endif %}>{{ tv(role.name, user) }} · {{ role_user_counts.get(role.id, 0) }} {{ tx("utilizadores ativos", user) }}</option>
               {% endfor %}
             </select>
+            {% if rule.approver_role_id and not role_user_counts.get(rule.approver_role_id, 0) %}
+              <small class="text-danger">{{ tx("Este perfil não tem utilizadores ativos para aprovar.", user) }}</small>
+            {% endif %}
           </td>
           <td data-label="{{ tx("Aprovação final", user if user is defined else none) }}"><input name="final_approval" value="{{ rule.final_approval }}" placeholder="{{ tx("Usado se não escolher perfil", user if user is defined else none) }}"></td>
           <td data-label="{{ tx("Ativa", user if user is defined else none) }}"><label class="check"><input type="checkbox" name="is_active" value="{{ rule.id }}" {% if rule.is_active %}checked{% endif %}> {{ tx("Sim", user if user is defined else none) }}</label></td>
@@ -51,7 +55,7 @@
           <td data-label="{{ tx("Perfil aprovador", user if user is defined else none) }}">
             <select name="approver_role_id">
               <option value="">{{ tx("Texto manual", user if user is defined else none) }}</option>
-              {% for role in roles %}<option value="{{ role.id }}">{{ tv(role.name, user) }}</option>{% endfor %}
+              {% for role in roles %}<option value="{{ role.id }}">{{ tv(role.name, user) }} · {{ role_user_counts.get(role.id, 0) }} {{ tx("utilizadores ativos", user) }}</option>{% endfor %}
             </select>
           </td>
           <td data-label="{{ tx("Aprovação final", user if user is defined else none) }}"><input name="final_approval" placeholder="{{ tx("Novo aprovador", user if user is defined else none) }}"></td>

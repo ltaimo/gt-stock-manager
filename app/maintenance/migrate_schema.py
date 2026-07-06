@@ -1,6 +1,9 @@
+import json
+
 from sqlalchemy import inspect, text
 
 from app.database import engine
+from app.security import DEFAULT_ROLE_PERMISSIONS
 from app.services.procurement import DEFAULT_APPROVAL_MATRIX
 
 
@@ -50,6 +53,8 @@ def ensure_schema() -> None:
         columns = {column["name"] for column in inspector.get_columns("requisitions")}
         if "estimated_value" not in columns:
             additions.append("ALTER TABLE requisitions ADD COLUMN estimated_value NUMERIC(14, 2) DEFAULT 0")
+        if "approver_role_id" not in columns:
+            additions.append("ALTER TABLE requisitions ADD COLUMN approver_role_id INTEGER REFERENCES roles(id)")
     if "roles" in tables:
         columns = {column["name"] for column in inspector.get_columns("roles")}
         if "permissions" not in columns:
@@ -107,6 +112,27 @@ def ensure_schema() -> None:
                         text("INSERT INTO departments (name, is_active, created_at) VALUES (:name, true, CURRENT_TIMESTAMP)"),
                         {"name": name},
                     )
+        if "procurement_cases" in tables:
+            connection.execute(
+                text(
+                    """
+                    UPDATE procurement_cases
+                    SET status = 'Pending HOD TdR Approval'
+                    WHERE tor_status = 'Pending HOD Approval'
+                      AND status = 'Pending Budget Verification'
+                    """
+                )
+            )
+            connection.execute(
+                text(
+                    """
+                    UPDATE procurement_cases
+                    SET status = 'Pending Terminal Manager TdR Approval'
+                    WHERE tor_status = 'Pending Terminal Manager Approval'
+                      AND status = 'Pending Budget Verification'
+                    """
+                )
+            )
         if "approval_matrix_rules" in inspector.get_table_names():
             count = connection.execute(text("SELECT count(*) FROM approval_matrix_rules")).scalar() or 0
             if count == 0:
@@ -141,6 +167,84 @@ def ensure_schema() -> None:
                     """
                 )
             )
+            connection.execute(
+                text(
+                    """
+                    UPDATE requisitions
+                    SET approver_role_id = (
+                        SELECT roles.id FROM roles
+                        WHERE lower(roles.name) = lower(requisitions.authorization_person)
+                        LIMIT 1
+                    )
+                    WHERE approver_role_id IS NULL
+                      AND authorization_person IS NOT NULL
+                    """
+                )
+            )
+            matrix_roles = connection.execute(
+                text(
+                    """
+                    SELECT DISTINCT roles.id, roles.name, roles.permissions
+                    FROM roles
+                    JOIN approval_matrix_rules ON approval_matrix_rules.approver_role_id = roles.id
+                    WHERE approval_matrix_rules.is_active = true
+                    """
+                )
+            ).all()
+            required = {"requisitions_all", "requisitions_review", "procurement_value_approve"}
+            for role_id, role_name, stored_permissions in matrix_roles:
+                try:
+                    permissions = set(json.loads(stored_permissions)) if stored_permissions else set(
+                        DEFAULT_ROLE_PERMISSIONS.get(role_name, set())
+                    )
+                except (TypeError, ValueError):
+                    permissions = set(DEFAULT_ROLE_PERMISSIONS.get(role_name, set()))
+                updated = permissions | required
+                if updated != permissions:
+                    connection.execute(
+                        text("UPDATE roles SET permissions = :permissions WHERE id = :role_id"),
+                        {"permissions": json.dumps(sorted(updated)), "role_id": role_id},
+                    )
+            if {"notifications", "users", "requisitions", "roles"}.issubset(set(tables)):
+                stale_notifications = connection.execute(
+                    text(
+                        """
+                        SELECT notifications.id, roles.name, users.role_id,
+                               requisitions.authorization_person, requisitions.approver_role_id
+                        FROM notifications
+                        JOIN users ON users.id = notifications.user_id
+                        JOIN roles ON roles.id = users.role_id
+                        JOIN requisitions ON requisitions.number = notifications.record_id
+                        WHERE notifications.is_read = false
+                          AND notifications.module IN ('Requisicoes', 'Requisições')
+                          AND requisitions.status = 'Submitted'
+                          AND (
+                              lower(notifications.title) LIKE '%pendente%'
+                              OR lower(notifications.title) LIKE '%pending%'
+                          )
+                        """
+                    )
+                ).all()
+                for notification_id, role_name, user_role_id, approver_label, approver_role_id in stale_notifications:
+                    assigned = (
+                        role_name == "SuperAdmin"
+                        or (approver_role_id and user_role_id == approver_role_id)
+                        or (
+                            not approver_role_id
+                            and (not approver_label or role_name.strip().casefold() == approver_label.strip().casefold())
+                        )
+                    )
+                    if not assigned:
+                        connection.execute(
+                            text(
+                                """
+                                UPDATE notifications
+                                SET is_read = true, read_at = CURRENT_TIMESTAMP
+                                WHERE id = :notification_id
+                                """
+                            ),
+                            {"notification_id": notification_id},
+                        )
 
 
 if __name__ == "__main__":

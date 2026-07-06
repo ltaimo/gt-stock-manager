@@ -24,6 +24,7 @@ PERMISSIONS = {
     "budget_verify": "Verificar disponibilidade orçamental",
     "procurement_tor_approve_hod": "Aprovar TdR/requisitos técnicos como HOD",
     "procurement_tor_approve_terminal": "Aprovar TdR/requisitos técnicos como Director do Terminal",
+    "procurement_value_approve": "Aprovar processos pela matriz de valor",
     "procurement_manage": "Gerir processos de procurement",
     "procurement_settings": "Gerir matriz de aprovação de Procurement",
     "procurement_technical_evaluate": "Registar avaliação técnica",
@@ -73,6 +74,30 @@ DEFAULT_ROLE_PERMISSIONS = {
         "non_stock_requisitions_create",
         "requisitions_review",
         "procurement_tor_approve_terminal",
+        "procurement_value_approve",
+    },
+    "Director Financeiro": {
+        "budget_verify",
+        "documents",
+        "procurement_financial_evaluate",
+        "procurement_value_approve",
+        "reports",
+        "requisitions_all",
+        "requisitions_review",
+    },
+    "Administrador Delegado": {
+        "documents",
+        "procurement_value_approve",
+        "reports",
+        "requisitions_all",
+        "requisitions_review",
+    },
+    "PCA": {
+        "documents",
+        "procurement_value_approve",
+        "reports",
+        "requisitions_all",
+        "requisitions_review",
     },
     "Gestor Operacional": {"stock_requisitions_create", "non_stock_requisitions_create", "stock_replenishment_create", "procurement_tor_approve_hod"},
     "User": {"stock_requisitions_create", "non_stock_requisitions_create"},
@@ -127,6 +152,32 @@ def role_permissions(role) -> set[str]:
 
 def has_permission(user: User | None, permission: str) -> bool:
     return bool(user and permission in role_permissions(user.role))
+
+
+def matches_approval_assignment(
+    user: User | None,
+    permission: str,
+    approver_role_id: int | None,
+    approver_label: str | None,
+) -> bool:
+    if not user or not has_permission(user, permission):
+        return False
+    if user.role.name == "SuperAdmin":
+        return True
+    if approver_role_id:
+        return user.role_id == approver_role_id
+    expected = (approver_label or "").strip().casefold()
+    return not expected or user.role.name.strip().casefold() == expected
+
+
+def grant_permissions(role, permissions: set[str]) -> set[str]:
+    if role.name == "SuperAdmin":
+        return set()
+    current = role_permissions(role)
+    added = set(permissions) - current
+    if added:
+        role.permissions = json.dumps(sorted(current | added))
+    return added
 
 
 def require_permission(permission: str):

@@ -184,6 +184,7 @@ class Requisition(Base):
     department_id: Mapped[int | None] = mapped_column(ForeignKey("departments.id"))
     operational_manager: Mapped[str | None] = mapped_column(String(160))
     authorization_person: Mapped[str | None] = mapped_column(String(160))
+    approver_role_id: Mapped[int | None] = mapped_column(ForeignKey("roles.id"))
     estimated_value: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
     req_type: Mapped[str] = mapped_column(String(40), default="REQUISIÇÃO")
     status: Mapped[str] = mapped_column(String(30), default=RequisitionStatus.draft.value, index=True)
@@ -195,6 +196,7 @@ class Requisition(Base):
 
     requesting_user: Mapped[User] = relationship(foreign_keys=[requesting_user_id])
     department: Mapped[Department | None] = relationship()
+    approver_role: Mapped[Role | None] = relationship()
     items: Mapped[list["RequisitionItem"]] = relationship(back_populates="requisition", cascade="all, delete-orphan")
     procurement_case: Mapped["ProcurementCase | None"] = relationship(back_populates="requisition", cascade="all, delete-orphan")
 

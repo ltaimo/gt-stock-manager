@@ -6,9 +6,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.core import Role, User
+from app.models.core import ApprovalMatrixRule, Role, User
 from app.routers.common import templates
-from app.security import PERMISSIONS, require_permission, role_permissions
+from app.security import PERMISSIONS, grant_permissions, require_permission, role_permissions
 from app.services.audit import audit_log
 from app.services.forms import required_text
 from app.services.transactions import atomic
@@ -89,10 +89,31 @@ def update_profile(
     if invalid:
         raise HTTPException(400, "Uma ou mais permissões são inválidas.")
     old = {"name": role.name, "permissions": sorted(role_permissions(role))}
+    configured_permissions = set(permissions)
+    is_matrix_approver = db.scalar(
+        select(ApprovalMatrixRule.id).where(
+            ApprovalMatrixRule.approver_role_id == role.id,
+            ApprovalMatrixRule.is_active == True,
+        ).limit(1)
+    )
     with atomic(db):
         role.name = clean_name
-        role.permissions = json.dumps(sorted(set(PERMISSIONS if role.name == "SuperAdmin" else permissions)))
-        audit_log(db, user, "Atualizou perfil", "Perfis", role.id, old_value=old, new_value={"name": role.name, "permissions": permissions}, request=request)
+        role.permissions = json.dumps(sorted(set(PERMISSIONS if role.name == "SuperAdmin" else configured_permissions)))
+        if is_matrix_approver:
+            grant_permissions(
+                role,
+                {"requisitions_all", "requisitions_review", "procurement_value_approve"},
+            )
+        audit_log(
+            db,
+            user,
+            "Atualizou perfil",
+            "Perfis",
+            role.id,
+            old_value=old,
+            new_value={"name": role.name, "permissions": sorted(role_permissions(role))},
+            request=request,
+        )
     return RedirectResponse("/perfis", status_code=303)
 
 
@@ -105,6 +126,8 @@ def delete_profile(role_id: int, request: Request, db: Session = Depends(get_db)
         raise HTTPException(400, "O perfil SuperAdmin não pode ser removido.")
     if db.scalar(select(User.id).where(User.role_id == role.id).limit(1)):
         raise HTTPException(400, "Não é possível remover um perfil associado a utilizadores.")
+    if db.scalar(select(ApprovalMatrixRule.id).where(ApprovalMatrixRule.approver_role_id == role.id).limit(1)):
+        raise HTTPException(400, "Não é possível remover um perfil associado à matriz de aprovações.")
     with atomic(db):
         audit_log(db, user, "Removeu perfil", "Perfis", role.id, old_value={"name": role.name}, request=request)
         db.delete(role)

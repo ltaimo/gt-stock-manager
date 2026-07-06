@@ -8,11 +8,11 @@ from app.models.core import ApprovalMatrixRule, Requisition
 
 
 DEFAULT_APPROVAL_MATRIX = [
-    (0, Decimal("0.00"), Decimal("5000.00"), "RFQ", "Supervisor"),
-    (1, Decimal("5001.00"), Decimal("10000.00"), "RFQ", "Chefe do terminal"),
-    (2, Decimal("10001.00"), Decimal("30000.00"), "RFQ / RFP", "Diretor + Financeiro"),
-    (3, Decimal("30001.00"), Decimal("1000000.00"), "RFQ / RFP", "Direcao Geral"),
-    (4, Decimal("1000000.01"), None, "Tender formal", "Administracao / Conselho"),
+    (0, Decimal("0.00"), Decimal("5000.00"), "RFQ", "Chefe do Terminal"),
+    (1, Decimal("5000.01"), Decimal("10000.00"), "RFQ", "Chefe do Terminal"),
+    (2, Decimal("10000.01"), Decimal("30000.00"), "RFQ / RFP", "Director Financeiro"),
+    (3, Decimal("30000.01"), Decimal("1000000.00"), "RFQ / RFP", "Administrador Delegado"),
+    (4, Decimal("1000000.01"), None, "Tender formal", "PCA"),
 ]
 
 
@@ -45,10 +45,18 @@ def classify_procurement(db: Session, amount: float | Decimal) -> ApprovalMatrix
         .where(ApprovalMatrixRule.is_active == True)
         .order_by(ApprovalMatrixRule.sort_order, ApprovalMatrixRule.min_value)
     ).all()
+    matches = []
     for rule in rules:
         min_value = Decimal(str(rule.min_value or 0))
         max_value = Decimal(str(rule.max_value)) if rule.max_value is not None else None
         if value >= min_value and (max_value is None or value <= max_value):
+            matches.append(rule)
+    if matches:
+        # In an accidental overlap, use the higher threshold to avoid under-approval.
+        return matches[-1]
+    for rule in rules:
+        if value < Decimal(str(rule.min_value or 0)):
+            # Fill accidental gaps conservatively with the next approval level.
             return rule
     return None
 

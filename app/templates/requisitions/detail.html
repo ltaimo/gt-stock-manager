@@ -21,7 +21,7 @@
   </p>
   <p>
     <strong>{{ tx("Gestor Operacional:", user if user is defined else none) }}</strong> {{ req.operational_manager or '' }}
-    <strong>{{ tx("A ser autorizado por:", user if user is defined else none) }}</strong> {{ req.authorization_person or 'Gestor de Estoque' }}
+    <strong>{{ tx("A ser autorizado por:", user if user is defined else none) }}</strong> {{ req.approver_role.name if req.approver_role else req.authorization_person or 'Gestor de Estoque' }}
   </p>
   {% if req.notes %}<p><strong>{{ tx("Observações da decisão:", user if user is defined else none) }}</strong> {{ req.notes }}</p>{% endif %}
 
@@ -58,14 +58,14 @@
     {% if req.status == 'Draft' and req.requesting_user_id == user.id %}
       <form method="post" action="/requisicoes/{{ req.id }}/submit"><button>{{ tx("Submeter", user if user is defined else none) }}</button></form>
     {% endif %}
-    {% if req.status in ['Draft', 'Submitted'] and (req.requesting_user_id == user.id or can(user, 'requisitions_review')) %}
+    {% if req.status in ['Draft', 'Submitted'] and (req.requesting_user_id == user.id or can_review_requisition) %}
       <form method="post" action="/requisicoes/{{ req.id }}/cancel" data-confirm="{{ tx("Cancelar esta requisição? Esta ação não movimenta stock.", user if user is defined else none) }}">
         <button class="danger">{{ tx("Cancelar requisição", user if user is defined else none) }}</button>
       </form>
     {% endif %}
   </div>
 
-  {% if can(user, 'requisitions_review') and req.status == 'Submitted' %}
+  {% if can_review_requisition and req.status == 'Submitted' %}
   <form method="post" action="/requisicoes/{{ req.id }}/review" class="form-stack">
     <h2>{{ tx("Decisão da Requisição", user if user is defined else none) }}</h2>
     <p class="muted">
@@ -115,6 +115,11 @@
       <button name="decision" value="reject" class="danger">{{ tx("Rejeitar requisição", user if user is defined else none) }}</button>
     </div>
   </form>
+  {% elif can(user, 'requisitions_review') and req.status == 'Submitted' %}
+    <div class="alert orange">
+      {{ tx("Tem permissão geral para aprovar requisições, mas este pedido está atribuído pela matriz ao perfil", user) }}
+      <strong>{{ req.approver_role.name if req.approver_role else req.authorization_person or tx("configurado na matriz", user) }}</strong>.
+    </div>
   {% endif %}
   {% if can(user, 'requisitions_issue') and req.status == 'Approved' %}
   <div class="panel">

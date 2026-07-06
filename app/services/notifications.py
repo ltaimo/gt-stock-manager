@@ -10,11 +10,8 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.database import SessionLocal
 from app.i18n import language_for, translate_value
-from app.models.core import Notification, ProcurementCase, Requisition, Role, User
-from app.security import has_permission
-
-
-NOTIFICATION_ROLES = {"Gestor de Estoque", "Chefe do Terminal", "SuperAdmin"}
+from app.models.core import Notification, ProcurementCase, Requisition, User
+from app.security import has_permission, matches_approval_assignment
 
 
 def unread_count(user_id: int) -> int:
@@ -22,15 +19,23 @@ def unread_count(user_id: int) -> int:
         return db.scalar(select(func.count(Notification.id)).where(Notification.user_id == user_id, Notification.is_read == False)) or 0
 
 
-def recipients_for_requisitions(db: Session) -> list[User]:
-    return db.scalars(
-        select(User).where(User.is_active == True, User.role.has(Role.name.in_(NOTIFICATION_ROLES)))
-    ).all()
-
-
 def recipients_with_permission(db: Session, permission: str) -> list[User]:
     users = db.scalars(select(User).where(User.is_active == True)).all()
     return [user for user in users if has_permission(user, permission)]
+
+
+def recipients_for_requisition_approval(db: Session, req: Requisition) -> list[User]:
+    users = db.scalars(select(User).where(User.is_active == True)).all()
+    return [
+        user
+        for user in users
+        if matches_approval_assignment(
+            user,
+            "requisitions_review",
+            req.approver_role_id,
+            req.authorization_person,
+        )
+    ]
 
 
 def send_email(to_email: str, subject: str, body: str, attachments: list[tuple[str, bytes, str]] | None = None) -> None:
@@ -155,13 +160,13 @@ def notify_requisition_pending(db: Session, req: Requisition) -> None:
         f"Departamento: {req.department.name if req.department else ''}\n"
         f"Tipo: {req.req_type}"
     )
-    for user in recipients_for_requisitions(db):
+    for user in recipients_for_requisition_approval(db, req):
         notify_user(db, user, title, message, "Requisicoes", req.number)
 
 
 def notify_requisition_decision(db: Session, req: Requisition, actor: User, decision: str) -> None:
-    targets = recipients_for_requisitions(db)
-    if req.requesting_user not in targets:
+    targets = recipients_with_permission(db, "requisitions_issue")
+    if all(target.id != req.requesting_user_id for target in targets):
         targets.append(req.requesting_user)
     for user in targets:
         translated_decision = translate_value(decision, language_for(user))

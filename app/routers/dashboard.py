@@ -2,7 +2,7 @@ import calendar
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy import extract, func, select
+from sqlalchemy import and_, extract, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -17,6 +17,7 @@ PROCUREMENT_VIEW_PERMISSIONS = {
     "budget_verify",
     "procurement_tor_approve_hod",
     "procurement_tor_approve_terminal",
+    "procurement_value_approve",
     "procurement_technical_evaluate",
     "procurement_financial_evaluate",
     "procurement_hse_validate",
@@ -49,7 +50,17 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
         Requisition.status == RequisitionStatus.submitted.value,
         Requisition.req_type != "REPOSICAO",
     )
-    if not can_review_requisitions:
+    if can_review_requisitions and user.role.name != "SuperAdmin":
+        pending_stmt = pending_stmt.where(
+            or_(
+                Requisition.approver_role_id == user.role_id,
+                and_(
+                    Requisition.approver_role_id.is_(None),
+                    func.lower(Requisition.authorization_person) == user.role.name.lower(),
+                ),
+            )
+        )
+    elif not can_review_requisitions:
         pending_stmt = pending_stmt.where(Requisition.requesting_user_id == user.id)
     pending = db.scalars(pending_stmt.limit(8)).all()
     procurement_stmt = (
@@ -63,6 +74,7 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
     procurement_pending = db.scalars(procurement_stmt.limit(8)).all() if can_view_procurement else []
 
     active_products = [p for p in products if p.status == "active"]
+    products_without_price = [p for p in active_products if float(p.unit_price or 0) <= 0]
     monitored_products = [p for p in active_products if p.requires_stock_control]
     attention_statuses = {"Sem Stock", "Stock Crítico", "Stock em Atenção", "Erro: Stock Negativo"}
     critical_products = [p for p in monitored_products if p.alert_status in attention_statuses]
@@ -148,6 +160,7 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
             "total_products": len(products),
             "active_products": len(active_products),
             "monitored_products": len(monitored_products),
+            "products_without_price": len(products_without_price),
             "critical": len(critical_products),
             "stockout": len(stockout_products),
             "warning": len(warning_products),

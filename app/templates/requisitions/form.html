@@ -6,6 +6,12 @@
 </header>
 <section class="panel">
 {% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
+{% if products_without_price %}
+  <div class="alert orange">
+    <strong>{{ products_without_price }}</strong>
+    {{ tx("produtos ativos não têm preço unitário. Ao selecioná-los, o valor do pedido será calculado como 0 MZN e seguirá o primeiro nível da matriz de aprovações.", user) }}
+  </div>
+{% endif %}
 <form method="post" class="form-stack" spellcheck="true">
   <div class="form-grid">
     <label>{{ tx("Departamento", user if user is defined else none) }}<input value="{{ user.department.name if user.department else 'Sem departamento definido' }}" disabled></label>

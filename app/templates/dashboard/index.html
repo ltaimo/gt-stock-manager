@@ -9,6 +9,14 @@
   <span>{{ user.full_name }} · {{ tv(user.role.name, user) }}</span>
 </header>
 
+{% if products_without_price and can(user, 'products_manage') %}
+<div class="alert orange">
+  <strong>{{ products_without_price }}</strong>
+  {{ tx("produtos ativos não têm preço unitário. Pedidos com estes produtos podem ser encaminhados para o nível incorreto da matriz.", user) }}
+  <a href="/produtos">{{ tx("Rever produtos", user) }}</a>
+</div>
+{% endif %}
+
 <section class="kpis dashboard-kpis">
   <div><strong>{{ total_products }}</strong><span>{{ t('total_products', user) }}</span><small>{{ active_products }} {{ tx("ativos", user) }} &middot; {{ monitored_products }} {{ tx("monitorizados", user) }}</small></div>
   <div><strong>{{ stockout }}</strong><span>{{ tx("Sem Stock", user if user is defined else none) }}</span><small>{{ critical }} {{ tx("itens requerem atenção", user) }}</small></div>

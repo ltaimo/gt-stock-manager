@@ -3,14 +3,14 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import get_db
 from app.models.core import ApprovalMatrixRule, Category, Department, Product, Requisition, Role, StockMovement, User
 from app.routers.common import templates
-from app.security import require_permission
+from app.security import grant_permissions, require_permission
 from app.services.audit import audit_log
 from app.services.categorization import normalize_text
 from app.services.forms import optional_float, optional_int, required_float, required_text
@@ -128,7 +128,25 @@ def remove_department(department_id: int, request: Request, db: Session = Depend
 def matrix(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("procurement_settings"))):
     rules = db.scalars(select(ApprovalMatrixRule).order_by(ApprovalMatrixRule.sort_order, ApprovalMatrixRule.min_value)).all()
     roles = db.scalars(select(Role).order_by(Role.name)).all()
-    return templates.TemplateResponse(request, "settings/matrix.html", {"request": request, "user": user, "rules": rules, "roles": roles, "error": None})
+    role_user_counts = dict(
+        db.execute(
+            select(User.role_id, func.count(User.id))
+            .where(User.is_active == True)
+            .group_by(User.role_id)
+        ).all()
+    )
+    return templates.TemplateResponse(
+        request,
+        "settings/matrix.html",
+        {
+            "request": request,
+            "user": user,
+            "rules": rules,
+            "roles": roles,
+            "role_user_counts": role_user_counts,
+            "error": None,
+        },
+    )
 
 
 @router.post("/matriz")
@@ -165,6 +183,11 @@ def save_matrix(
             rule.modality = required_text(modality[idx], "Modalidade", 80)
             parsed_role_id = optional_int(approver_role_id[idx], "Perfil aprovador")
             approver_role = db.get(Role, parsed_role_id) if parsed_role_id else None
+            if approver_role:
+                grant_permissions(
+                    approver_role,
+                    {"requisitions_all", "requisitions_review", "procurement_value_approve"},
+                )
             rule.approver_role_id = approver_role.id if approver_role else None
             rule.final_approval = approver_role.name if approver_role else required_text(final_approval[idx], "Aprovação final", 160)
             rule.sort_order = idx

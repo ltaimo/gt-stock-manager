@@ -182,7 +182,7 @@
 </section>
 {% endif %}
 
-{% if can(user, 'budget_verify') and case.status == 'Pending Budget Verification' %}
+{% if can(user, 'budget_verify') and case.tor_status == 'Approved' and case.status == 'Pending Budget Verification' %}
 <section class="panel">
   <h2>{{ tx("Verificação de budget", user if user is defined else none) }}</h2>
   <form method="post" action="/procurement/{{ case.id }}/orcamento" class="form-stack">

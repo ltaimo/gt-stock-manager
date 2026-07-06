@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.core import Product, Requisition, RequisitionItem, RequisitionStatus, Role, User
 from app.routers.common import templates
-from app.security import current_user, has_permission, require_permission
+from app.security import current_user, has_permission, matches_approval_assignment, require_permission
 from app.services.audit import audit_log
 from app.services.forms import optional_int, parse_float_list, parse_int_list
 from app.services.inventory import StockError
@@ -50,10 +50,12 @@ def requisition_form_context(
     error: str | None = None,
 ) -> dict:
     managers = manager_options(db)
+    products = db.scalars(select(Product).where(Product.status == "active").order_by(Product.name)).all()
     return {
         "request": request,
         "user": user,
-        "products": db.scalars(select(Product).where(Product.status == "active").order_by(Product.name)).all(),
+        "products": products,
+        "products_without_price": sum(1 for product in products if float(product.unit_price or 0) <= 0),
         "managers": managers,
         "default_manager_id": default_manager_id(user, managers),
         "authorization_person": "Gestor de Estoque",
@@ -101,15 +103,30 @@ def requisition_value(validated_items: list[tuple[int, Product, float]]) -> floa
     return round(sum(float(product.unit_price or 0) * quantity for _idx, product, quantity in validated_items), 2)
 
 
-def authorization_for_value(db: Session, total_value: float) -> str:
-    return approval_label(classify_procurement(db, total_value)) or "Chefe do Terminal"
+def approval_assignment_for_value(db: Session, total_value: float) -> tuple[str, int | None]:
+    rule = classify_procurement(db, total_value)
+    if not rule:
+        return "Chefe do Terminal", None
+    return approval_label(rule), rule.approver_role_id
 
 
-def can_review_by_matrix(req: Requisition, user: User) -> bool:
-    expected = (req.authorization_person or "").strip().casefold()
-    if not expected or user.role.name == "SuperAdmin":
-        return True
-    return user.role.name.casefold() == expected
+def can_review_requisition(req: Requisition, user: User) -> bool:
+    return matches_approval_assignment(
+        user,
+        "requisitions_review",
+        req.approver_role_id,
+        req.authorization_person,
+    )
+
+
+def requisition_detail_context(request: Request, user: User, req: Requisition, error: str | None = None) -> dict:
+    return {
+        "request": request,
+        "user": user,
+        "req": req,
+        "error": error,
+        "can_review_requisition": can_review_requisition(req, user),
+    }
 
 
 def normalize_req_type(req_type: str) -> str:
@@ -167,12 +184,14 @@ def create_requisition(
         validated_items = validate_requisition_items(db, req_type, parsed_product_ids, parsed_quantities)
         with atomic(db):
             total_value = requisition_value(validated_items)
+            approval_label_value, approver_role_id = approval_assignment_for_value(db, total_value)
             req = Requisition(
                 number=next_requisition_number(db),
                 requesting_user_id=user.id,
                 department_id=user.department_id,
                 operational_manager=manager.full_name if manager else None,
-                authorization_person=authorization_for_value(db, total_value),
+                authorization_person=approval_label_value,
+                approver_role_id=approver_role_id,
                 estimated_value=total_value,
                 req_type=req_type,
                 status=RequisitionStatus.submitted.value if submit else RequisitionStatus.draft.value,
@@ -208,7 +227,7 @@ def view_requisition(req_id: int, request: Request, db: Session = Depends(get_db
         raise HTTPException(404)
     if not has_permission(user, "requisitions_all") and req.requesting_user_id != user.id:
         raise HTTPException(403)
-    return templates.TemplateResponse(request, "requisitions/detail.html", {"request": request, "user": user, "req": req, "error": None})
+    return templates.TemplateResponse(request, "requisitions/detail.html", requisition_detail_context(request, user, req))
 
 
 @router.post("/{req_id}/submit")
@@ -227,14 +246,18 @@ def submit_requisition(req_id: int, request: Request, db: Session = Depends(get_
         )
         with atomic(db):
             total_value = requisition_value(validated_items)
+            approval_label_value, approver_role_id = approval_assignment_for_value(db, total_value)
             req.estimated_value = total_value
-            req.authorization_person = authorization_for_value(db, total_value)
+            req.authorization_person = approval_label_value
+            req.approver_role_id = approver_role_id
             req.status = RequisitionStatus.submitted.value
             notify_requisition_pending(db, req)
             audit_log(db, user, "Submeteu requisição", "Requisições", req.number, request=request)
     except StockError as exc:
-        return templates.TemplateResponse(request, "requisitions/detail.html",
-            {"request": request, "user": user, "req": req, "error": str(exc)},
+        return templates.TemplateResponse(
+            request,
+            "requisitions/detail.html",
+            requisition_detail_context(request, user, req, str(exc)),
             status_code=400,
         )
     return RedirectResponse(f"/requisicoes/{req.id}", status_code=303)
@@ -250,7 +273,7 @@ def cancel_requisition(
     req = db.get(Requisition, req_id)
     if not req:
         raise HTTPException(404)
-    can_manage = has_permission(user, "requisitions_review")
+    can_manage = can_review_requisition(req, user)
     if req.requesting_user_id != user.id and not can_manage:
         raise HTTPException(403)
     if req.status not in {RequisitionStatus.draft.value, RequisitionStatus.submitted.value}:
@@ -279,7 +302,7 @@ def review_requisition(
         raise HTTPException(404)
     if req.status != RequisitionStatus.submitted.value:
         raise HTTPException(400, "Apenas requisições submetidas podem ser analisadas.")
-    if not can_review_by_matrix(req, user):
+    if not can_review_requisition(req, user):
         raise HTTPException(403, f"Esta requisição deve ser aprovada por {req.authorization_person}.")
     if decision not in {"approve", "partial", "reject"}:
         raise HTTPException(400, "Escolha uma decisão válida.")
@@ -328,7 +351,12 @@ def review_requisition(
                 request=request,
             )
     except StockError as exc:
-        return templates.TemplateResponse(request, "requisitions/detail.html", {"request": request, "user": user, "req": req, "error": str(exc)}, status_code=400)
+        return templates.TemplateResponse(
+            request,
+            "requisitions/detail.html",
+            requisition_detail_context(request, user, req, str(exc)),
+            status_code=400,
+        )
     return RedirectResponse(f"/requisicoes/{req.id}", status_code=303)
 
 
@@ -342,7 +370,12 @@ def issue(req_id: int, request: Request, db: Session = Depends(get_db), user: Us
             issue_requisition(db, req, user)
             audit_log(db, user, "Emitiu requisição", "Requisições", req.number, request=request)
     except StockError as exc:
-        return templates.TemplateResponse(request, "requisitions/detail.html", {"request": request, "user": user, "req": req, "error": str(exc)}, status_code=400)
+        return templates.TemplateResponse(
+            request,
+            "requisitions/detail.html",
+            requisition_detail_context(request, user, req, str(exc)),
+            status_code=400,
+        )
     return RedirectResponse(f"/requisicoes/{req.id}", status_code=303)
 
 
