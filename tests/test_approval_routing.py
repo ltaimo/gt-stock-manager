@@ -53,7 +53,7 @@ class ApprovalRoutingTests(unittest.TestCase):
         self.terminal_user = self._user("Jeronimo Macie", "jmacie", self.terminal_role, department)
         self.stock_user = self._user("Gestor Stock", "stock", self.stock_role, department)
         self.superadmin = self._user("Admin", "admin", self.superadmin_role, department)
-        requester = self._user("Requester", "requester", self.stock_role, department)
+        self.requester = self._user("Requester", "requester", self.stock_role, department)
         self.db.flush()
 
         product = Product(
@@ -69,7 +69,7 @@ class ApprovalRoutingTests(unittest.TestCase):
         self.db.flush()
         self.req = Requisition(
             number="REQ-TEST-001",
-            requesting_user_id=requester.id,
+            requesting_user_id=self.requester.id,
             department_id=department.id,
             authorization_person=self.terminal_role.name,
             approver_role_id=self.terminal_role.id,
@@ -86,6 +86,15 @@ class ApprovalRoutingTests(unittest.TestCase):
                 quantity_requested=2,
             )
         )
+        self.stock_rule = ApprovalMatrixRule(
+            min_value=0,
+            max_value=5000,
+            modality="RFQ",
+            final_approval=self.stock_role.name,
+            approver_role_id=self.stock_role.id,
+            is_active=True,
+            sort_order=0,
+        )
         self.rule = ApprovalMatrixRule(
             min_value=5001,
             max_value=10000,
@@ -93,9 +102,9 @@ class ApprovalRoutingTests(unittest.TestCase):
             final_approval=self.terminal_role.name,
             approver_role_id=self.terminal_role.id,
             is_active=True,
-            sort_order=0,
+            sort_order=1,
         )
-        self.db.add(self.rule)
+        self.db.add_all([self.stock_rule, self.rule])
         self.db.commit()
 
         app.dependency_overrides[get_db] = self.override_db
@@ -134,15 +143,32 @@ class ApprovalRoutingTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 303)
 
-    def test_only_assigned_profile_can_review_requisition(self):
-        self.assertTrue(can_review_requisition(self.req, self.terminal_user))
-        self.assertFalse(can_review_requisition(self.req, self.stock_user))
-        self.assertTrue(can_review_requisition(self.req, self.superadmin))
+    def test_lower_profile_cannot_review_higher_requisition(self):
+        self.assertTrue(can_review_requisition(self.db, self.req, self.terminal_user))
+        self.assertFalse(can_review_requisition(self.db, self.req, self.stock_user))
+        self.assertTrue(can_review_requisition(self.db, self.req, self.superadmin))
+
+    def test_higher_profile_can_review_lower_requisition(self):
+        low_req = Requisition(
+            number="REQ-TEST-LOW",
+            requesting_user_id=self.req.requesting_user_id,
+            department_id=self.req.department_id,
+            authorization_person=self.stock_role.name,
+            approver_role_id=self.stock_role.id,
+            estimated_value=1000,
+            req_type="REQUISICAO",
+            status="Submitted",
+        )
+        self.db.add(low_req)
+        self.db.commit()
+
+        self.assertTrue(can_review_requisition(self.db, low_req, self.stock_user))
+        self.assertTrue(can_review_requisition(self.db, low_req, self.terminal_user))
 
     def test_legacy_assignment_falls_back_to_profile_name(self):
         self.req.approver_role_id = None
-        self.assertTrue(can_review_requisition(self.req, self.terminal_user))
-        self.assertFalse(can_review_requisition(self.req, self.stock_user))
+        self.assertTrue(can_review_requisition(self.db, self.req, self.terminal_user))
+        self.assertFalse(can_review_requisition(self.db, self.req, self.stock_user))
 
     def test_pending_notification_only_targets_assigned_profile_and_superadmin(self):
         notify_requisition_pending(self.db, self.req)
@@ -159,6 +185,34 @@ class ApprovalRoutingTests(unittest.TestCase):
             {self.terminal_user.id, self.superadmin.id},
         )
 
+    def test_lower_pending_notification_targets_assigned_and_superior_profiles(self):
+        low_req = Requisition(
+            number="REQ-TEST-LOW-NOTIFY",
+            requesting_user_id=self.req.requesting_user_id,
+            department_id=self.req.department_id,
+            authorization_person=self.stock_role.name,
+            approver_role_id=self.stock_role.id,
+            estimated_value=1000,
+            req_type="REQUISICAO",
+            status="Submitted",
+        )
+        self.db.add(low_req)
+        self.db.commit()
+
+        notify_requisition_pending(self.db, low_req)
+        self.db.commit()
+        recipient_ids = set(
+            self.db.scalars(
+                select(Notification.user_id).where(
+                    Notification.record_id == low_req.number
+                )
+            ).all()
+        )
+        self.assertEqual(
+            recipient_ids,
+            {self.stock_user.id, self.terminal_user.id, self.superadmin.id, self.requester.id},
+        )
+
     def test_detail_page_only_shows_approval_form_to_assigned_profile(self):
         self.login("jmacie")
         allowed = self.client.get(f"/requisicoes/{self.req.id}")
@@ -172,7 +226,7 @@ class ApprovalRoutingTests(unittest.TestCase):
         self.assertNotIn(f'action="/requisicoes/{self.req.id}/review"', denied.text)
         self.assertIn("atribuído pela matriz", denied.text)
 
-    def test_dashboard_only_lists_pending_requests_assigned_to_profile(self):
+    def test_dashboard_lists_pending_requests_at_or_below_profile_level(self):
         stock_request = Requisition(
             number="REQ-TEST-STOCK",
             requesting_user_id=self.req.requesting_user_id,
@@ -190,7 +244,7 @@ class ApprovalRoutingTests(unittest.TestCase):
         response = self.client.get("/dashboard")
         self.assertEqual(response.status_code, 200)
         self.assertIn(self.req.number, response.text)
-        self.assertNotIn(stock_request.number, response.text)
+        self.assertIn(stock_request.number, response.text)
 
     def test_value_approval_requires_permission_and_matrix_assignment(self):
         case = ProcurementCase(

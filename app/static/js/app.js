@@ -1,22 +1,34 @@
 document.addEventListener("click", (event) => {
   if (event.target.matches("[data-add-row]")) {
-    const table = document.querySelector("#items-table tbody");
+    const table = document.querySelector(event.target.dataset.table || "#items-table tbody");
     if (!table || !table.rows.length) return;
     const clone = table.rows[0].cloneNode(true);
     clone.querySelectorAll("input").forEach((input) => {
       input.value = input.name === "quantity" ? "1" : "";
     });
     table.appendChild(clone);
-    initRequisitionItemRow(clone);
-    updateRequisitionProductAvailability();
+    if (clone.matches("[data-requisition-item]")) {
+      initRequisitionItemRow(clone);
+      updateRequisitionProductAvailability();
+    }
+    if (clone.matches("[data-movement-item]")) {
+      window.initMovementItemRow?.(clone);
+      window.validateMovementTotals?.();
+    }
     return;
   }
 
   if (event.target.matches("[data-remove-row]")) {
-    const row = event.target.closest("[data-requisition-item]");
-    const rows = document.querySelectorAll("[data-requisition-item]");
+    const row = event.target.closest("[data-requisition-item], [data-movement-item]");
+    if (!row) return;
+    const selector = row.matches("[data-movement-item]") ? "[data-movement-item]" : "[data-requisition-item]";
+    const rows = document.querySelectorAll(selector);
     if (row && rows.length > 1) row.remove();
-    validateRequisitionTotals();
+    if (selector === "[data-movement-item]") {
+      window.validateMovementTotals?.();
+    } else {
+      validateRequisitionTotals();
+    }
   }
 });
 
@@ -209,6 +221,59 @@ function initMovementForm() {
   const actionGroup = document.getElementById("movement-action");
   if (!actionGroup) return;
 
+  const isExit = () => {
+    const action = (actionGroup.querySelector("input[name='action_type']:checked")?.value || "ENTRADA").toUpperCase();
+    return action === "SAÍDA" || action === "SAIDA" || action === "SAÃDA";
+  };
+
+  const selectedMovementProductData = (row) => {
+    const select = row.querySelector("select[name='product_id']");
+    const option = select ? select.options[select.selectedIndex] : null;
+    return {
+      stock: Number(option?.dataset.stock || 0),
+      unit: option?.dataset.unit || "",
+      productId: option?.value || "",
+    };
+  };
+
+  window.initMovementItemRow = (row) => {
+    const select = row.querySelector("select[name='product_id']");
+    const quantity = row.querySelector("input[name='quantity']");
+    const hint = row.querySelector(".stock-hint");
+    const updateRow = () => {
+      const { stock, unit } = selectedMovementProductData(row);
+      if (hint) hint.textContent = `${stock} ${unit}`;
+      if (quantity) quantity.max = isExit() ? String(stock) : "";
+      validateMovementTotals();
+    };
+    if (select) select.addEventListener("change", updateRow);
+    if (quantity) quantity.addEventListener("input", validateMovementTotals);
+    updateRow();
+  };
+
+  window.validateMovementTotals = () => {
+    const rows = document.querySelectorAll("[data-movement-item]");
+    const totals = new Map();
+    rows.forEach((row) => {
+      const { productId, stock } = selectedMovementProductData(row);
+      const quantity = row.querySelector("input[name='quantity']");
+      if (!quantity) return;
+      quantity.setCustomValidity("");
+      const current = totals.get(productId) || { total: 0, stock, quantity };
+      current.total += Number(quantity.value || 0);
+      totals.set(productId, current);
+    });
+    if (!isExit()) return true;
+    let valid = true;
+    totals.forEach(({ total, stock, quantity }) => {
+      if (total > stock) {
+        quantity.setCustomValidity(uiMessage("i18nExceedsStock").replace("{stock}", stock));
+        valid = false;
+      }
+    });
+    return valid;
+  };
+
   const updateFields = () => {
     const action = actionGroup.querySelector("input[name='action_type']:checked")?.value || "ENTRADA";
     const isEntry = action === "ENTRADA";
@@ -227,10 +292,15 @@ function initMovementForm() {
         field.required = action === "SAÍDA";
       });
     });
+    document.querySelectorAll("[data-movement-item]").forEach(window.initMovementItemRow);
+    window.validateMovementTotals();
   };
 
   actionGroup.querySelectorAll("input[name='action_type']").forEach((input) => {
     input.addEventListener("change", updateFields);
+  });
+  actionGroup.closest("form")?.addEventListener("submit", (event) => {
+    if (!window.validateMovementTotals()) event.preventDefault();
   });
   updateFields();
 }

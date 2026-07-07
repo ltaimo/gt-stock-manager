@@ -2,13 +2,14 @@ import calendar
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy import and_, extract, func, or_, select
+from sqlalchemy import extract, func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.core import ProcurementCase, Product, Requisition, RequisitionStatus, StockMovement, User
 from app.routers.common import templates
 from app.security import current_user, has_permission
+from app.services.approval_policy import can_user_approve_assignment
 
 router = APIRouter()
 
@@ -49,20 +50,24 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
     pending_stmt = select(Requisition).where(
         Requisition.status == RequisitionStatus.submitted.value,
         Requisition.req_type != "REPOSICAO",
-    )
-    if can_review_requisitions and user.role.name != "SuperAdmin":
-        pending_stmt = pending_stmt.where(
-            or_(
-                Requisition.approver_role_id == user.role_id,
-                and_(
-                    Requisition.approver_role_id.is_(None),
-                    func.lower(Requisition.authorization_person) == user.role.name.lower(),
-                ),
-            )
-        )
-    elif not can_review_requisitions:
+    ).order_by(Requisition.request_date.desc())
+    if not can_review_requisitions:
         pending_stmt = pending_stmt.where(Requisition.requesting_user_id == user.id)
-    pending = db.scalars(pending_stmt.limit(8)).all()
+        pending = db.scalars(pending_stmt.limit(8)).all()
+    else:
+        pending_candidates = db.scalars(pending_stmt).all()
+        pending = [
+            req
+            for req in pending_candidates
+            if can_user_approve_assignment(
+                db,
+                user,
+                "requisitions_review",
+                req.approver_role_id,
+                req.authorization_person,
+                amount=float(req.estimated_value or 0),
+            )
+        ][:8]
     procurement_stmt = (
         select(ProcurementCase)
         .join(ProcurementCase.requisition)

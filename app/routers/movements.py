@@ -9,11 +9,22 @@ from app.routers.common import templates
 from app.security import require_permission
 from app.services.audit import audit_log
 from app.services.documents import save_stock_document
-from app.services.forms import optional_int, required_float, required_int
+from app.services.forms import optional_int, parse_float_list, parse_int_list
 from app.services.inventory import StockError, post_movement
 from app.services.transactions import atomic
 
 router = APIRouter(prefix="/movimentos", tags=["movimentos"])
+
+
+ACTION_ALIASES = {
+    "ENTRADA": MovementAction.entrada.value,
+    "SAIDA": MovementAction.saida.value,
+    "SAÍDA": MovementAction.saida.value,
+    "SAÃDA": MovementAction.saida.value,
+    "DEVOLUCAO": MovementAction.devolucao.value,
+    "DEVOLUÇÃO": MovementAction.devolucao.value,
+    "DEVOLUÃ‡ÃƒO": MovementAction.devolucao.value,
+}
 
 
 def movement_form_context(request: Request, db: Session, user: User, error: str | None = None) -> dict:
@@ -38,12 +49,43 @@ def new_movement(request: Request, db: Session = Depends(get_db), user: User = D
     return templates.TemplateResponse(request, "movements/form.html", movement_form_context(request, db, user))
 
 
+def validate_movement_lines(db: Session, product_ids: list[int], quantities: list[float], action_type: str) -> list[tuple[Product, float]]:
+    lines: list[tuple[Product, float]] = []
+    requested_totals: dict[int, float] = {}
+    for index, product_id in enumerate(product_ids):
+        quantity = quantities[index]
+        if quantity <= 0:
+            raise StockError("A quantidade deve ser superior a zero.")
+        product = db.get(Product, product_id)
+        if not product or product.status != "active":
+            raise StockError("Um dos produtos selecionados não está disponível.")
+        lines.append((product, quantity))
+        requested_totals[product.id] = requested_totals.get(product.id, 0) + quantity
+
+    if not lines:
+        raise StockError("Adicione pelo menos um produto ao movimento.")
+
+    if action_type == MovementAction.saida.value:
+        checked: set[int] = set()
+        for product, _quantity in lines:
+            if product.id in checked:
+                continue
+            checked.add(product.id)
+            available = float(product.current_stock or 0)
+            requested = requested_totals[product.id]
+            if requested > available:
+                raise StockError(
+                    f"A saída total para {product.code} - {product.name} excede o stock disponível ({available:g})."
+                )
+    return lines
+
+
 @router.post("/novo")
 async def create_movement(
     request: Request,
-    product_id: str | None = Form(None),
+    product_id: list[str] = Form([]),
     action_type: str | None = Form(None),
-    quantity: str | None = Form(None),
+    quantity: list[str] = Form([]),
     department_id: str | None = Form(None),
     origin: str | None = Form(None),
     responsible_person: str | None = Form(None),
@@ -56,23 +98,21 @@ async def create_movement(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("movements")),
 ):
-    parsed_product_id = required_int(product_id, "Produto")
-    parsed_quantity = required_float(quantity, "Quantidade")
-    parsed_department_id = optional_int(department_id, "Departamento")
-    parsed_requester_id = optional_int(requesting_user_id, "Requisitante")
-    clean_action = (action_type or "").strip().upper()
-    if clean_action not in {
-        MovementAction.entrada.value,
-        MovementAction.saida.value,
-        MovementAction.devolucao.value,
-    }:
-        raise HTTPException(400, "Escolha uma ação de movimento válida.")
-    if document_type not in {"Guia", "Fatura", "Proforma", "Outro"}:
-        raise HTTPException(400, "Tipo de documento inválido.")
-    product = db.get(Product, parsed_product_id)
-    if not product:
-        raise HTTPException(404)
     try:
+        if len(product_id) != len(quantity):
+            raise StockError("Cada produto deve ter uma quantidade correspondente.")
+        parsed_product_ids = parse_int_list(product_id, "Produto")
+        parsed_quantities = parse_float_list(quantity, "Quantidade")
+        parsed_department_id = optional_int(department_id, "Departamento")
+        parsed_requester_id = optional_int(requesting_user_id, "Requisitante")
+        raw_action = (action_type or "").strip().upper()
+        clean_action = ACTION_ALIASES.get(raw_action, raw_action)
+        if clean_action not in {MovementAction.entrada.value, MovementAction.saida.value, MovementAction.devolucao.value}:
+            raise StockError("Escolha uma ação de movimento válida.")
+        if document_type not in {"Guia", "Fatura", "Proforma", "Outro"}:
+            raise StockError("Tipo de documento inválido.")
+        lines = validate_movement_lines(db, parsed_product_ids, parsed_quantities, clean_action)
+
         with atomic(db):
             department = db.get(Department, parsed_department_id) if parsed_department_id else None
             if clean_action == MovementAction.entrada.value:
@@ -96,26 +136,62 @@ async def create_movement(
                 if len((responsible_person or "").strip()) > 160:
                     raise StockError("Responsável não pode exceder 160 caracteres.")
 
-            movement = post_movement(
+            movements = []
+            for product, line_quantity in lines:
+                movements.append(
+                    post_movement(
+                        db,
+                        product=product,
+                        action_type=clean_action,
+                        quantity=line_quantity,
+                        registered_by=user,
+                        destination=destination,
+                        responsible_person=(responsible_person or "").strip() or None,
+                        requesting_user_id=movement_requester_id,
+                        department_id=movement_department_id,
+                        notes=notes,
+                        reference_number=reference_number,
+                    )
+                )
+
+            product_ids = sorted({product.id for product, _quantity in lines})
+            document = await save_stock_document(
                 db,
-                product=product,
-                action_type=clean_action,
-                quantity=parsed_quantity,
-                registered_by=user,
-                destination=destination,
-                responsible_person=(responsible_person or "").strip() or None,
-                requesting_user_id=movement_requester_id,
-                department_id=movement_department_id,
+                upload=document_file,
+                uploaded_by=user,
+                product_ids=product_ids,
+                document_type=document_type,
+                document_number=document_number,
                 notes=notes,
-                reference_number=reference_number,
             )
-            document = await save_stock_document(db, upload=document_file, uploaded_by=user, product_ids=[product.id], document_type=document_type, document_number=document_number, notes=notes)
-            audit_log(db, user, "Criou movimento", "Movimentos", movement.id, new_value={"product": product.code, "action": clean_action, "quantity": parsed_quantity}, request=request)
+            audit_log(
+                db,
+                user,
+                "Criou movimento" if len(movements) == 1 else "Criou movimentos em lote",
+                "Movimentos",
+                movements[0].id,
+                new_value={
+                    "items": [{"product": product.code, "quantity": line_quantity} for product, line_quantity in lines],
+                    "action": clean_action,
+                },
+                request=request,
+            )
             if document:
-                audit_log(db, user, "Anexou documento de stock", "Documentos", document.id, new_value={"filename": document.original_filename, "product": product.code}, request=request)
-    except (StockError, ValueError) as exc:
-        return templates.TemplateResponse(request, "movements/form.html",
-            movement_form_context(request, db, user, str(exc)),
+                audit_log(
+                    db,
+                    user,
+                    "Anexou documento de stock",
+                    "Documentos",
+                    document.id,
+                    new_value={"filename": document.original_filename, "products": product_ids},
+                    request=request,
+                )
+    except (StockError, ValueError, HTTPException) as exc:
+        message = exc.detail if isinstance(exc, HTTPException) else str(exc)
+        return templates.TemplateResponse(
+            request,
+            "movements/form.html",
+            movement_form_context(request, db, user, message),
             status_code=400,
         )
     return RedirectResponse("/movimentos", status_code=303)

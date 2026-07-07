@@ -4,10 +4,9 @@
   <h1>{{ tx("Novo Movimento", user if user is defined else none) }}</h1>
   <a class="button secondary" href="/movimentos">{{ tx("Voltar aos movimentos", user if user is defined else none) }}</a>
 </header>
-<section class="panel narrow">
+<section class="panel">
 {% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
 <form method="post" class="form-stack" enctype="multipart/form-data">
-  <label>{{ tx("Produto", user if user is defined else none) }}<select name="product_id" required>{% for p in products %}<option value="{{ p.id }}">{{ p.code }} · {{ lname(p, user) }} · {{ tx("disponível", user) }} {{ p.current_stock }} {{ p.unit }}</option>{% endfor %}</select></label>
   <fieldset class="movement-action-fieldset">
     <legend>{{ tx("Acção", user if user is defined else none) }}</legend>
     <div class="movement-actions" id="movement-action">
@@ -25,7 +24,35 @@
       </label>
     </div>
   </fieldset>
-  <label>{{ tx("Quantidade", user if user is defined else none) }}<input name="quantity" type="number" step="0.01" min="0.01" required></label>
+
+  <table id="movement-items-table">
+    <thead>
+      <tr>
+        <th>{{ tx("Produto", user if user is defined else none) }}</th>
+        <th>{{ tx("Quantidade", user if user is defined else none) }}</th>
+        <th>{{ tx("Stock disponível", user if user is defined else none) }}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr data-movement-item>
+        <td>
+          <select name="product_id" required>
+            {% for p in products %}
+              <option value="{{ p.id }}" data-stock="{{ p.current_stock|float }}" data-unit="{{ p.unit }}">
+                {{ p.code }} · {{ lname(p, user) }}
+              </option>
+            {% endfor %}
+          </select>
+        </td>
+        <td><input name="quantity" type="number" step="0.01" min="0.01" value="1" required></td>
+        <td><small class="stock-hint muted"></small></td>
+        <td><button type="button" class="secondary compact" data-remove-row>{{ tx("Remover", user if user is defined else none) }}</button></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="muted">{{ tx("Pode adicionar várias linhas e registar todos os produtos numa única operação.", user if user is defined else none) }}</p>
+
   <div data-movement-entry>
     <label>{{ tx("Origem / Fornecedor", user if user is defined else none) }}
       <input name="origin" placeholder="{{ tx("Empresa, fornecedor ou local de origem", user if user is defined else none) }}">
@@ -56,6 +83,7 @@
   <label data-movement-document>{{ tx("Documento anexo", user if user is defined else none) }}<input type="file" name="document_file" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"></label>
   <label>{{ tx("Observações", user if user is defined else none) }}<textarea name="notes"></textarea></label>
   <div class="actions">
+    <button type="button" class="secondary" data-add-row data-table="#movement-items-table tbody">{{ tx("Adicionar linha", user if user is defined else none) }}</button>
     <a class="button secondary" href="/movimentos">{{ tx("Cancelar", user if user is defined else none) }}</a>
     <button class="success">{{ tx("Registar movimento", user if user is defined else none) }}</button>
   </div>

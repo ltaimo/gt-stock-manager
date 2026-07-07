@@ -11,7 +11,8 @@ from app.config import get_settings
 from app.database import SessionLocal
 from app.i18n import language_for, translate_value
 from app.models.core import Notification, ProcurementCase, Requisition, User
-from app.security import has_permission, matches_approval_assignment
+from app.security import has_permission
+from app.services.approval_policy import users_for_approval_assignment
 
 
 def unread_count(user_id: int) -> int:
@@ -25,17 +26,13 @@ def recipients_with_permission(db: Session, permission: str) -> list[User]:
 
 
 def recipients_for_requisition_approval(db: Session, req: Requisition) -> list[User]:
-    users = db.scalars(select(User).where(User.is_active == True)).all()
-    return [
-        user
-        for user in users
-        if matches_approval_assignment(
-            user,
-            "requisitions_review",
-            req.approver_role_id,
-            req.authorization_person,
-        )
-    ]
+    return users_for_approval_assignment(
+        db,
+        "requisitions_review",
+        req.approver_role_id,
+        req.authorization_person,
+        amount=float(req.estimated_value or 0),
+    )
 
 
 def send_email(to_email: str, subject: str, body: str, attachments: list[tuple[str, bytes, str]] | None = None) -> None:

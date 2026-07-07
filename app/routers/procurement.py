@@ -9,8 +9,9 @@ from app.database import get_db
 from app.i18n import language_for
 from app.models.core import MovementAction, ProcurementCase, Product, Requisition, RequisitionItem, RequisitionStatus, User
 from app.routers.common import templates
-from app.security import current_user, has_permission, matches_approval_assignment, require_permission
+from app.security import current_user, has_permission, require_permission
 from app.services.audit import audit_log
+from app.services.approval_policy import can_user_approve_assignment
 from app.services.forms import optional_float, optional_int, parse_float_list, parse_int_list, required_float, required_text
 from app.services.inventory import StockError, post_movement
 from app.services.notifications import (
@@ -74,11 +75,13 @@ def can_approve_by_matrix(db: Session, case: ProcurementCase, user: User) -> boo
     rule = classify_procurement(db, amount)
     if not rule:
         return False
-    return matches_approval_assignment(
+    return can_user_approve_assignment(
+        db,
         user,
         "procurement_value_approve",
         rule.approver_role_id,
         rule.final_approval,
+        amount=float(amount or 0),
     )
 
 
