@@ -31,7 +31,7 @@ def _exact_assignment(user: User, approver_role_id: int | None, approver_label: 
     if approver_role_id:
         return user.role_id == approver_role_id
     expected = (approver_label or "").strip().casefold()
-    return not expected or user.role.name.strip().casefold() == expected
+    return bool(expected and user.role.name.strip().casefold() == expected)
 
 
 def _rule_rank(rules: list[ApprovalMatrixRule], rule: ApprovalMatrixRule) -> int | None:
@@ -78,7 +78,8 @@ def can_user_approve_assignment(
         return False
     if user.role.name == "SuperAdmin":
         return True
-    if _exact_assignment(user, approver_role_id, approver_label):
+    has_explicit_assignment = bool(approver_role_id or (approver_label or "").strip())
+    if has_explicit_assignment and _exact_assignment(user, approver_role_id, approver_label):
         return True
 
     rules = active_matrix_rules(db)
@@ -88,6 +89,8 @@ def can_user_approve_assignment(
         if assigned_rule:
             required_rank = _rule_rank(rules, assigned_rule)
     if required_rank is None:
+        if not has_explicit_assignment:
+            return amount is None
         required_rank = role_matrix_rank(db, role_id=approver_role_id, role_name=approver_label, highest=False)
     user_rank = role_matrix_rank(db, role_id=user.role_id, role_name=user.role.name, highest=True)
     return user_rank is not None and required_rank is not None and user_rank >= required_rank

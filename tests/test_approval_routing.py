@@ -22,6 +22,7 @@ from app.models.core import (
 from app.routers.procurement import can_approve_by_matrix
 from app.routers.requisitions import can_review_requisition
 from app.security import grant_permissions, hash_password
+from app.services.approval_policy import can_user_approve_assignment
 from app.services.notifications import notify_requisition_pending, notify_user
 
 
@@ -164,6 +165,38 @@ class ApprovalRoutingTests(unittest.TestCase):
 
         self.assertTrue(can_review_requisition(self.db, low_req, self.stock_user))
         self.assertTrue(can_review_requisition(self.db, low_req, self.terminal_user))
+
+    def test_amount_only_approval_uses_matrix_hierarchy(self):
+        self.assertTrue(
+            can_user_approve_assignment(
+                self.db,
+                self.stock_user,
+                "requisitions_review",
+                None,
+                None,
+                amount=1000,
+            )
+        )
+        self.assertFalse(
+            can_user_approve_assignment(
+                self.db,
+                self.stock_user,
+                "requisitions_review",
+                None,
+                None,
+                amount=7500,
+            )
+        )
+        self.assertTrue(
+            can_user_approve_assignment(
+                self.db,
+                self.terminal_user,
+                "requisitions_review",
+                None,
+                None,
+                amount=1000,
+            )
+        )
 
     def test_legacy_assignment_falls_back_to_profile_name(self):
         self.req.approver_role_id = None

@@ -10,15 +10,27 @@ def env_path(name: str, default: Path) -> Path:
     return Path(os.getenv(name, str(default))).resolve()
 
 
+def resolve_database_url() -> str:
+    value = os.getenv("DATABASE_URL")
+    environment = os.getenv("ENVIRONMENT", "development")
+    if value:
+        return value
+    if environment == "production":
+        raise RuntimeError(
+            "DATABASE_URL must be configured in production to avoid starting with an empty or local database."
+        )
+    return f"sqlite:///{BASE_DIR / 'stock_manager.db'}"
+
+
 class Settings:
     app_version = os.getenv("APP_VERSION", "3.0.0")
     app_name = os.getenv("APP_NAME", "GT Integrated Management System")
     app_subtitle = os.getenv("APP_SUBTITLE", "Gestão de Terminais, SA")
-    app_short_name = os.getenv("APP_SHORT_NAME", "GTMS")
+    app_short_name = os.getenv("APP_SHORT_NAME", "GTIMS")
     environment = os.getenv("ENVIRONMENT", "development")
     secret_key = os.getenv("SECRET_KEY", "change-me-in-production")
     reset_stock_security_code = os.getenv("RESET_STOCK_SECURITY_CODE", "")
-    database_url = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR / 'stock_manager.db'}")
+    database_url = resolve_database_url()
     uploads_dir = env_path("UPLOADS_DIR", BASE_DIR / "uploads")
     outputs_dir = env_path("OUTPUTS_DIR", BASE_DIR / "outputs")
     logo_path = env_path("LOGO_PATH", BASE_DIR / "app" / "static" / "img" / "logo-gt.png")

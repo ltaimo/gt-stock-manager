@@ -4,7 +4,7 @@ services:
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: python -m app.maintenance.migrate_schema && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: python -m app.maintenance.migrate_schema && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.7
@@ -13,25 +13,25 @@ services:
       - key: SESSION_COOKIE_SECURE
         value: "true"
       - key: APP_NAME
-        value: Sistema de Gestão de Stock
+        value: GT Integrated Management System
       - key: APP_SUBTITLE
         value: Gestão de Terminais, SA
       - key: APP_SHORT_NAME
-        value: GT Stock Manager
+        value: GTIMS
       - key: APP_VERSION
-        value: "2.1.1"
+        value: "3.0.0"
       - key: INITIAL_SUPERADMIN_PASSWORD
         sync: false
       - key: DATABASE_URL
         sync: false
       - key: UPLOADS_DIR
-        value: /tmp/uploads
+        value: /data/uploads
       - key: OUTPUTS_DIR
-        value: /tmp/outputs
+        value: /data/outputs
       - key: DOCUMENTS_DIR
-        value: /tmp/uploads/stock_documents
+        value: /data/uploads/stock_documents
       - key: EMAIL_OUTBOX_DIR
-        value: /tmp/outputs/email_outbox
+        value: /data/outputs/email_outbox
       - key: SECRET_KEY
         generateValue: true
       - key: RESET_STOCK_SECURITY_CODE

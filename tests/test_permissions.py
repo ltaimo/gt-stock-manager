@@ -42,6 +42,13 @@ class PermissionTests(unittest.TestCase):
 
         self.assertFalse(has_permission(user, "stock_adjust"))
 
+    def test_empty_builtin_permissions_fall_back_to_default_role(self):
+        role = SimpleNamespace(name="Chefe do Terminal", permissions="[]")
+        user = SimpleNamespace(role=role)
+
+        self.assertTrue(has_permission(user, "requisitions_review"))
+        self.assertTrue(has_permission(user, "procurement_value_approve"))
+
     def test_all_default_role_permissions_are_known(self):
         configured = set().union(*DEFAULT_ROLE_PERMISSIONS.values())
         self.assertEqual(configured - set(PERMISSIONS), set())

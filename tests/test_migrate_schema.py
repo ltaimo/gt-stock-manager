@@ -232,6 +232,9 @@ class ApprovalSchemaMigrationTests(unittest.TestCase):
             stored = connection.execute(
                 text("SELECT permissions FROM roles WHERE id = 9")
             ).scalar_one()
+            stock_manager_stored = connection.execute(
+                text("SELECT permissions FROM roles WHERE id = 5")
+            ).scalar_one()
             notification_states = dict(
                 connection.execute(
                     text("SELECT id, is_read FROM notifications ORDER BY id")
@@ -282,6 +285,7 @@ class ApprovalSchemaMigrationTests(unittest.TestCase):
 
         self.assertEqual(approver_role_id, 9)
         permissions = set(json.loads(stored))
+        stock_manager_permissions = set(json.loads(stock_manager_stored))
         self.assertTrue(
             {
                 "documents",
@@ -290,6 +294,8 @@ class ApprovalSchemaMigrationTests(unittest.TestCase):
                 "requisitions_review",
             }.issubset(permissions)
         )
+        self.assertIn("movements", stock_manager_permissions)
+        self.assertIn("stock_adjust", stock_manager_permissions)
         self.assertTrue(bool(notification_states[1]))
         self.assertTrue(bool(notification_states[2]))
         self.assertFalse(bool(notification_states[3]))

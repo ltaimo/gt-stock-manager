@@ -35,7 +35,9 @@ APPROVAL_ROLE_ALIASES = {
 def _role_permissions(role_name: str, stored_permissions: str | None) -> set[str]:
     try:
         if stored_permissions:
-            return set(json.loads(stored_permissions))
+            configured = set(json.loads(stored_permissions))
+            if configured or role_name not in DEFAULT_ROLE_PERMISSIONS:
+                return configured
     except (TypeError, ValueError):
         pass
     return set(DEFAULT_ROLE_PERMISSIONS.get(role_name, set()))
@@ -232,10 +234,18 @@ def ensure_schema() -> None:
             role_columns = {column["name"] for column in inspect(connection).get_columns("roles")}
             for role_name, permissions in DEFAULT_ROLE_PERMISSIONS.items():
                 existing = connection.execute(
-                    text("SELECT id FROM roles WHERE lower(name) = lower(:name)"),
+                    text("SELECT id, permissions FROM roles WHERE lower(name) = lower(:name)"),
                     {"name": role_name},
                 ).first()
                 if existing:
+                    existing_role = existing._mapping
+                    current_permissions = _role_permissions(role_name, existing_role["permissions"])
+                    updated_permissions = current_permissions | set(permissions)
+                    if role_name != "SuperAdmin" and updated_permissions:
+                        connection.execute(
+                            text("UPDATE roles SET permissions = :permissions WHERE id = :role_id"),
+                            {"permissions": json.dumps(sorted(updated_permissions)), "role_id": existing_role["id"]},
+                        )
                     continue
                 params = {
                     "name": role_name,

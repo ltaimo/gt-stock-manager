@@ -214,7 +214,9 @@ def role_permissions(role) -> set[str]:
         return set(PERMISSIONS)
     if role.permissions:
         try:
-            return set(json.loads(role.permissions))
+            configured = set(json.loads(role.permissions))
+            if configured or role.name not in DEFAULT_ROLE_PERMISSIONS:
+                return configured
         except (TypeError, ValueError):
             pass
     return set(DEFAULT_ROLE_PERMISSIONS.get(role.name, set()))
