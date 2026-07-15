@@ -7,7 +7,21 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import Base, get_db
 from app.main import app
-from app.models.core import Category, Department, MovementAction, Product, Role, Setting, StockMovement, User
+from app.maintenance.normalize_products import consolidate_exact_duplicate_products
+from app.models.core import (
+    Category,
+    Department,
+    MovementAction,
+    Product,
+    Requisition,
+    RequisitionItem,
+    Role,
+    Setting,
+    StockDocument,
+    StockDocumentProduct,
+    StockMovement,
+    User,
+)
 from app.seed import consolidate_fixture_duplicate_products, repair_portuguese_labels, seed_ac_tools_products
 from app.security import hash_password
 from app.services.inventory import post_movement
@@ -103,6 +117,60 @@ class SeedAndLanguageTests(unittest.TestCase):
         self.assertEqual(float(canonical.current_stock), 15.0)
         movement_product_ids = {product_id for (product_id,) in self.db.execute(select(StockMovement.product_id)).all()}
         self.assertEqual(movement_product_ids, {canonical.id})
+
+    def test_consolidates_exact_duplicate_products_and_moves_links(self):
+        category = Category(name="Canalização", normalized_name="canalizacao")
+        self.db.add(category)
+        self.db.flush()
+        canonical = Product(code="IMP-00052", name="Torneiras de esquadrilha", category_id=category.id, unit="un")
+        duplicate = Product(code="IMP-00095", name="Torneiras de esquadrilha", category_id=category.id, unit="un")
+        self.db.add_all([canonical, duplicate])
+        self.db.flush()
+        post_movement(
+            self.db,
+            product=canonical,
+            action_type=MovementAction.entrada.value,
+            quantity=5,
+            registered_by=self.user,
+            reference_number="TEST-IMP-00052",
+        )
+        post_movement(
+            self.db,
+            product=duplicate,
+            action_type=MovementAction.entrada.value,
+            quantity=5,
+            registered_by=self.user,
+            reference_number="TEST-IMP-00095",
+        )
+        requisition = Requisition(number="REQ-DUP", requesting_user_id=self.user.id, status="Draft")
+        self.db.add(requisition)
+        self.db.flush()
+        self.db.add(RequisitionItem(requisition_id=requisition.id, product_id=duplicate.id, quantity_requested=1))
+        document = StockDocument(
+            document_type="Guia",
+            original_filename="guia.pdf",
+            stored_filename="guia.pdf",
+            file_path="/tmp/guia.pdf",
+            uploaded_by_id=self.user.id,
+        )
+        self.db.add(document)
+        self.db.flush()
+        self.db.add(StockDocumentProduct(document_id=document.id, product_id=duplicate.id))
+        self.db.commit()
+
+        consolidated = consolidate_exact_duplicate_products(self.db)
+        self.db.commit()
+
+        self.assertEqual(consolidated, 1)
+        self.assertIsNone(self.db.scalar(select(Product).where(Product.code == "IMP-00095")))
+        canonical = self.db.scalar(select(Product).where(Product.code == "IMP-00052"))
+        self.assertEqual(float(canonical.current_stock), 10.0)
+        self.assertEqual(
+            {product_id for (product_id,) in self.db.execute(select(StockMovement.product_id)).all()},
+            {canonical.id},
+        )
+        self.assertEqual(self.db.scalar(select(RequisitionItem.product_id)), canonical.id)
+        self.assertEqual(self.db.scalar(select(StockDocumentProduct.product_id)), canonical.id)
 
     def test_repairs_legacy_mojibake_without_changing_correct_labels(self):
         corrupted_department = "Operações".encode("utf-8").decode("latin-1")

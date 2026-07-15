@@ -22,7 +22,7 @@ from app.models.core import (
 from app.routers.procurement import can_approve_by_matrix
 from app.routers.requisitions import can_review_requisition
 from app.security import grant_permissions, hash_password
-from app.services.notifications import notify_requisition_pending
+from app.services.notifications import notify_requisition_pending, notify_user
 
 
 APPROVER_PERMISSIONS = json.dumps(
@@ -197,6 +197,24 @@ class ApprovalRoutingTests(unittest.TestCase):
             )
         )
         self.assertEqual(count, 1)
+
+    def test_record_notification_is_updated_when_title_changes_before_read(self):
+        notify_user(self.db, self.terminal_user, "Requisicao pendente: REQ-TEST-001", "Primeira", "Requisições", self.req.number)
+        notify_user(self.db, self.terminal_user, "Requisicao aprovada: REQ-TEST-001", "Segunda", "Requisicoes", self.req.number)
+        self.db.commit()
+
+        notifications = self.db.scalars(
+            select(Notification).where(
+                Notification.user_id == self.terminal_user.id,
+                Notification.record_id == self.req.number,
+                Notification.is_read == False,
+            )
+        ).all()
+
+        self.assertEqual(len(notifications), 1)
+        self.assertEqual(notifications[0].module, "Requisicoes")
+        self.assertEqual(notifications[0].title, "Requisicao aprovada: REQ-TEST-001")
+        self.assertEqual(notifications[0].message, "Segunda")
 
     def test_open_notification_marks_same_record_notifications_read(self):
         self.db.add_all(

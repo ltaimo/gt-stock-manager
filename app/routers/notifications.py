@@ -9,6 +9,7 @@ from app.database import get_db
 from app.models.core import Notification, ProcurementCase, Requisition, User
 from app.routers.common import templates
 from app.security import current_user
+from app.services.notifications import canonical_notification_module
 from app.services.transactions import atomic
 
 router = APIRouter(prefix="/notificacoes", tags=["notificacoes"])
@@ -16,15 +17,21 @@ router = APIRouter(prefix="/notificacoes", tags=["notificacoes"])
 
 def mark_notification_group_read(db: Session, notification: Notification) -> None:
     now = datetime.now(timezone.utc)
+    module = canonical_notification_module(notification.module)
     stmt = select(Notification).where(
         Notification.user_id == notification.user_id,
         Notification.is_read == False,
     )
     if notification.record_id:
-        stmt = stmt.where(Notification.module == notification.module, Notification.record_id == notification.record_id)
+        stmt = stmt.where(Notification.record_id == notification.record_id)
+        if module == "Requisicoes":
+            stmt = stmt.where(Notification.module.like("Requisi%"))
+        else:
+            stmt = stmt.where(Notification.module == module)
     else:
         stmt = stmt.where(Notification.id == notification.id)
     for item in db.scalars(stmt).all():
+        item.module = canonical_notification_module(item.module)
         item.is_read = True
         item.read_at = now
 
@@ -55,11 +62,12 @@ def open_notification(notification_id: int, db: Session = Depends(get_db), user:
     with atomic(db):
         mark_notification_group_read(db, notification)
 
-    if notification.module in {"Requisicoes", "Requisições", "Requisições"} and notification.record_id:
+    module = canonical_notification_module(notification.module)
+    if module == "Requisicoes" and notification.record_id:
         requisition = db.scalar(select(Requisition).where(Requisition.number == notification.record_id))
         if requisition:
             return RedirectResponse(f"/requisicoes/{requisition.id}", status_code=303)
-    if notification.module == "Procurement" and notification.record_id:
+    if module == "Procurement" and notification.record_id:
         requisition = db.scalar(select(Requisition).where(Requisition.number == notification.record_id))
         if requisition:
             case = db.scalar(select(ProcurementCase).where(ProcurementCase.requisition_id == requisition.id))

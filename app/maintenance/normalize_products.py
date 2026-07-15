@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 
 from sqlalchemy import select
 
 from app.database import SessionLocal
-from app.models.core import AuditLog, Product, User
+from app.models.core import AuditLog, Product, RequisitionItem, StockDocumentProduct, StockMovement, User
+from app.services.inventory import recalculate_product_stock
 from app.services.transactions import atomic
 
 
@@ -88,6 +90,45 @@ def infer_unit(name: str) -> str:
     return "un"
 
 
+def consolidate_exact_duplicate_products(db) -> int:
+    products = db.scalars(select(Product).where(Product.status == "active").order_by(Product.code, Product.id)).all()
+    groups: dict[tuple[str, str, int | None], list[Product]] = defaultdict(list)
+    for product in products:
+        normalized_name = " ".join((product.name or "").casefold().split())
+        normalized_unit = (product.unit or "").strip().casefold()
+        if normalized_name:
+            groups[(normalized_name, normalized_unit, product.category_id)].append(product)
+
+    consolidated = 0
+    for group in groups.values():
+        if len(group) <= 1:
+            continue
+        canonical = sorted(group, key=lambda product: (product.code or "", product.id))[0]
+        duplicates = [product for product in group if product.id != canonical.id]
+        for duplicate in duplicates:
+            for movement in db.scalars(select(StockMovement).where(StockMovement.product_id == duplicate.id)).all():
+                movement.product_id = canonical.id
+            for requisition_item in db.scalars(select(RequisitionItem).where(RequisitionItem.product_id == duplicate.id)).all():
+                requisition_item.product_id = canonical.id
+            for document_link in db.scalars(select(StockDocumentProduct).where(StockDocumentProduct.product_id == duplicate.id)).all():
+                existing_link = db.scalar(
+                    select(StockDocumentProduct).where(
+                        StockDocumentProduct.document_id == document_link.document_id,
+                        StockDocumentProduct.product_id == canonical.id,
+                    )
+                )
+                if existing_link:
+                    db.delete(document_link)
+                else:
+                    document_link.product_id = canonical.id
+            db.flush()
+            db.delete(duplicate)
+            consolidated += 1
+        db.flush()
+        recalculate_product_stock(db, canonical)
+    return consolidated
+
+
 def normalize_products() -> None:
     with SessionLocal() as db:
         actor = db.scalar(select(User).where(User.username == "superadmin"))
@@ -112,7 +153,19 @@ def normalize_products() -> None:
                         new_value={"updated": len(changes), "sample": changes[:20]}.__repr__(),
                     )
                 )
+            consolidated = consolidate_exact_duplicate_products(db)
+            if actor and consolidated:
+                db.add(
+                    AuditLog(
+                        user_id=actor.id,
+                        action="Consolidou produtos duplicados exatos",
+                        module="Produtos",
+                        record_id="bulk-consolidate-duplicates",
+                        new_value={"consolidated": consolidated}.__repr__(),
+                    )
+                )
         print(f"Produtos atualizados: {len(changes)}")
+        print(f"Duplicados exatos consolidados: {consolidated}")
         for item in changes[:30]:
             print(f"{item['code']}: {item['old']['name']} -> {item['new']['name']} [{item['new']['unit']}]")
 

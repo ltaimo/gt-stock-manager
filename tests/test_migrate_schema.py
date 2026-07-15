@@ -130,6 +130,8 @@ class ApprovalSchemaMigrationTests(unittest.TestCase):
                         (1, 5, 'Requisicao pendente: REQ-TEST', 'Requisicoes',
                          'REQ-TEST', false),
                         (2, 6, 'Requisicao pendente: REQ-TEST', 'Requisicoes',
+                         'REQ-TEST', false),
+                        (3, 5, 'Requisição pendente: REQ-TEST', 'Requisições',
                          'REQ-TEST', false)
                     """
                 )
@@ -153,10 +155,14 @@ class ApprovalSchemaMigrationTests(unittest.TestCase):
                     CREATE TABLE internal_operation_records (
                         id INTEGER PRIMARY KEY,
                         number VARCHAR(40),
-                        kind VARCHAR(30)
+                        kind VARCHAR(30),
+                        unit VARCHAR(30)
                     )
                     """
                 )
+            )
+            connection.execute(
+                text("INSERT INTO internal_operation_records (id, number, kind, unit) VALUES (1, 'WATER-OLD', 'water', 'un')")
             )
             connection.execute(
                 text(
@@ -173,7 +179,11 @@ class ApprovalSchemaMigrationTests(unittest.TestCase):
                         (id, min_value, max_value, modality, final_approval,
                          approver_role_id, is_active, sort_order)
                     VALUES
-                        (1, 5001, 10000, 'RFQ', 'Chefe do Terminal', 9, true, 0)
+                        (1, 5001, 10000, 'RFQ', 'Chefe do Terminal', 9, true, 1),
+                        (2, 0, 5000, 'RFQ', 'Supervisor', NULL, true, 0),
+                        (3, 10001, 30000, 'RFQ / RFP', 'Diretor + Financeiro', NULL, true, 2),
+                        (4, 30001, 1000000, 'RFQ / RFP', 'Direcao Geral', NULL, true, 3),
+                        (5, 1000000.01, NULL, 'Tender formal', 'Administracao / Conselho', NULL, true, 4)
                     """
                 )
             )
@@ -183,7 +193,8 @@ class ApprovalSchemaMigrationTests(unittest.TestCase):
                     INSERT INTO requisitions
                         (id, number, authorization_person, estimated_value, status)
                     VALUES
-                        (13, 'REQ-TEST', 'Chefe do Terminal', 7600, 'Submitted')
+                        (13, 'REQ-TEST', 'Chefe do Terminal', 7600, 'Submitted'),
+                        (14, 'REQ-SUP', 'Supervisor', 1000, 'Submitted')
                     """
                 )
             )
@@ -226,8 +237,47 @@ class ApprovalSchemaMigrationTests(unittest.TestCase):
                     text("SELECT id, is_read FROM notifications ORDER BY id")
                 ).all()
             )
+            notification_modules = dict(
+                connection.execute(
+                    text("SELECT id, module FROM notifications ORDER BY id")
+                ).all()
+            )
+            unread_for_request = connection.execute(
+                text(
+                    """
+                    SELECT count(*)
+                    FROM notifications
+                    WHERE is_read = false
+                      AND record_id = 'REQ-TEST'
+                      AND user_id = 5
+                    """
+                )
+            ).scalar_one()
             procurement_status = connection.execute(
                 text("SELECT status FROM procurement_cases WHERE id = 1")
+            ).scalar_one()
+            internal_operation = connection.execute(
+                text("SELECT operation_type, unit FROM internal_operation_records WHERE id = 1")
+            ).one()
+            supervisor_role_id = connection.execute(
+                text("SELECT id FROM roles WHERE name = 'Supervisor'")
+            ).scalar_one()
+            director_role_id = connection.execute(
+                text("SELECT id FROM roles WHERE name = 'Director Financeiro'")
+            ).scalar_one()
+            delegated_admin_role_id = connection.execute(
+                text("SELECT id FROM roles WHERE name = 'Administrador Delegado'")
+            ).scalar_one()
+            pca_role_id = connection.execute(
+                text("SELECT id FROM roles WHERE name = 'PCA'")
+            ).scalar_one()
+            matrix_links = dict(
+                connection.execute(
+                    text("SELECT id, approver_role_id FROM approval_matrix_rules ORDER BY id")
+                ).all()
+            )
+            supervisor_req_approver = connection.execute(
+                text("SELECT approver_role_id FROM requisitions WHERE id = 14")
             ).scalar_one()
 
         self.assertEqual(approver_role_id, 9)
@@ -240,9 +290,19 @@ class ApprovalSchemaMigrationTests(unittest.TestCase):
                 "requisitions_review",
             }.issubset(permissions)
         )
-        self.assertFalse(bool(notification_states[1]))
+        self.assertTrue(bool(notification_states[1]))
         self.assertTrue(bool(notification_states[2]))
+        self.assertFalse(bool(notification_states[3]))
+        self.assertEqual(notification_modules[3], "Requisicoes")
+        self.assertEqual(unread_for_request, 1)
         self.assertEqual(procurement_status, "Pending HOD TdR Approval")
+        self.assertEqual(internal_operation[0], "water_purchase")
+        self.assertEqual(internal_operation[1], "L")
+        self.assertEqual(matrix_links[2], supervisor_role_id)
+        self.assertEqual(matrix_links[3], director_role_id)
+        self.assertEqual(matrix_links[4], delegated_admin_role_id)
+        self.assertEqual(matrix_links[5], pca_role_id)
+        self.assertEqual(supervisor_req_approver, supervisor_role_id)
 
 
 if __name__ == "__main__":

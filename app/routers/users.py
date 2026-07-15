@@ -7,11 +7,18 @@ from app.database import get_db
 from app.models.core import Department, Role, User
 from app.routers.common import templates
 from app.security import can_manage_user, hash_password, require_permission
+from app.i18n import normalize_language, translate_message
 from app.services.audit import audit_log
 from app.services.forms import optional_email, optional_int, required_int, required_text
 from app.services.transactions import atomic
 
 router = APIRouter(prefix="/utilizadores", tags=["utilizadores"])
+
+
+def raise_form_error_for_language(exc: HTTPException, language: str) -> None:
+    if normalize_language(language) == "en" and isinstance(exc.detail, str):
+        raise HTTPException(exc.status_code, translate_message(exc.detail, "en")) from exc
+    raise exc
 
 
 @router.get("")
@@ -41,13 +48,16 @@ def create_user(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("users_manage")),
 ):
-    clean_name = required_text(full_name, "Nome completo", 160)
-    clean_username = required_text(username, "Utilizador", 80)
-    clean_password = required_text(password, "Senha inicial")
-    if len(clean_password) < 8:
-        raise HTTPException(400, "A senha inicial deve ter pelo menos 8 caracteres.")
-    parsed_role_id = required_int(role_id, "Perfil")
-    parsed_department_id = optional_int(department_id, "Departamento")
+    try:
+        clean_name = required_text(full_name, "Nome completo", 160)
+        clean_username = required_text(username, "Utilizador", 80)
+        clean_password = required_text(password, "Senha inicial")
+        if len(clean_password) < 8:
+            raise HTTPException(400, "A senha inicial deve ter pelo menos 8 caracteres.")
+        parsed_role_id = required_int(role_id, "Perfil")
+        parsed_department_id = optional_int(department_id, "Departamento")
+    except HTTPException as exc:
+        raise_form_error_for_language(exc, preferred_language)
     if preferred_language not in {"pt", "en"}:
         raise HTTPException(400, "Idioma inválido.")
     role = db.get(Role, parsed_role_id)
@@ -101,9 +111,12 @@ def update_user(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("users_manage")),
 ):
-    clean_name = required_text(full_name, "Nome completo", 160)
-    parsed_role_id = required_int(role_id, "Perfil")
-    parsed_department_id = optional_int(department_id, "Departamento")
+    try:
+        clean_name = required_text(full_name, "Nome completo", 160)
+        parsed_role_id = required_int(role_id, "Perfil")
+        parsed_department_id = optional_int(department_id, "Departamento")
+    except HTTPException as exc:
+        raise_form_error_for_language(exc, preferred_language)
     if preferred_language not in {"pt", "en"}:
         raise HTTPException(400, "Idioma inválido.")
     target = db.get(User, target_id)

@@ -134,9 +134,9 @@ def create_operation_record(
 ):
     if kind not in OPERATION_KINDS:
         raise HTTPException(400, "Escolha um tipo de operação interna válido.")
-    allowed_operation_types = {value for value, _label in OPERATION_TYPES[kind]}
-    clean_operation_type = (operation_type or "").strip() or next(iter(allowed_operation_types))
-    if clean_operation_type not in allowed_operation_types:
+    allowed_operation_types = [value for value, _label in OPERATION_TYPES[kind]]
+    clean_operation_type = (operation_type or "").strip() or allowed_operation_types[0]
+    if clean_operation_type not in set(allowed_operation_types):
         raise HTTPException(400, "Escolha uma operação válida.")
     parsed_department_id = optional_int(department_id, "Departamento")
     department = db.get(Department, parsed_department_id) if parsed_department_id else None
@@ -148,6 +148,10 @@ def create_operation_record(
     parsed_meter = optional_float(meter_reading, "Leitura do contador") if str(meter_reading or "").strip() else None
     if parsed_quantity < 0 or parsed_amount < 0:
         raise HTTPException(400, "Quantidade e valor não podem ser negativos.")
+    if clean_operation_type in {"fuel_purchase_storage", "fuel_refuel", "water_purchase"} and parsed_quantity <= 0:
+        raise HTTPException(400, "A quantidade deve ser superior a zero nesta operação.")
+    if clean_operation_type in {"fuel_purchase_storage", "water_purchase", "energy_purchase"} and parsed_amount <= 0:
+        raise HTTPException(400, "O valor deve ser superior a zero nesta operação.")
     if parsed_odometer is not None and parsed_odometer < 0:
         raise HTTPException(400, "A leitura do odómetro não pode ser negativa.")
     if parsed_meter is not None and parsed_meter < 0:

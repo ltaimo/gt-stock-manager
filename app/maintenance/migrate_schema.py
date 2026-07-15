@@ -18,6 +18,68 @@ DEFAULT_DEPARTMENTS = [
     "NEMCHEN",
 ]
 
+APPROVAL_ROLE_ALIASES = {
+    "Supervisor": "Supervisor",
+    "Chefe do Terminal": "Chefe do Terminal",
+    "Chefe do terminal": "Chefe do Terminal",
+    "Diretor + Financeiro": "Director Financeiro",
+    "Director + Financeiro": "Director Financeiro",
+    "Direção Geral": "Administrador Delegado",
+    "Direcao Geral": "Administrador Delegado",
+    "Direccao Geral": "Administrador Delegado",
+    "Administração / Conselho": "PCA",
+    "Administracao / Conselho": "PCA",
+}
+
+
+def _role_permissions(role_name: str, stored_permissions: str | None) -> set[str]:
+    try:
+        if stored_permissions:
+            return set(json.loads(stored_permissions))
+    except (TypeError, ValueError):
+        pass
+    return set(DEFAULT_ROLE_PERMISSIONS.get(role_name, set()))
+
+
+def _matrix_role_name(label: str | None) -> str | None:
+    if not label:
+        return None
+    clean_label = label.strip()
+    for source, target in APPROVAL_ROLE_ALIASES.items():
+        if clean_label.casefold() == source.casefold():
+            return target
+    return clean_label
+
+
+def _rule_matches_role(rule, role_id: int | None, role_name: str | None) -> bool:
+    expected = (role_name or "").strip().casefold()
+    if role_id and rule["approver_role_id"] == role_id:
+        return True
+    return bool(expected and (rule["final_approval"] or "").strip().casefold() == expected)
+
+
+def _rule_rank_for_assignment(rules: list[dict], approver_role_id: int | None, approver_label: str | None, amount) -> int | None:
+    if amount is not None:
+        try:
+            numeric_amount = float(amount or 0)
+        except (TypeError, ValueError):
+            numeric_amount = 0
+        for index, rule in enumerate(rules):
+            min_value = float(rule["min_value"] or 0)
+            max_value = rule["max_value"]
+            if numeric_amount >= min_value and (max_value is None or numeric_amount <= float(max_value)):
+                return index
+    mapped_label = _matrix_role_name(approver_label)
+    for index, rule in enumerate(rules):
+        if _rule_matches_role(rule, approver_role_id, mapped_label):
+            return index
+    return None
+
+
+def _highest_role_rank(rules: list[dict], role_id: int | None, role_name: str | None) -> int | None:
+    ranks = [index for index, rule in enumerate(rules) if _rule_matches_role(rule, role_id, role_name)]
+    return max(ranks) if ranks else None
+
 
 def ensure_schema() -> None:
     inspector = inspect(engine)
@@ -133,6 +195,64 @@ def ensure_schema() -> None:
             )
             connection.execute(text("CREATE INDEX ix_internal_operation_options_option_type ON internal_operation_options (option_type)"))
             connection.execute(text("CREATE INDEX ix_internal_operation_options_kind ON internal_operation_options (kind)"))
+        if "internal_operation_records" in tables:
+            connection.execute(
+                text(
+                    """
+                    UPDATE internal_operation_records
+                    SET operation_type = CASE lower(kind)
+                        WHEN 'fuel' THEN 'fuel_purchase_storage'
+                        WHEN 'water' THEN 'water_purchase'
+                        WHEN 'energy' THEN 'energy_purchase'
+                        ELSE operation_type
+                    END
+                    WHERE operation_type IS NULL OR trim(operation_type) = ''
+                    """
+                )
+            )
+            current_internal_columns = {column["name"] for column in inspect(connection).get_columns("internal_operation_records")}
+            if "unit" in current_internal_columns:
+                connection.execute(
+                    text(
+                        """
+                        UPDATE internal_operation_records
+                        SET unit = CASE lower(kind)
+                            WHEN 'fuel' THEN 'L'
+                            WHEN 'water' THEN 'L'
+                            WHEN 'energy' THEN 'kWh'
+                            ELSE unit
+                        END
+                        WHERE unit IS NULL
+                           OR trim(unit) = ''
+                           OR (lower(kind) IN ('fuel', 'water', 'energy') AND lower(unit) = 'un')
+                        """
+                    )
+                )
+        if "roles" in tables:
+            role_columns = {column["name"] for column in inspect(connection).get_columns("roles")}
+            for role_name, permissions in DEFAULT_ROLE_PERMISSIONS.items():
+                existing = connection.execute(
+                    text("SELECT id FROM roles WHERE lower(name) = lower(:name)"),
+                    {"name": role_name},
+                ).first()
+                if existing:
+                    continue
+                params = {
+                    "name": role_name,
+                    "permissions": json.dumps(sorted(permissions)) if role_name != "SuperAdmin" else None,
+                }
+                if "permissions" in role_columns and "is_system" in role_columns:
+                    connection.execute(
+                        text("INSERT INTO roles (name, permissions, is_system) VALUES (:name, :permissions, true)"),
+                        params,
+                    )
+                elif "permissions" in role_columns:
+                    connection.execute(
+                        text("INSERT INTO roles (name, permissions) VALUES (:name, :permissions)"),
+                        params,
+                    )
+                else:
+                    connection.execute(text("INSERT INTO roles (name) VALUES (:name)"), {"name": role_name})
         if "departments" in tables:
             for name in DEFAULT_DEPARTMENTS:
                 existing = connection.execute(
@@ -199,6 +319,22 @@ def ensure_schema() -> None:
                     """
                 )
             )
+            for source_label, target_role in APPROVAL_ROLE_ALIASES.items():
+                connection.execute(
+                    text(
+                        """
+                        UPDATE approval_matrix_rules
+                        SET approver_role_id = (
+                            SELECT roles.id FROM roles
+                            WHERE lower(roles.name) = lower(:target_role)
+                            LIMIT 1
+                        )
+                        WHERE approver_role_id IS NULL
+                          AND lower(final_approval) = lower(:source_label)
+                        """
+                    ),
+                    {"source_label": source_label, "target_role": target_role},
+                )
             connection.execute(
                 text(
                     """
@@ -213,6 +349,23 @@ def ensure_schema() -> None:
                     """
                 )
             )
+            for source_label, target_role in APPROVAL_ROLE_ALIASES.items():
+                connection.execute(
+                    text(
+                        """
+                        UPDATE requisitions
+                        SET approver_role_id = (
+                            SELECT roles.id FROM roles
+                            WHERE lower(roles.name) = lower(:target_role)
+                            LIMIT 1
+                        )
+                        WHERE approver_role_id IS NULL
+                          AND authorization_person IS NOT NULL
+                          AND lower(authorization_person) = lower(:source_label)
+                        """
+                    ),
+                    {"source_label": source_label, "target_role": target_role},
+                )
             matrix_roles = connection.execute(
                 text(
                     """
@@ -225,24 +378,63 @@ def ensure_schema() -> None:
             ).all()
             required = {"requisitions_all", "requisitions_review", "procurement_value_approve"}
             for role_id, role_name, stored_permissions in matrix_roles:
-                try:
-                    permissions = set(json.loads(stored_permissions)) if stored_permissions else set(
-                        DEFAULT_ROLE_PERMISSIONS.get(role_name, set())
-                    )
-                except (TypeError, ValueError):
-                    permissions = set(DEFAULT_ROLE_PERMISSIONS.get(role_name, set()))
+                permissions = _role_permissions(role_name, stored_permissions)
                 updated = permissions | required
                 if updated != permissions:
                     connection.execute(
                         text("UPDATE roles SET permissions = :permissions WHERE id = :role_id"),
                         {"permissions": json.dumps(sorted(updated)), "role_id": role_id},
                     )
+            if "notifications" in tables:
+                connection.execute(
+                    text(
+                        """
+                        UPDATE notifications
+                        SET module = 'Requisicoes'
+                        WHERE lower(module) LIKE 'requisi%'
+                        """
+                    )
+                )
+                connection.execute(
+                    text(
+                        """
+                        UPDATE notifications
+                        SET is_read = true, read_at = CURRENT_TIMESTAMP
+                        WHERE is_read = false
+                          AND record_id IS NOT NULL
+                          AND id NOT IN (
+                              SELECT keep_id FROM (
+                                  SELECT max(id) AS keep_id
+                                  FROM notifications
+                                  WHERE is_read = false
+                                    AND record_id IS NOT NULL
+                                  GROUP BY user_id, module, record_id
+                              )
+                          )
+                        """
+                    )
+                )
             if {"notifications", "users", "requisitions", "roles"}.issubset(set(tables)):
+                matrix_rows = [
+                    dict(row._mapping)
+                    for row in connection.execute(
+                        text(
+                            """
+                            SELECT id, min_value, max_value, sort_order,
+                                   final_approval, approver_role_id
+                            FROM approval_matrix_rules
+                            WHERE is_active = true
+                            ORDER BY sort_order, min_value, id
+                            """
+                        )
+                    ).all()
+                ]
                 stale_notifications = connection.execute(
                     text(
                         """
-                        SELECT notifications.id, roles.name, users.role_id,
-                               requisitions.authorization_person, requisitions.approver_role_id
+                        SELECT notifications.id, roles.name, roles.permissions, users.role_id,
+                               requisitions.authorization_person, requisitions.approver_role_id,
+                               requisitions.estimated_value
                         FROM notifications
                         JOIN users ON users.id = notifications.user_id
                         JOIN roles ON roles.id = users.role_id
@@ -257,16 +449,28 @@ def ensure_schema() -> None:
                         """
                     )
                 ).all()
-                for notification_id, role_name, user_role_id, approver_label, approver_role_id in stale_notifications:
-                    assigned = (
+                for (
+                    notification_id,
+                    role_name,
+                    stored_permissions,
+                    user_role_id,
+                    approver_label,
+                    approver_role_id,
+                    estimated_value,
+                ) in stale_notifications:
+                    permissions = _role_permissions(role_name, stored_permissions)
+                    required_rank = _rule_rank_for_assignment(matrix_rows, approver_role_id, approver_label, estimated_value)
+                    user_rank = _highest_role_rank(matrix_rows, user_role_id, role_name)
+                    can_approve = (
                         role_name == "SuperAdmin"
-                        or (approver_role_id and user_role_id == approver_role_id)
                         or (
-                            not approver_role_id
-                            and (not approver_label or role_name.strip().casefold() == approver_label.strip().casefold())
+                            "requisitions_review" in permissions
+                            and required_rank is not None
+                            and user_rank is not None
+                            and user_rank >= required_rank
                         )
                     )
-                    if not assigned:
+                    if not can_approve:
                         connection.execute(
                             text(
                                 """

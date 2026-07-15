@@ -14,6 +14,12 @@ from app.models.core import Notification, ProcurementCase, Requisition, User
 from app.security import has_permission
 from app.services.approval_policy import users_for_approval_assignment
 
+def canonical_notification_module(module: str) -> str:
+    clean_module = (module or "").strip()
+    if clean_module.casefold().startswith("requisi"):
+        return "Requisicoes"
+    return clean_module
+
 
 def unread_count(user_id: int) -> int:
     with SessionLocal() as db:
@@ -139,18 +145,21 @@ def localize_notification(text: str, user: User) -> str:
 
 
 def notify_user(db: Session, user: User, title: str, message: str, module: str, record_id: str | None = None, email: bool = True) -> None:
+    module = canonical_notification_module(module)
     title = localize_notification(title, user)
     message = localize_notification(message, user)
-    existing = db.scalar(
-        select(Notification).where(
-            Notification.user_id == user.id,
-            Notification.module == module,
-            Notification.record_id == record_id,
-            Notification.title == title,
-            Notification.is_read == False,
-        )
-    )
+    conditions = [
+        Notification.user_id == user.id,
+        Notification.module == module,
+        Notification.is_read == False,
+    ]
+    if record_id:
+        conditions.append(Notification.record_id == record_id)
+    else:
+        conditions.extend([Notification.record_id == record_id, Notification.title == title])
+    existing = db.scalar(select(Notification).where(*conditions).order_by(Notification.created_at.desc(), Notification.id.desc()))
     if existing:
+        existing.title = title
         existing.message = message
         existing.created_at = datetime.now(timezone.utc)
         return

@@ -43,7 +43,9 @@ class V3ModuleFlowTests(unittest.TestCase):
             ),
         )
         self.viewer_role = Role(name="V3 Viewer", permissions=json.dumps(["hse_view", "internal_ops_view"]))
-        self.db.add_all([self.department, self.role, self.viewer_role])
+        self.limited_hse_role = Role(name="Limited HSE Creator", permissions=json.dumps(["hse_view", "hse_records_create"]))
+        self.limited_hse_workflow_role = Role(name="Limited HSE Workflow", permissions=json.dumps(["hse_view", "hse_workflow_manage"]))
+        self.db.add_all([self.department, self.role, self.viewer_role, self.limited_hse_role, self.limited_hse_workflow_role])
         self.db.flush()
         self.user = User(
             full_name="V3 Manager",
@@ -61,7 +63,23 @@ class V3ModuleFlowTests(unittest.TestCase):
             department_id=self.department.id,
             notify_email=False,
         )
-        self.db.add_all([self.user, self.viewer])
+        self.limited_hse_user = User(
+            full_name="Limited HSE Creator",
+            username="limitedhse",
+            password_hash=hash_password("Test@12345"),
+            role_id=self.limited_hse_role.id,
+            department_id=self.department.id,
+            notify_email=False,
+        )
+        self.limited_hse_workflow_user = User(
+            full_name="Limited HSE Workflow",
+            username="limitedworkflow",
+            password_hash=hash_password("Test@12345"),
+            role_id=self.limited_hse_workflow_role.id,
+            department_id=self.department.id,
+            notify_email=False,
+        )
+        self.db.add_all([self.user, self.viewer, self.limited_hse_user, self.limited_hse_workflow_user])
         self.db.commit()
         app.dependency_overrides[get_db] = self.override_db
         self.client = TestClient(app)
@@ -125,6 +143,43 @@ class V3ModuleFlowTests(unittest.TestCase):
         response = self.client.post(
             "/hse/registos",
             data={"module": "incidents", "title": "Sem permissao"},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_hse_module_specific_permission_is_enforced(self):
+        self.login("limitedhse")
+        page = self.client.get("/hse?module=permits")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("Sem permissão", page.text)
+        self.assertNotIn('name="title" maxlength="220" required', page.text)
+
+        response = self.client.post(
+            "/hse/registos",
+            data={"module": "permits", "title": "Permissao sem perfil", "priority": "Normal"},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_hse_workflow_respects_module_specific_permission(self):
+        record = HseRecord(
+            number="HSE-PTW-2026-0001",
+            module="permits",
+            title="Permissao de trabalho",
+            priority="Normal",
+            created_by_id=self.user.id,
+        )
+        self.db.add(record)
+        self.db.commit()
+
+        self.login("limitedworkflow")
+        page = self.client.get("/hse?module=permits")
+        self.assertEqual(page.status_code, 200)
+        self.assertNotIn(f'action="/hse/registos/{record.id}/estado"', page.text)
+
+        response = self.client.post(
+            f"/hse/registos/{record.id}/estado",
+            data={"status": "In Progress", "progress": "10", "update_note": "Tentativa sem permissao"},
             follow_redirects=False,
         )
         self.assertEqual(response.status_code, 403)
@@ -279,6 +334,53 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.assertEqual(record.operation_type, "energy_reading")
         self.assertEqual(float(record.meter_reading), 3456)
         self.assertEqual(record.unit, "kWh")
+
+    def test_internal_operation_purchase_and_refuel_require_real_values(self):
+        self.login()
+        invalid_purchase = self.client.post(
+            "/operacoes-internas/registos",
+            data={
+                "kind": "fuel",
+                "operation_type": "fuel_purchase_storage",
+                "description": "Compra vazia",
+                "quantity": "0",
+                "amount": "0",
+            },
+        )
+        self.assertEqual(invalid_purchase.status_code, 400)
+        self.assertTrue("quantidade" in invalid_purchase.text.lower() or "quantity" in invalid_purchase.text.lower())
+
+        invalid_energy_purchase = self.client.post(
+            "/operacoes-internas/registos",
+            data={
+                "kind": "energy",
+                "operation_type": "energy_purchase",
+                "description": "Pagamento sem valor",
+                "quantity": "0",
+                "amount": "0",
+            },
+        )
+        self.assertEqual(invalid_energy_purchase.status_code, 400)
+        self.assertTrue("valor" in invalid_energy_purchase.text.lower() or "amount" in invalid_energy_purchase.text.lower())
+
+    def test_internal_operation_missing_subtype_uses_safe_default(self):
+        self.login()
+        created = self.client.post(
+            "/operacoes-internas/registos",
+            data={
+                "kind": "fuel",
+                "description": "Compra sem subtipo explicito",
+                "quantity": "100",
+                "amount": "9000",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(created.status_code, 303)
+        self.db.expire_all()
+        record = self.db.scalar(
+            select(InternalOperationRecord).where(InternalOperationRecord.description == "Compra sem subtipo explicito")
+        )
+        self.assertEqual(record.operation_type, "fuel_purchase_storage")
 
 
 if __name__ == "__main__":

@@ -11,14 +11,22 @@
 
 <section class="action-hub hse-hub" aria-label="{{ tx("Áreas HSE/HST", user if user is defined else none) }}">
   {% for module in modules %}
+    {% if module.enabled %}
     <a class="action-tile {% if selected_module == module.key %}active{% endif %}" href="/hse?module={{ module.key }}#hse-form">
+    {% else %}
+    <span class="action-tile disabled" aria-disabled="true">
+    {% endif %}
       <span class="tile-code">{{ "%02d"|format(loop.index) }}</span>
       <span class="tile-icon" aria-hidden="true">
         {{ "!" if module.key == "incidents" else "△" if module.key == "risks" else "✓" if module.key == "permits" else "⌕" if module.key == "inspections" else "↺" if module.key == "actions" else "★" if module.key == "training" else "◆" if module.key == "contractors" else "⚑" if module.key == "equipment" else "♧" if module.key == "environment" else "§" }}
       </span>
       <strong>{{ tx(module.title, user if user is defined else none) }}</strong>
-      <small>{{ module.count }} {{ tx("registos", user if user is defined else none) }} · {{ tx("Abrir área", user if user is defined else none) }}</small>
+      <small>{{ module.count }} {{ tx("registos", user if user is defined else none) }} · {{ tx("Abrir área", user if user is defined else none) if module.enabled else tx("Sem permissão", user if user is defined else none) }}</small>
+    {% if module.enabled %}
     </a>
+    {% else %}
+    </span>
+    {% endif %}
   {% endfor %}
 </section>
 
@@ -97,6 +105,8 @@
       <strong>{{ tx("Escolha uma área HSE/HST", user if user is defined else none) }}</strong>
       <p class="muted">{{ tx("Clique numa área acima para abrir os campos de registo e trabalhar apenas nesse fluxo.", user if user is defined else none) }}</p>
     </div>
+  {% elif not selected_module_enabled %}
+    <div class="alert orange">{{ tx("Este perfil não tem permissão para registar nesta área HSE/HST.", user if user is defined else none) }}</div>
   {% else %}
   {% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
   <form method="get" class="filters">
@@ -165,7 +175,7 @@
           <td>{{ record.due_date.strftime('%Y-%m-%d') if record.due_date else "-" }}</td>
           <td>
             <div class="progress-line"><span style="width: {{ record.progress or 0 }}%"></span></div>
-            {% if can_workflow_hse %}
+            {% if can_workflow_hse and record.module in manageable_hse_modules %}
               <form method="post" action="/hse/registos/{{ record.id }}/estado" class="inline-form">
                 <select name="status">{% for status in statuses %}<option value="{{ status }}" {% if record.status == status %}selected{% endif %}>{{ tv(status, user) }}</option>{% endfor %}</select>
                 <input name="progress" type="number" min="0" max="100" value="{{ record.progress or 0 }}" required>

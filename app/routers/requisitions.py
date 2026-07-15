@@ -69,6 +69,8 @@ def validate_requisition_items(
     req_type: str,
     product_ids: list[int],
     quantities: list[float],
+    *,
+    require_unit_price: bool = True,
 ) -> list[tuple[int, Product, float]]:
     validated: list[tuple[int, Product, float]] = []
     requested_totals: dict[int, float] = {}
@@ -96,6 +98,11 @@ def validate_requisition_items(
             if requested > available:
                 raise StockError(
                     f"A quantidade pedida para {product.code} - {product.name} excede o stock disponível ({available:g})."
+                )
+            if require_unit_price and float(product.unit_price or 0) <= 0:
+                raise StockError(
+                    f"O produto {product.code} - {product.name} não tem preço unitário definido. "
+                    "Atualize o preço antes de submeter a requisição."
                 )
     return validated
 
@@ -184,7 +191,13 @@ def create_requisition(
         raise HTTPException(400, "Escolha um Gestor Operacional ou um membro da Direção.")
     req_type = normalize_req_type(req_type)
     try:
-        validated_items = validate_requisition_items(db, req_type, parsed_product_ids, parsed_quantities)
+        validated_items = validate_requisition_items(
+            db,
+            req_type,
+            parsed_product_ids,
+            parsed_quantities,
+            require_unit_price=bool(submit),
+        )
         with atomic(db):
             total_value = requisition_value(validated_items)
             approval_label_value, approver_role_id = approval_assignment_for_value(db, total_value)

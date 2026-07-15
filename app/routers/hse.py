@@ -88,6 +88,10 @@ def module_config(module_key: str) -> dict | None:
     return next((module for module in HSE_MODULES if module["key"] == module_key), None)
 
 
+def can_use_hse_module(user: User, module: dict | None) -> bool:
+    return bool(module and has_permission(user, module["permission"]))
+
+
 def next_hse_number(db: Session, module: str) -> str:
     prefix = {
         "incidents": "HSE-INC",
@@ -124,22 +128,27 @@ def hse_context(request: Request, db: Session, user: User, module: str = "", err
     modules = [
         {
             **item,
-            "enabled": has_permission(user, item["permission"]),
+            "enabled": can_use_hse_module(user, item),
             "count": db.scalar(select(func.count(HseRecord.id)).where(HseRecord.module == item["key"])) or 0,
         }
         for item in HSE_MODULES
     ]
+    manageable_modules = [item["key"] for item in modules if item["enabled"]]
+    selected_config = module_config(module) if module else None
+    selected_module_enabled = can_use_hse_module(user, selected_config) if selected_config else False
     return {
         "request": request,
         "user": user,
         "modules": modules,
         "records": records,
         "selected_module": module,
+        "selected_module_enabled": selected_module_enabled,
+        "manageable_hse_modules": manageable_modules,
         "departments": db.scalars(select(Department).where(Department.is_active == True).order_by(Department.name)).all(),
         "owners": db.scalars(select(User).where(User.is_active == True).order_by(User.full_name)).all(),
         "statuses": HSE_STATUSES,
         "priorities": HSE_PRIORITIES,
-        "can_create_hse": has_permission(user, "hse_records_create"),
+        "can_create_hse": has_permission(user, "hse_records_create") and (not module or selected_module_enabled),
         "can_workflow_hse": has_permission(user, "hse_workflow_manage"),
         "can_close_hse": has_permission(user, "hse_records_close"),
         "can_manage_hse_settings": has_permission(user, "hse_settings"),
@@ -179,8 +188,11 @@ def create_hse_record(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("hse_records_create")),
 ):
-    if not module_config(module):
+    config = module_config(module)
+    if not config:
         raise HTTPException(400, "Escolha uma área HSE/HST válida.")
+    if not can_use_hse_module(user, config):
+        raise HTTPException(403, "Este perfil não tem permissão para registar nesta área HSE/HST.")
     if priority not in HSE_PRIORITIES:
         raise HTTPException(400, "Escolha uma prioridade válida.")
     parsed_owner_id = optional_int(owner_id, "Responsável")
@@ -229,6 +241,9 @@ def update_hse_status(
     record = db.get(HseRecord, record_id)
     if not record:
         raise HTTPException(404)
+    config = module_config(record.module)
+    if config and not can_use_hse_module(user, config):
+        raise HTTPException(403, "Este perfil não tem permissão para atualizar esta área HSE/HST.")
     if status not in HSE_STATUSES:
         raise HTTPException(400, "Escolha um estado HSE/HST válido.")
     if status == "Closed" and not has_permission(user, "hse_records_close"):
