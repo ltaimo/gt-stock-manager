@@ -65,8 +65,8 @@ class ProductMonitoringTests(unittest.TestCase):
         self.assertEqual(rows[0][10], "Sim")
         self.assertEqual(rows[0][11], "Inativo")
 
-    def test_release_version_is_2_1_0(self):
-        self.assertEqual(__version__, "2.1.0")
+    def test_release_version_is_3_0_0(self):
+        self.assertEqual(__version__, "3.0.0")
 
     def test_report_exports_preserve_numeric_zero(self):
         self.assertEqual(display_value(0), "0")

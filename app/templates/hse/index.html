@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <h1>{{ tx("HSE / HST", user if user is defined else none) }}</h1>
+    <p class="muted">{{ tx("Módulo integrado para segurança, saúde ocupacional, ambiente, ações corretivas e conformidade operacional.", user if user is defined else none) }}</p>
+  </div>
+  <a class="button secondary" href="/dashboard">{{ tx("Voltar ao dashboard", user if user is defined else none) }}</a>
+</header>
+
+<section class="stats-grid">
+  <article class="stat-card">
+    <span>{{ tx("Registos HSE", user if user is defined else none) }}</span>
+    <strong>{{ modules|length }}</strong>
+    <small>{{ tx("áreas funcionais preparadas para a V3", user if user is defined else none) }}</small>
+  </article>
+  <article class="stat-card">
+    <span>{{ tx("Workflows", user if user is defined else none) }}</span>
+    <strong>{{ tx("Unificados", user if user is defined else none) }}</strong>
+    <small>{{ tx("utilizadores, perfis, permissões e auditoria do sistema principal", user if user is defined else none) }}</small>
+  </article>
+  <article class="stat-card">
+    <span>{{ tx("Relatórios HSE", user if user is defined else none) }}</span>
+    <strong>{{ tx("Planeado", user if user is defined else none) }}</strong>
+    <small>{{ tx("consolidação futura com relatórios de stock e procurement", user if user is defined else none) }}</small>
+  </article>
+</section>
+
+<section class="panel">
+  <div class="panel-heading">
+    <div>
+      <h2>{{ tx("Arquitetura V3", user if user is defined else none) }}</h2>
+      <p class="muted">{{ tx("O HSE/HST entra como módulo nativo da plataforma, não como sistema separado.", user if user is defined else none) }}</p>
+    </div>
+    <span class="badge blue">v3.0.0</span>
+  </div>
+  <div class="form-grid">
+    <div class="info-card">
+      <h3>{{ tx("Acesso único", user if user is defined else none) }}</h3>
+      <p>{{ tx("O mesmo utilizador, perfil e departamento controlam Stock, Procurement e HSE/HST.", user if user is defined else none) }}</p>
+    </div>
+    <div class="info-card">
+      <h3>{{ tx("Permissões por módulo", user if user is defined else none) }}</h3>
+      <p>{{ tx("As permissões HSE/HST ficam no mesmo ecrã de perfis e podem ser combinadas com outras funções.", user if user is defined else none) }}</p>
+    </div>
+    <div class="info-card">
+      <h3>{{ tx("Aprovações coerentes", user if user is defined else none) }}</h3>
+      <p>{{ tx("As aprovações HSE/HST serão ligadas ao mesmo conceito de responsabilidade, perfil e trilha de auditoria.", user if user is defined else none) }}</p>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-heading">
+    <div>
+      <h2>{{ tx("Áreas HSE/HST", user if user is defined else none) }}</h2>
+      <p class="muted">{{ tx("Base funcional importada do desenho HSE existente e preparada para migração gradual.", user if user is defined else none) }}</p>
+    </div>
+  </div>
+  <div class="module-grid">
+    {% for module in modules %}
+      <article class="module-card">
+        <div class="module-card-top">
+          <span class="badge {{ 'green' if module.enabled else 'grey' }}">{{ tx("Ativo", user) if module.enabled else tx("Sem permissão", user) }}</span>
+          <small>{{ module.key }}</small>
+        </div>
+        <h3>{{ tx(module.title, user if user is defined else none) }}</h3>
+        <p>{{ tx(module.description, user if user is defined else none) }}</p>
+      </article>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

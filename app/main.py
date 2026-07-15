@@ -11,7 +11,7 @@ from app.config import get_settings
 from app.database import Base, engine
 from app.errors import http_error_handler, unexpected_error_handler, validation_error_handler
 from app.maintenance.migrate_schema import ensure_schema
-from app.routers import about, audit, auth, dashboard, documents, imports, movements, notifications, preferences, procurement, products, profiles, reports, requisitions, settings as settings_router, users
+from app.routers import about, audit, auth, dashboard, documents, hse, imports, movements, notifications, preferences, procurement, products, profiles, reports, requisitions, settings as settings_router, users
 
 
 settings = get_settings()
@@ -51,7 +51,7 @@ async def browser_security(request: Request, call_next):
     )
     return response
 
-for router in [auth.router, dashboard.router, products.router, movements.router, requisitions.router, procurement.router, settings_router.router, preferences.router, reports.router, users.router, profiles.router, imports.router, audit.router, notifications.router, documents.router, about.router]:
+for router in [auth.router, dashboard.router, products.router, movements.router, requisitions.router, procurement.router, hse.router, settings_router.router, preferences.router, reports.router, users.router, profiles.router, imports.router, audit.router, notifications.router, documents.router, about.router]:
     app.include_router(router)
 
 

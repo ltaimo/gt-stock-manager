@@ -37,6 +37,7 @@
     {% if can(user, 'non_stock_requisitions_create') or can(user, 'stock_replenishment_create') or can(user, 'procurement_manage') or can(user, 'budget_verify') %}
       <a href="/procurement" data-nav-prefix="/procurement">{{ t('procurement', user) }}</a>
     {% endif %}
+    {% if can(user, 'hse_view') %}<a href="/hse" data-nav-prefix="/hse">{{ t('hse', user) }}</a>{% endif %}
     {% if can(user, 'reports') %}<a href="/relatorios" data-nav-prefix="/relatorios">{{ t('reports', user) }}</a>{% endif %}
     {% if can(user, 'users_manage') %}<a href="/utilizadores" data-nav-prefix="/utilizadores">{{ t('users', user) }}</a>{% endif %}
     {% if can(user, 'profiles_manage') %}<a href="/perfis" data-nav-prefix="/perfis">{{ t('profiles', user) }}</a>{% endif %}
@@ -79,10 +80,10 @@
     {% block content %}{% endblock %}
 {% if user %}
   </main>
-  <footer class="app-footer">GT Stock Manager v{{ app_version }} &middot; {{ tx("Designed by", user) }} Layton Taimo</footer>
+  <footer class="app-footer">{{ app_short_name }} v{{ app_version }} &middot; {{ tx("Designed by", user) }} Layton Taimo</footer>
 </div>
 {% else %}
-  <footer class="auth-footer">GT Stock Manager v{{ app_version }} &middot; {{ tx("Designed by", user if user is defined else none) }} Layton Taimo</footer>
+  <footer class="auth-footer">{{ app_short_name }} v{{ app_version }} &middot; {{ tx("Designed by", user if user is defined else none) }} Layton Taimo</footer>
 </main>
 {% endif %}
 <script src="/static/js/app.js?v={{ app_version }}"></script>

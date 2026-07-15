@@ -19,6 +19,7 @@ PROTECTED_GET_ROUTES = {
     "/requisicoes/nova": "stock_requisitions_create",
     "/procurement/nova": "non_stock_requisitions_create",
     "/procurement/reposicao/nova": "stock_replenishment_create",
+    "/hse": "hse_view",
     "/relatorios": "reports",
     "/utilizadores": "users_manage",
     "/perfis": "profiles_manage",
