@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.core import Department, InternalOperationRecord, User
+from app.models.core import Department, InternalOperationOption, InternalOperationRecord, User
 from app.routers.common import templates
 from app.security import has_permission, require_permission
 from app.services.audit import audit_log
@@ -53,6 +53,19 @@ def operations_context(request: Request, db: Session, user: User, kind: str = ""
         }
         for item_kind in OPERATION_KINDS
     }
+    option_rows = db.scalars(
+        select(InternalOperationOption)
+        .where(InternalOperationOption.is_active == True)
+        .order_by(InternalOperationOption.option_type, InternalOperationOption.name)
+    ).all()
+    operation_options = {
+        option_type: [
+            option
+            for option in option_rows
+            if option.option_type == option_type and (not option.kind or not kind or option.kind == kind)
+        ]
+        for option_type in ["company", "fuel_type", "asset"]
+    }
     return {
         "request": request,
         "user": user,
@@ -60,6 +73,7 @@ def operations_context(request: Request, db: Session, user: User, kind: str = ""
         "kinds": OPERATION_KINDS,
         "statuses": OPERATION_STATUSES,
         "totals": totals,
+        "operation_options": operation_options,
         "selected_kind": kind,
         "departments": db.scalars(select(Department).where(Department.is_active == True).order_by(Department.name)).all(),
         "can_create_internal_ops": has_permission(user, "internal_ops_create"),
@@ -87,6 +101,8 @@ def create_operation_record(
     record_date: str | None = Form(None),
     description: str = Form(...),
     supplier: str | None = Form(None),
+    fuel_type: str | None = Form(None),
+    asset_name: str | None = Form(None),
     quantity: str | None = Form(None),
     unit: str | None = Form(None),
     amount: str | None = Form(None),
@@ -115,6 +131,8 @@ def create_operation_record(
             record_date=parse_record_date(record_date),
             description=required_text(description, "Descrição", 220),
             supplier=(supplier or "").strip() or None,
+            fuel_type=(fuel_type or "").strip() or None,
+            asset_name=(asset_name or "").strip() or None,
             quantity=parsed_quantity,
             unit=(unit or "").strip() or OPERATION_KINDS[kind]["unit"],
             amount=parsed_amount,

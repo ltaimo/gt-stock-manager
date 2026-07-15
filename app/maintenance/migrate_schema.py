@@ -97,10 +97,34 @@ def ensure_schema() -> None:
         for column, statement in procurement_additions.items():
             if column not in columns:
                 additions.append(statement)
+    if "internal_operation_records" in tables:
+        columns = {column["name"] for column in inspector.get_columns("internal_operation_records")}
+        if "fuel_type" not in columns:
+            additions.append("ALTER TABLE internal_operation_records ADD COLUMN fuel_type VARCHAR(120)")
+        if "asset_name" not in columns:
+            additions.append("ALTER TABLE internal_operation_records ADD COLUMN asset_name VARCHAR(160)")
 
     with engine.begin() as connection:
         for statement in additions:
             connection.execute(text(statement))
+        if "internal_operation_options" not in tables:
+            connection.execute(
+                text(
+                    """
+                    CREATE TABLE internal_operation_options (
+                        id INTEGER PRIMARY KEY,
+                        option_type VARCHAR(40) NOT NULL,
+                        name VARCHAR(160) NOT NULL,
+                        kind VARCHAR(30),
+                        is_active BOOLEAN DEFAULT true,
+                        created_at TIMESTAMP,
+                        UNIQUE(option_type, name)
+                    )
+                    """
+                )
+            )
+            connection.execute(text("CREATE INDEX ix_internal_operation_options_option_type ON internal_operation_options (option_type)"))
+            connection.execute(text("CREATE INDEX ix_internal_operation_options_kind ON internal_operation_options (kind)"))
         if "departments" in tables:
             for name in DEFAULT_DEPARTMENTS:
                 existing = connection.execute(

@@ -150,6 +150,17 @@ class ApprovalSchemaMigrationTests(unittest.TestCase):
             connection.execute(
                 text(
                     """
+                    CREATE TABLE internal_operation_records (
+                        id INTEGER PRIMARY KEY,
+                        number VARCHAR(40),
+                        kind VARCHAR(30)
+                    )
+                    """
+                )
+            )
+            connection.execute(
+                text(
+                    """
                     INSERT INTO roles (id, name, permissions)
                     VALUES (9, 'Chefe do Terminal', '["documents"]')
                     """
@@ -190,6 +201,15 @@ class ApprovalSchemaMigrationTests(unittest.TestCase):
             "approver_role_id",
             {column["name"] for column in inspect(self.engine).get_columns("requisitions")},
         )
+        self.assertIn(
+            "fuel_type",
+            {column["name"] for column in inspect(self.engine).get_columns("internal_operation_records")},
+        )
+        self.assertIn(
+            "asset_name",
+            {column["name"] for column in inspect(self.engine).get_columns("internal_operation_records")},
+        )
+        self.assertIn("internal_operation_options", inspect(self.engine).get_table_names())
         with self.engine.connect() as connection:
             approver_role_id = connection.execute(
                 text("SELECT approver_role_id FROM requisitions WHERE id = 13")

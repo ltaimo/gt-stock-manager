@@ -12,9 +12,9 @@ def env_path(name: str, default: Path) -> Path:
 
 class Settings:
     app_version = os.getenv("APP_VERSION", "3.0.0")
-    app_name = os.getenv("APP_NAME", "Sistema de Gestão Integrada GT")
+    app_name = os.getenv("APP_NAME", "GT Integrated Management System")
     app_subtitle = os.getenv("APP_SUBTITLE", "Gestão de Terminais, SA")
-    app_short_name = os.getenv("APP_SHORT_NAME", "GT Management")
+    app_short_name = os.getenv("APP_SHORT_NAME", "GTMS")
     environment = os.getenv("ENVIRONMENT", "development")
     secret_key = os.getenv("SECRET_KEY", "change-me-in-production")
     reset_stock_security_code = os.getenv("RESET_STOCK_SECURITY_CODE", "")

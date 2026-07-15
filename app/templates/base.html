@@ -25,7 +25,7 @@
     {% else %}
       <span class="brand-mark">GT</span>
     {% endif %}
-    <span><strong>{{ tx(app_name, user if user is defined else none) }}</strong><small>{{ app_subtitle }}</small></span>
+    <span class="brand-copy"><strong>{{ app_short_name }}</strong><small>GT Integrated Management System</small><small>{{ app_subtitle }}</small></span>
   </a>
   <nav>
     <a href="/dashboard" data-nav-prefix="/dashboard"><span class="nav-icon" aria-hidden="true">⌂</span><span>{{ t('dashboard', user) }}</span></a>

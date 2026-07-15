@@ -8,7 +8,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import Base, get_db
 from app.main import app
-from app.models.core import Department, HseRecord, InternalOperationRecord, Role, User
+from app.models.core import Department, HseRecord, InternalOperationOption, InternalOperationRecord, Role, User
 from app.security import hash_password
 
 
@@ -38,6 +38,7 @@ class V3ModuleFlowTests(unittest.TestCase):
                     "internal_ops_edit",
                     "internal_ops_approve",
                     "internal_ops_reports",
+                    "settings_manage",
                 ]
             ),
         )
@@ -147,12 +148,36 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.assertNotIn('name="description" maxlength="220" required', operations.text)
         operations_selected = self.client.get("/operacoes-internas?kind=fuel")
         self.assertIn('name="description" maxlength="220" required', operations_selected.text)
+        self.assertIn('type="hidden" name="kind" value="fuel"', operations_selected.text)
+        self.assertNotIn('select name="kind"', operations_selected.text)
 
         dashboard = self.client.get("/dashboard")
         self.assertEqual(dashboard.status_code, 200)
         self.assertIn("module-switchboard", dashboard.text)
         self.assertIn("/hse", dashboard.text)
         self.assertIn("/operacoes-internas", dashboard.text)
+
+    def test_internal_operation_options_are_configured_and_used_in_fuel_form(self):
+        self.login()
+        created = self.client.post(
+            "/configuracoes/operacoes-internas/opcoes",
+            data={"option_type": "fuel_type", "name": "Diesel 50ppm", "kind": "fuel"},
+            follow_redirects=False,
+        )
+        self.assertEqual(created.status_code, 303)
+        created = self.client.post(
+            "/configuracoes/operacoes-internas/opcoes",
+            data={"option_type": "asset", "name": "Empilhadeira 01", "kind": "fuel"},
+            follow_redirects=False,
+        )
+        self.assertEqual(created.status_code, 303)
+        self.db.expire_all()
+        self.assertIsNotNone(self.db.scalar(select(InternalOperationOption).where(InternalOperationOption.name == "Diesel 50ppm")))
+
+        form = self.client.get("/operacoes-internas?kind=fuel")
+        self.assertEqual(form.status_code, 200)
+        self.assertIn("Diesel 50ppm", form.text)
+        self.assertIn("Empilhadeira 01", form.text)
 
     def test_internal_operation_create_validate_and_report(self):
         self.login()
@@ -163,6 +188,8 @@ class V3ModuleFlowTests(unittest.TestCase):
                 "record_date": "2026-07-15",
                 "description": "Abastecimento viatura operacional",
                 "supplier": "Fornecedor A",
+                "fuel_type": "Diesel 50ppm",
+                "asset_name": "Empilhadeira 01",
                 "quantity": "50",
                 "unit": "L",
                 "amount": "4500",
@@ -176,6 +203,8 @@ class V3ModuleFlowTests(unittest.TestCase):
         record = self.db.scalar(select(InternalOperationRecord).where(InternalOperationRecord.kind == "fuel"))
         self.assertIsNotNone(record)
         self.assertTrue(record.number.startswith("FUEL-"))
+        self.assertEqual(record.fuel_type, "Diesel 50ppm")
+        self.assertEqual(record.asset_name, "Empilhadeira 01")
 
         validated = self.client.post(
             f"/operacoes-internas/registos/{record.id}/validar",

@@ -349,6 +349,8 @@ class InternalOperationRecord(Base):
     record_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
     description: Mapped[str] = mapped_column(String(220), nullable=False)
     supplier: Mapped[str | None] = mapped_column(String(180))
+    fuel_type: Mapped[str | None] = mapped_column(String(120))
+    asset_name: Mapped[str | None] = mapped_column(String(160))
     quantity: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
     unit: Mapped[str] = mapped_column(String(30), default="un")
     amount: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
@@ -367,6 +369,18 @@ class InternalOperationRecord(Base):
     department: Mapped[Department | None] = relationship()
     created_by: Mapped[User] = relationship(foreign_keys=[created_by_id])
     approved_by: Mapped[User | None] = relationship(foreign_keys=[approved_by_id])
+
+
+class InternalOperationOption(Base):
+    __tablename__ = "internal_operation_options"
+    __table_args__ = (UniqueConstraint("option_type", "name"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    option_type: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    kind: Mapped[str | None] = mapped_column(String(30), index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
 class Notification(Base):

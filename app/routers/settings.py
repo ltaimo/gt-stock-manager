@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import get_db
-from app.models.core import ApprovalMatrixRule, Category, Department, Product, Requisition, Role, StockMovement, User
+from app.models.core import ApprovalMatrixRule, Category, Department, InternalOperationOption, Product, Requisition, Role, StockMovement, User
 from app.routers.common import templates
 from app.security import grant_permissions, require_permission
 from app.services.audit import audit_log
@@ -29,6 +29,7 @@ def settings_home(request: Request, db: Session = Depends(get_db), user: User = 
             "user": user,
             "categories": db.scalars(select(Category).order_by(Category.name)).all(),
             "departments": db.scalars(select(Department).order_by(Department.name)).all(),
+            "internal_options": db.scalars(select(InternalOperationOption).order_by(InternalOperationOption.option_type, InternalOperationOption.name)).all(),
             "reset_message": request.query_params.get("reset_message"),
             "reset_error": request.query_params.get("reset_error"),
             "reset_enabled": bool(settings.reset_stock_security_code),
@@ -77,6 +78,54 @@ def remove_category(category_id: int, request: Request, db: Session = Depends(ge
             action = "Removeu categoria de produto"
             db.delete(category)
         audit_log(db, user, action, "Configurações", category_id, old_value=old, request=request)
+    return RedirectResponse("/configuracoes", status_code=303)
+
+
+@router.post("/operacoes-internas/opcoes")
+def add_internal_operation_option(
+    request: Request,
+    option_type: str | None = Form(None),
+    name: str | None = Form(None),
+    kind: str | None = Form(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("settings_manage")),
+):
+    clean_type = required_text(option_type, "Tipo de configuracao", 40)
+    if clean_type not in {"company", "fuel_type", "asset"}:
+        raise HTTPException(400, "Escolha um tipo de configuracao valido.")
+    clean_name = required_text(name, "Nome", 160)
+    clean_kind = (kind or "").strip() or None
+    if clean_kind and clean_kind not in {"fuel", "water", "energy"}:
+        raise HTTPException(400, "Escolha um modulo de operacao interna valido.")
+    existing = db.scalar(
+        select(InternalOperationOption).where(
+            InternalOperationOption.option_type == clean_type,
+            InternalOperationOption.name.ilike(clean_name),
+        )
+    )
+    with atomic(db):
+        if existing:
+            existing.name = clean_name
+            existing.kind = clean_kind
+            existing.is_active = True
+            option = existing
+        else:
+            option = InternalOperationOption(option_type=clean_type, name=clean_name, kind=clean_kind, is_active=True)
+            db.add(option)
+            db.flush()
+        audit_log(db, user, "Guardou configuracao de operacao interna", "Configuracoes", option.id, new_value={"type": option.option_type, "name": option.name, "kind": option.kind}, request=request)
+    return RedirectResponse("/configuracoes", status_code=303)
+
+
+@router.post("/operacoes-internas/opcoes/{option_id}/remover")
+def remove_internal_operation_option(option_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("settings_manage"))):
+    option = db.get(InternalOperationOption, option_id)
+    if not option:
+        raise HTTPException(404)
+    with atomic(db):
+        old = {"type": option.option_type, "name": option.name, "active": option.is_active}
+        option.is_active = False
+        audit_log(db, user, "Desativou configuracao de operacao interna", "Configuracoes", option_id, old_value=old, request=request)
     return RedirectResponse("/configuracoes", status_code=303)
 
 

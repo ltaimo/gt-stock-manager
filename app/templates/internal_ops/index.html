@@ -38,29 +38,33 @@
     </div>
   {% else %}
   {% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
-  <form method="get" class="filters">
-    <select name="kind">
-      <option value="">{{ tx("Todos os tipos", user if user is defined else none) }}</option>
-      {% for key, kind in kinds.items() %}
-        <option value="{{ key }}" {% if selected_kind == key %}selected{% endif %}>{{ tx(kind.label, user if user is defined else none) }}</option>
-      {% endfor %}
-    </select>
-    <button class="secondary">{{ tx("Filtrar", user if user is defined else none) }}</button>
-  </form>
-
   {% if can_create_internal_ops %}
     <form method="post" action="/operacoes-internas/registos" class="form-stack">
       <div class="form-grid">
-        <label>{{ tx("Tipo", user if user is defined else none) }}
-          <select name="kind" required>
-            {% for key, kind in kinds.items() %}
-              <option value="{{ key }}" {% if selected_kind == key %}selected{% endif %}>{{ tx(kind.label, user if user is defined else none) }}</option>
-            {% endfor %}
-          </select>
-        </label>
+        <input type="hidden" name="kind" value="{{ selected_kind }}">
+        <label>{{ tx("Operação selecionada", user if user is defined else none) }}<input value="{{ tx(kinds[selected_kind].label, user if user is defined else none) }}" disabled></label>
         <label>{{ tx("Data", user if user is defined else none) }}<input type="date" name="record_date"></label>
         <label>{{ tx("Descrição", user if user is defined else none) }}<input name="description" maxlength="220" required></label>
-        <label>{{ tx("Fornecedor", user if user is defined else none) }}<input name="supplier" maxlength="180"></label>
+        <label>{{ tx("Empresa / fornecedor", user if user is defined else none) }}
+          <select name="supplier">
+            <option value="">{{ tx("Sem seleção", user if user is defined else none) }}</option>
+            {% for option in operation_options.company %}<option value="{{ option.name }}">{{ option.name }}</option>{% endfor %}
+          </select>
+        </label>
+        {% if selected_kind == "fuel" %}
+        <label>{{ tx("Tipo de combustível", user if user is defined else none) }}
+          <select name="fuel_type">
+            <option value="">{{ tx("Sem seleção", user if user is defined else none) }}</option>
+            {% for option in operation_options.fuel_type %}<option value="{{ option.name }}">{{ option.name }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>{{ tx("Máquina / viatura / ativo", user if user is defined else none) }}
+          <select name="asset_name">
+            <option value="">{{ tx("Sem seleção", user if user is defined else none) }}</option>
+            {% for option in operation_options.asset %}<option value="{{ option.name }}">{{ option.name }}</option>{% endfor %}
+          </select>
+        </label>
+        {% endif %}
         <label>{{ tx("Quantidade", user if user is defined else none) }}<input name="quantity" type="number" step="0.01" min="0" value="0"></label>
         <label>{{ tx("Unidade", user if user is defined else none) }}<input name="unit" maxlength="30" placeholder="L / kWh / un"></label>
         <label>{{ tx("Valor", user if user is defined else none) }}<input name="amount" type="number" step="0.01" min="0" required></label>
@@ -99,7 +103,7 @@
           <td>{{ record.number }}</td>
           <td>{{ record.record_date.strftime('%Y-%m-%d') }}</td>
           <td>{{ tx(kinds[record.kind].label, user if user is defined else none) }}</td>
-          <td><strong>{{ record.description }}</strong><br><small class="muted">{{ record.supplier or "" }} {{ record.location or "" }}</small></td>
+          <td><strong>{{ record.description }}</strong><br><small class="muted">{{ record.supplier or "" }} {{ record.fuel_type or "" }} {{ record.asset_name or "" }} {{ record.location or "" }}</small></td>
           <td>{{ record.quantity }} {{ record.unit }}</td>
           <td>{{ "%.2f"|format(record.amount|float) }} MZN</td>
           <td><span class="badge {{ 'green' if record.status == 'Validated' else 'grey' if record.status == 'Cancelled' else 'orange' }}">{{ tv(record.status, user) }}</span></td>
