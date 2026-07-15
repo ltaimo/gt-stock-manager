@@ -28,24 +28,24 @@
     <span><strong>{{ tx(app_name, user if user is defined else none) }}</strong><small>{{ app_subtitle }}</small></span>
   </a>
   <nav>
-    <a href="/dashboard" data-nav-prefix="/dashboard">{{ t('dashboard', user) }}</a>
-    <a href="/produtos" data-nav-prefix="/produtos">{{ t('products', user) }}</a>
-    {% if can(user, 'movements') %}<a href="/movimentos" data-nav-prefix="/movimentos">{{ t('movements', user) }}</a>{% endif %}
-    {% if can(user, 'documents') %}<a href="/documentos" data-nav-prefix="/documentos">{{ t('documents', user) }}</a>{% endif %}
-    {% if can(user, 'stock_requisitions_create') %}<a href="/requisicoes/nova" data-nav-exact="/requisicoes/nova">{{ t('new_sr', user) }}</a>{% endif %}
-    <a href="/requisicoes" data-nav-prefix="/requisicoes">{{ t('sr_requests', user) }}</a>
+    <a href="/dashboard" data-nav-prefix="/dashboard"><span class="nav-icon" aria-hidden="true">⌂</span><span>{{ t('dashboard', user) }}</span></a>
+    <a href="/produtos" data-nav-prefix="/produtos"><span class="nav-icon" aria-hidden="true">▦</span><span>{{ t('products', user) }}</span></a>
+    {% if can(user, 'movements') %}<a href="/movimentos" data-nav-prefix="/movimentos"><span class="nav-icon" aria-hidden="true">⇄</span><span>{{ t('movements', user) }}</span></a>{% endif %}
+    {% if can(user, 'documents') %}<a href="/documentos" data-nav-prefix="/documentos"><span class="nav-icon" aria-hidden="true">▤</span><span>{{ t('documents', user) }}</span></a>{% endif %}
+    {% if can(user, 'stock_requisitions_create') %}<a href="/requisicoes/nova" data-nav-exact="/requisicoes/nova"><span class="nav-icon" aria-hidden="true">＋</span><span>{{ t('new_sr', user) }}</span></a>{% endif %}
+    <a href="/requisicoes" data-nav-prefix="/requisicoes"><span class="nav-icon" aria-hidden="true">✓</span><span>{{ t('sr_requests', user) }}</span></a>
     {% if can(user, 'non_stock_requisitions_create') or can(user, 'stock_replenishment_create') or can(user, 'procurement_manage') or can(user, 'budget_verify') %}
-      <a href="/procurement" data-nav-prefix="/procurement">{{ t('procurement', user) }}</a>
+      <a href="/procurement" data-nav-prefix="/procurement"><span class="nav-icon" aria-hidden="true">◇</span><span>{{ t('procurement', user) }}</span></a>
     {% endif %}
-    {% if can(user, 'hse_view') %}<a href="/hse" data-nav-prefix="/hse">{{ t('hse', user) }}</a>{% endif %}
-    {% if can(user, 'internal_ops_view') %}<a href="/operacoes-internas" data-nav-prefix="/operacoes-internas">{{ t('internal_ops', user) }}</a>{% endif %}
-    {% if can(user, 'reports') or can(user, 'hse_reports') or can(user, 'internal_ops_reports') %}<a href="/relatorios" data-nav-prefix="/relatorios">{{ t('reports', user) }}</a>{% endif %}
-    {% if can(user, 'users_manage') %}<a href="/utilizadores" data-nav-prefix="/utilizadores">{{ t('users', user) }}</a>{% endif %}
-    {% if can(user, 'profiles_manage') %}<a href="/perfis" data-nav-prefix="/perfis">{{ t('profiles', user) }}</a>{% endif %}
-    {% if can(user, 'imports') %}<a href="/importar" data-nav-prefix="/importar">{{ t('imports', user) }}</a>{% endif %}
-    {% if can(user, 'audit') %}<a href="/auditoria" data-nav-prefix="/auditoria">{{ t('audit', user) }}</a>{% endif %}
-    {% if can(user, 'settings_manage') %}<a href="/configuracoes" data-nav-prefix="/configuracoes">{{ t('settings', user) }}</a>{% endif %}
-    <a href="/sobre" data-nav-prefix="/sobre">{{ t('about', user) }}</a>
+    {% if can(user, 'hse_view') %}<a href="/hse" data-nav-prefix="/hse"><span class="nav-icon" aria-hidden="true">✚</span><span>{{ t('hse', user) }}</span></a>{% endif %}
+    {% if can(user, 'internal_ops_view') %}<a href="/operacoes-internas" data-nav-prefix="/operacoes-internas"><span class="nav-icon" aria-hidden="true">⚙</span><span>{{ t('internal_ops', user) }}</span></a>{% endif %}
+    {% if can(user, 'reports') or can(user, 'hse_reports') or can(user, 'internal_ops_reports') %}<a href="/relatorios" data-nav-prefix="/relatorios"><span class="nav-icon" aria-hidden="true">▥</span><span>{{ t('reports', user) }}</span></a>{% endif %}
+    {% if can(user, 'users_manage') %}<a href="/utilizadores" data-nav-prefix="/utilizadores"><span class="nav-icon" aria-hidden="true">◉</span><span>{{ t('users', user) }}</span></a>{% endif %}
+    {% if can(user, 'profiles_manage') %}<a href="/perfis" data-nav-prefix="/perfis"><span class="nav-icon" aria-hidden="true">◈</span><span>{{ t('profiles', user) }}</span></a>{% endif %}
+    {% if can(user, 'imports') %}<a href="/importar" data-nav-prefix="/importar"><span class="nav-icon" aria-hidden="true">⇧</span><span>{{ t('imports', user) }}</span></a>{% endif %}
+    {% if can(user, 'audit') %}<a href="/auditoria" data-nav-prefix="/auditoria"><span class="nav-icon" aria-hidden="true">◎</span><span>{{ t('audit', user) }}</span></a>{% endif %}
+    {% if can(user, 'settings_manage') %}<a href="/configuracoes" data-nav-prefix="/configuracoes"><span class="nav-icon" aria-hidden="true">◌</span><span>{{ t('settings', user) }}</span></a>{% endif %}
+    <a href="/sobre" data-nav-prefix="/sobre"><span class="nav-icon" aria-hidden="true">i</span><span>{{ t('about', user) }}</span></a>
   </nav>
   <form method="post" action="/logout"><button class="link-button">{{ tx("Sair", user if user is defined else none) }}</button></form>
 </aside>

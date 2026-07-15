@@ -141,6 +141,19 @@ def localize_notification(text: str, user: User) -> str:
 def notify_user(db: Session, user: User, title: str, message: str, module: str, record_id: str | None = None, email: bool = True) -> None:
     title = localize_notification(title, user)
     message = localize_notification(message, user)
+    existing = db.scalar(
+        select(Notification).where(
+            Notification.user_id == user.id,
+            Notification.module == module,
+            Notification.record_id == record_id,
+            Notification.title == title,
+            Notification.is_read == False,
+        )
+    )
+    if existing:
+        existing.message = message
+        existing.created_at = datetime.now(timezone.utc)
+        return
     db.add(Notification(user_id=user.id, title=title, message=message, module=module, record_id=record_id))
     if email and user.email and user.notify_email:
         send_email(user.email, title, message)

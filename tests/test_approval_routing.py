@@ -2,7 +2,7 @@ import json
 import unittest
 
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -184,6 +184,54 @@ class ApprovalRoutingTests(unittest.TestCase):
             recipient_ids,
             {self.terminal_user.id, self.superadmin.id},
         )
+
+    def test_pending_notification_is_not_duplicated_for_same_user_and_record(self):
+        notify_requisition_pending(self.db, self.req)
+        notify_requisition_pending(self.db, self.req)
+        self.db.commit()
+        count = self.db.scalar(
+            select(func.count(Notification.id)).where(
+                Notification.user_id == self.terminal_user.id,
+                Notification.record_id == self.req.number,
+                Notification.is_read == False,
+            )
+        )
+        self.assertEqual(count, 1)
+
+    def test_open_notification_marks_same_record_notifications_read(self):
+        self.db.add_all(
+            [
+                Notification(
+                    user_id=self.terminal_user.id,
+                    title="Requisicao pendente: REQ-TEST-001",
+                    message="Primeira",
+                    module="Requisicoes",
+                    record_id=self.req.number,
+                ),
+                Notification(
+                    user_id=self.terminal_user.id,
+                    title="Requisicao pendente: REQ-TEST-001",
+                    message="Segunda",
+                    module="Requisicoes",
+                    record_id=self.req.number,
+                ),
+            ]
+        )
+        self.db.commit()
+        notification = self.db.scalar(select(Notification).where(Notification.user_id == self.terminal_user.id))
+
+        self.login("jmacie")
+        response = self.client.get(f"/notificacoes/{notification.id}/abrir", follow_redirects=False)
+        self.assertEqual(response.status_code, 303)
+        self.db.expire_all()
+        unread = self.db.scalars(
+            select(Notification).where(
+                Notification.user_id == self.terminal_user.id,
+                Notification.record_id == self.req.number,
+                Notification.is_read == False,
+            )
+        ).all()
+        self.assertEqual(unread, [])
 
     def test_lower_pending_notification_targets_assigned_and_superior_profiles(self):
         low_req = Requisition(

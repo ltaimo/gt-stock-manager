@@ -13,6 +13,7 @@
   {% for key, kind in kinds.items() %}
     <a class="action-tile {% if selected_kind == key %}active{% endif %}" href="/operacoes-internas?kind={{ key }}#internal-ops-form">
       <span class="tile-code">{{ "%02d"|format(loop.index) }}</span>
+      <span class="tile-icon" aria-hidden="true">{{ "⛽" if key == "fuel" else "💧" if key == "water" else "⚡" }}</span>
       <strong>{{ tx(kind.label, user if user is defined else none) }}</strong>
       <small>{{ "%.2f"|format(totals[key].amount|float) }} MZN · {{ tx("Registar ou consultar", user if user is defined else none) }}</small>
     </a>
@@ -30,6 +31,12 @@
 </section>
 
 <section class="panel" id="internal-ops-form">
+  {% if not selected_kind %}
+    <div class="choice-empty-state">
+      <strong>{{ tx("Escolha uma operação interna", user if user is defined else none) }}</strong>
+      <p class="muted">{{ tx("Clique em Combustível, Água ou Energia para abrir os campos de registo dessa operação.", user if user is defined else none) }}</p>
+    </div>
+  {% else %}
   {% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
   <form method="get" class="filters">
     <select name="kind">
@@ -67,6 +74,7 @@
       <label>{{ tx("Observações", user if user is defined else none) }}<textarea name="notes"></textarea></label>
       <div class="actions"><button class="success">{{ tx("Registar operação interna", user if user is defined else none) }}</button></div>
     </form>
+  {% endif %}
   {% endif %}
 </section>
 

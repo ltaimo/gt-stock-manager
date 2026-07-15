@@ -14,6 +14,21 @@ from app.services.transactions import atomic
 router = APIRouter(prefix="/notificacoes", tags=["notificacoes"])
 
 
+def mark_notification_group_read(db: Session, notification: Notification) -> None:
+    now = datetime.now(timezone.utc)
+    stmt = select(Notification).where(
+        Notification.user_id == notification.user_id,
+        Notification.is_read == False,
+    )
+    if notification.record_id:
+        stmt = stmt.where(Notification.module == notification.module, Notification.record_id == notification.record_id)
+    else:
+        stmt = stmt.where(Notification.id == notification.id)
+    for item in db.scalars(stmt).all():
+        item.is_read = True
+        item.read_at = now
+
+
 @router.get("")
 def list_notifications(request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
     notifications = db.scalars(
@@ -27,8 +42,7 @@ def mark_read(notification_id: int, db: Session = Depends(get_db), user: User = 
     notification = db.get(Notification, notification_id)
     if notification and notification.user_id == user.id:
         with atomic(db):
-            notification.is_read = True
-            notification.read_at = datetime.now(timezone.utc)
+            mark_notification_group_read(db, notification)
     return RedirectResponse("/notificacoes", status_code=303)
 
 
@@ -39,8 +53,7 @@ def open_notification(notification_id: int, db: Session = Depends(get_db), user:
         return RedirectResponse("/notificacoes", status_code=303)
 
     with atomic(db):
-        notification.is_read = True
-        notification.read_at = datetime.now(timezone.utc)
+        mark_notification_group_read(db, notification)
 
     if notification.module in {"Requisicoes", "Requisições", "Requisições"} and notification.record_id:
         requisition = db.scalar(select(Requisition).where(Requisition.number == notification.record_id))
