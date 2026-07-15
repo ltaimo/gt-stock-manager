@@ -37,6 +37,40 @@
   <div><strong>{{ stock_health }}%</strong><span>{{ tx("Saúde do stock", user if user is defined else none) }}</span><small>{{ tx("Stock adequado", user if user is defined else none) }}</small></div>
 </section>
 
+<section class="module-switchboard" aria-label="{{ tx("Centro dos módulos", user if user is defined else none) }}">
+  <a class="switch-card stock" href="/produtos">
+    <span>{{ tx("Stock", user if user is defined else none) }}</span>
+    <strong>{{ total_products }}</strong>
+    <small>{{ tx("Produtos, alertas e saldos", user if user is defined else none) }}</small>
+  </a>
+  {% if can_view_procurement %}
+    <a class="switch-card procurement" href="/procurement">
+      <span>{{ tx("Procurement", user if user is defined else none) }}</span>
+      <strong>{{ procurement_pending_count }}</strong>
+      <small>{{ tx("Processos, reposições e aprovações", user if user is defined else none) }}</small>
+    </a>
+  {% endif %}
+  {% if can_view_hse %}
+    <a class="switch-card hse" href="/hse">
+      <span>{{ tx("HSE / HST", user if user is defined else none) }}</span>
+      <strong>{{ open_hse_count }}</strong>
+      <small>{{ tx("Incidentes, ações e conformidade", user if user is defined else none) }}</small>
+    </a>
+  {% endif %}
+  {% if can_view_internal_ops %}
+    <a class="switch-card ops" href="/operacoes-internas">
+      <span>{{ tx("Operações internas", user if user is defined else none) }}</span>
+      <strong>{{ "%.2f"|format(internal_ops_month_amount|float) }}</strong>
+      <small>{{ tx("Combustível, água, energia e consumos", user if user is defined else none) }}</small>
+    </a>
+  {% endif %}
+  <a class="switch-card reports" href="/relatorios">
+    <span>{{ tx("Relatórios", user if user is defined else none) }}</span>
+    <strong>{{ stock_health }}%</strong>
+    <small>{{ tx("Indicadores gerais da plataforma", user if user is defined else none) }}</small>
+  </a>
+</section>
+
 {% if can_view_movements %}
 <section class="dashboard-grid">
   <div class="panel chart-panel wide">

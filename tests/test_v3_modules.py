@@ -128,6 +128,24 @@ class V3ModuleFlowTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 403)
 
+    def test_v3_module_hubs_render_on_entry_pages_and_dashboard(self):
+        self.login()
+        hse = self.client.get("/hse")
+        self.assertEqual(hse.status_code, 200)
+        self.assertIn("/hse?module=incidents#hse-form", hse.text)
+        self.assertIn("action-hub hse-hub", hse.text)
+
+        operations = self.client.get("/operacoes-internas")
+        self.assertEqual(operations.status_code, 200)
+        self.assertIn("/operacoes-internas?kind=fuel#internal-ops-form", operations.text)
+        self.assertIn("action-hub ops-hub", operations.text)
+
+        dashboard = self.client.get("/dashboard")
+        self.assertEqual(dashboard.status_code, 200)
+        self.assertIn("module-switchboard", dashboard.text)
+        self.assertIn("/hse", dashboard.text)
+        self.assertIn("/operacoes-internas", dashboard.text)
+
     def test_internal_operation_create_validate_and_report(self):
         self.login()
         created = self.client.post(

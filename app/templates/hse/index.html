@@ -1,12 +1,23 @@
 {% extends "base.html" %}
 {% block content %}
-<header class="page-header">
+<header class="page-header module-hero hse-hero">
   <div>
+    <span class="eyebrow">{{ tx("Módulo HSE/HST", user if user is defined else none) }}</span>
     <h1>{{ tx("HSE / HST", user if user is defined else none) }}</h1>
     <p class="muted">{{ tx("Módulo integrado para segurança, saúde ocupacional, ambiente, ações corretivas e conformidade operacional.", user if user is defined else none) }}</p>
   </div>
   <a class="button secondary" href="/dashboard">{{ tx("Voltar ao dashboard", user if user is defined else none) }}</a>
 </header>
+
+<section class="action-hub hse-hub" aria-label="{{ tx("Áreas HSE/HST", user if user is defined else none) }}">
+  {% for module in modules %}
+    <a class="action-tile {% if selected_module == module.key %}active{% endif %}" href="/hse?module={{ module.key }}#hse-form">
+      <span class="tile-code">{{ "%02d"|format(loop.index) }}</span>
+      <strong>{{ tx(module.title, user if user is defined else none) }}</strong>
+      <small>{{ module.count }} {{ tx("registos", user if user is defined else none) }} · {{ tx("Abrir área", user if user is defined else none) }}</small>
+    </a>
+  {% endfor %}
+</section>
 
 <section class="stats-grid">
   <article class="stat-card">
@@ -26,7 +37,7 @@
   </article>
 </section>
 
-<section class="panel">
+<section class="panel" id="hse-form">
   <div class="panel-heading">
     <div>
       <h2>{{ tx("Arquitetura V3", user if user is defined else none) }}</h2>

@@ -1,12 +1,23 @@
 {% extends "base.html" %}
 {% block content %}
-<header class="page-header">
+<header class="page-header module-hero ops-hero">
   <div>
+    <span class="eyebrow">{{ tx("Módulo de operações internas", user if user is defined else none) }}</span>
     <h1>{{ tx("Operações internas", user if user is defined else none) }}</h1>
     <p class="muted">{{ tx("Controlo interno de combustível, água, energia e outros consumos operacionais.", user if user is defined else none) }}</p>
   </div>
   <a class="button secondary" href="/dashboard">{{ tx("Voltar ao dashboard", user if user is defined else none) }}</a>
 </header>
+
+<section class="action-hub ops-hub" aria-label="{{ tx("Operações internas", user if user is defined else none) }}">
+  {% for key, kind in kinds.items() %}
+    <a class="action-tile {% if selected_kind == key %}active{% endif %}" href="/operacoes-internas?kind={{ key }}#internal-ops-form">
+      <span class="tile-code">{{ "%02d"|format(loop.index) }}</span>
+      <strong>{{ tx(kind.label, user if user is defined else none) }}</strong>
+      <small>{{ "%.2f"|format(totals[key].amount|float) }} MZN · {{ tx("Registar ou consultar", user if user is defined else none) }}</small>
+    </a>
+  {% endfor %}
+</section>
 
 <section class="stats-grid">
   {% for key, kind in kinds.items() %}
@@ -18,7 +29,7 @@
   {% endfor %}
 </section>
 
-<section class="panel">
+<section class="panel" id="internal-ops-form">
   {% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
   <form method="get" class="filters">
     <select name="kind">
