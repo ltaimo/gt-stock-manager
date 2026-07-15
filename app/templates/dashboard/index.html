@@ -28,6 +28,12 @@
   {% if can_view_procurement %}
     <div><strong>{{ procurement_pending_count }}</strong><span>{{ t('open_procurement', user) }}</span><small>{{ tx("Compras e reposições em acompanhamento", user if user is defined else none) }}</small></div>
   {% endif %}
+  {% if can_view_hse %}
+    <div><strong>{{ open_hse_count }}</strong><span>{{ tx("HSE/HST aberto", user if user is defined else none) }}</span><small>{{ tx("Incidentes, ações, permissões e conformidade", user if user is defined else none) }}</small></div>
+  {% endif %}
+  {% if can_view_internal_ops %}
+    <div><strong>{{ "%.2f"|format(internal_ops_month_amount|float) }}</strong><span>{{ tx("Operações internas do mês", user if user is defined else none) }}</span><small>{{ tx("Combustível, água e energia", user if user is defined else none) }}</small></div>
+  {% endif %}
   <div><strong>{{ stock_health }}%</strong><span>{{ tx("Saúde do stock", user if user is defined else none) }}</span><small>{{ tx("Stock adequado", user if user is defined else none) }}</small></div>
 </section>
 

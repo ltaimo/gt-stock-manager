@@ -1,1 +1,22 @@
-<div class="panel"><table><thead><tr>{% for h in headers %}<th>{{ h }}</th>{% endfor %}</tr></thead><tbody>{% for row in rows %}<tr>{% for value in row %}<td>{{ value }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header">
+  <h1>{{ title }}</h1>
+  <div>
+    <a class="button secondary" href="?export=xlsx">Excel</a>
+    <a class="button secondary" href="?export=pdf">PDF</a>
+  </div>
+</header>
+<div class="panel">
+  <table>
+    <thead><tr>{% for h in headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>{% for value in row %}<td>{{ value }}</td>{% endfor %}</tr>
+      {% else %}
+        <tr><td colspan="{{ headers|length }}"><div class="empty-state">{{ tx("Sem dados para apresentar.", user if user is defined else none) }}</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

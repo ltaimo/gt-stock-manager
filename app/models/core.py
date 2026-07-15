@@ -311,6 +311,64 @@ class ProcurementCase(Base):
     terminal_manager_approved_by: Mapped[User | None] = relationship(foreign_keys=[terminal_manager_approved_by_id])
 
 
+class HseRecord(Base):
+    __tablename__ = "hse_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    number: Mapped[str] = mapped_column(String(40), unique=True, nullable=False, index=True)
+    module: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(220), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    location: Mapped[str | None] = mapped_column(String(160))
+    priority: Mapped[str] = mapped_column(String(30), default="Normal")
+    status: Mapped[str] = mapped_column(String(60), default="Open", index=True)
+    progress: Mapped[int] = mapped_column(Integer, default=0)
+    owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    department_id: Mapped[int | None] = mapped_column(ForeignKey("departments.id"))
+    due_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    closed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    notes: Mapped[str | None] = mapped_column(Text)
+    workflow_history: Mapped[str | None] = mapped_column(Text)
+
+    owner: Mapped[User | None] = relationship(foreign_keys=[owner_id])
+    department: Mapped[Department | None] = relationship()
+    closed_by: Mapped[User | None] = relationship(foreign_keys=[closed_by_id])
+    created_by: Mapped[User] = relationship(foreign_keys=[created_by_id])
+
+
+class InternalOperationRecord(Base):
+    __tablename__ = "internal_operation_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    number: Mapped[str] = mapped_column(String(40), unique=True, nullable=False, index=True)
+    kind: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    record_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
+    description: Mapped[str] = mapped_column(String(220), nullable=False)
+    supplier: Mapped[str | None] = mapped_column(String(180))
+    quantity: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
+    unit: Mapped[str] = mapped_column(String(30), default="un")
+    amount: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
+    location: Mapped[str | None] = mapped_column(String(160))
+    department_id: Mapped[int | None] = mapped_column(ForeignKey("departments.id"))
+    responsible_person: Mapped[str | None] = mapped_column(String(160))
+    reference_number: Mapped[str | None] = mapped_column(String(120), index=True)
+    status: Mapped[str] = mapped_column(String(40), default="Registered", index=True)
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    approved_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    department: Mapped[Department | None] = relationship()
+    created_by: Mapped[User] = relationship(foreign_keys=[created_by_id])
+    approved_by: Mapped[User | None] = relationship(foreign_keys=[approved_by_id])
+
+
 class Notification(Base):
     __tablename__ = "notifications"
 

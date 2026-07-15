@@ -6,7 +6,7 @@ from sqlalchemy import extract, func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.core import ProcurementCase, Product, Requisition, RequisitionStatus, StockMovement, User
+from app.models.core import HseRecord, InternalOperationRecord, ProcurementCase, Product, Requisition, RequisitionStatus, StockMovement, User
 from app.routers.common import templates
 from app.security import current_user, has_permission
 from app.services.approval_policy import can_user_approve_assignment
@@ -35,6 +35,8 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
 
     products = db.scalars(select(Product).order_by(Product.name)).all()
     can_view_movements = has_permission(user, "movements")
+    can_view_hse = has_permission(user, "hse_view")
+    can_view_internal_ops = has_permission(user, "internal_ops_view")
     can_review_requisitions = has_permission(user, "requisitions_review")
     can_view_all_procurement = any(has_permission(user, permission) for permission in PROCUREMENT_VIEW_PERMISSIONS)
     can_view_procurement = (
@@ -77,6 +79,22 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
     if can_view_procurement and not can_view_all_procurement:
         procurement_stmt = procurement_stmt.where(Requisition.requesting_user_id == user.id)
     procurement_pending = db.scalars(procurement_stmt.limit(8)).all() if can_view_procurement else []
+    open_hse_count = (
+        db.scalar(select(func.count(HseRecord.id)).where(HseRecord.status.notin_(["Closed", "Cancelled"]))) or 0
+        if can_view_hse
+        else 0
+    )
+    internal_ops_month_amount = (
+        db.scalar(
+            select(func.coalesce(func.sum(InternalOperationRecord.amount), 0)).where(
+                extract("month", InternalOperationRecord.record_date) == now.month,
+                extract("year", InternalOperationRecord.record_date) == now.year,
+            )
+        )
+        or 0
+        if can_view_internal_ops
+        else 0
+    )
 
     active_products = [p for p in products if p.status == "active"]
     products_without_price = [p for p in active_products if float(p.unit_price or 0) <= 0]
@@ -172,6 +190,8 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
             "negative": len(negative_products),
             "pending_count": len(pending),
             "procurement_pending_count": len(procurement_pending),
+            "open_hse_count": open_hse_count,
+            "internal_ops_month_amount": internal_ops_month_amount,
             "entries_month": entries_month,
             "exits_month": exits_month,
             "projected_entries": projected_entries,
@@ -187,5 +207,7 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
             "unit_chart": unit_chart,
             "can_view_movements": can_view_movements,
             "can_view_procurement": can_view_procurement,
+            "can_view_hse": can_view_hse,
+            "can_view_internal_ops": can_view_internal_ops,
         },
     )

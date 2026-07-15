@@ -7,16 +7,22 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.i18n import language_for, localized_name, translate_text, translate_value
-from app.models.core import Department, ProcurementCase, Product, Requisition, StockMovement, User
+from app.models.core import Department, HseRecord, InternalOperationRecord, ProcurementCase, Product, Requisition, StockMovement, User
 from app.routers.common import templates
-from app.security import require_permission
+from app.security import current_user, has_permission, require_permission
 from app.services.exports import rows_to_csv, rows_to_pdf, rows_to_xlsx
 
 router = APIRouter(prefix="/relatorios", tags=["relatorios"])
 
 
+def can_view_reports_home(user: User) -> bool:
+    return any(has_permission(user, permission) for permission in {"reports", "hse_reports", "internal_ops_reports"})
+
+
 @router.get("")
-def reports_home(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("reports"))):
+def reports_home(request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    if not can_view_reports_home(user):
+        raise HTTPException(403)
     return templates.TemplateResponse(request, "reports/index.html", {"request": request, "user": user})
 
 
@@ -185,6 +191,58 @@ def procurement_report(request: Request, export: str = "", db: Session = Depends
     if export == "pdf":
         return Response(rows_to_pdf(headers, rows, translate_text("Relatório de Procurement", language), user.full_name, language), media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="procurement.pdf"'})
     return templates.TemplateResponse(request, "reports/procurement.html", {"request": request, "user": user, "headers": headers, "rows": rows})
+
+
+@router.get("/hse")
+def hse_report(request: Request, export: str = "", db: Session = Depends(get_db), user: User = Depends(require_permission("hse_reports"))):
+    language = language_for(user, request)
+    records = db.scalars(select(HseRecord).order_by(HseRecord.created_at.desc())).all()
+    headers = [translate_text(value, language) for value in ["Nº", "Área", "Título", "Estado", "Prioridade", "Responsável", "Departamento", "Prazo", "Progresso"]]
+    rows = [
+        (
+            record.number,
+            translate_text(record.module, language),
+            record.title,
+            translate_value(record.status, language),
+            translate_value(record.priority, language),
+            record.owner.full_name if record.owner else "",
+            record.department.name if record.department else "",
+            record.due_date.strftime("%Y-%m-%d") if record.due_date else "",
+            f"{record.progress or 0}%",
+        )
+        for record in records
+    ]
+    if export == "xlsx":
+        return Response(rows_to_xlsx(headers, rows, translate_text("Relatório HSE/HST", language), language), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": 'attachment; filename="hse.xlsx"'})
+    if export == "pdf":
+        return Response(rows_to_pdf(headers, rows, translate_text("Relatório HSE/HST", language), user.full_name, language), media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="hse.pdf"'})
+    return templates.TemplateResponse(request, "reports/table.html", {"request": request, "user": user, "title": translate_text("Relatório HSE/HST", language), "headers": headers, "rows": rows})
+
+
+@router.get("/operacoes-internas")
+def internal_ops_report(request: Request, export: str = "", db: Session = Depends(get_db), user: User = Depends(require_permission("internal_ops_reports"))):
+    language = language_for(user, request)
+    records = db.scalars(select(InternalOperationRecord).order_by(InternalOperationRecord.record_date.desc())).all()
+    headers = [translate_text(value, language) for value in ["Nº", "Data", "Tipo", "Descrição", "Fornecedor", "Quantidade", "Valor", "Departamento", "Estado"]]
+    rows = [
+        (
+            record.number,
+            record.record_date.strftime("%Y-%m-%d"),
+            translate_text(record.kind, language),
+            record.description,
+            record.supplier or "",
+            f"{record.quantity} {record.unit}",
+            record.amount,
+            record.department.name if record.department else "",
+            translate_value(record.status, language),
+        )
+        for record in records
+    ]
+    if export == "xlsx":
+        return Response(rows_to_xlsx(headers, rows, translate_text("Relatório de Operações Internas", language), language), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": 'attachment; filename="operacoes-internas.xlsx"'})
+    if export == "pdf":
+        return Response(rows_to_pdf(headers, rows, translate_text("Relatório de Operações Internas", language), user.full_name, language), media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="operacoes-internas.pdf"'})
+    return templates.TemplateResponse(request, "reports/table.html", {"request": request, "user": user, "title": translate_text("Relatório de Operações Internas", language), "headers": headers, "rows": rows})
 
 
 @router.get("/critico")

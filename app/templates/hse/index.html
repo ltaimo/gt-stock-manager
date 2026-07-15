@@ -70,4 +70,94 @@
     {% endfor %}
   </div>
 </section>
+
+<section class="panel">
+  <div class="panel-heading">
+    <div>
+      <h2>{{ tx("Registos operacionais HSE/HST", user if user is defined else none) }}</h2>
+      <p class="muted">{{ tx("Cada registo fica associado a uma área, responsável, departamento, estado e histórico de workflow.", user if user is defined else none) }}</p>
+    </div>
+  </div>
+  {% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
+  <form method="get" class="filters">
+    <select name="module">
+      <option value="">{{ tx("Todas as áreas", user if user is defined else none) }}</option>
+      {% for module in modules %}
+        <option value="{{ module.key }}" {% if selected_module == module.key %}selected{% endif %}>{{ tx(module.title, user if user is defined else none) }}</option>
+      {% endfor %}
+    </select>
+    <button class="secondary">{{ tx("Filtrar", user if user is defined else none) }}</button>
+  </form>
+
+  {% if can_create_hse %}
+    <form method="post" action="/hse/registos" class="form-stack">
+      <div class="form-grid">
+        <label>{{ tx("Área HSE/HST", user if user is defined else none) }}
+          <select name="module" required>
+            {% for module in modules %}
+              <option value="{{ module.key }}" {% if selected_module == module.key %}selected{% endif %}>{{ tx(module.title, user if user is defined else none) }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>{{ tx("Título", user if user is defined else none) }}<input name="title" maxlength="220" required></label>
+        <label>{{ tx("Prioridade", user if user is defined else none) }}
+          <select name="priority">{% for priority in priorities %}<option value="{{ priority }}">{{ tv(priority, user) }}</option>{% endfor %}</select>
+        </label>
+        <label>{{ tx("Responsável", user if user is defined else none) }}
+          <select name="owner_id"><option value="">{{ tx("Sem responsável definido", user if user is defined else none) }}</option>{% for owner in owners %}<option value="{{ owner.id }}">{{ owner.full_name }}</option>{% endfor %}</select>
+        </label>
+        <label>{{ tx("Departamento", user if user is defined else none) }}
+          <select name="department_id"><option value="">{{ tx("Sem departamento", user if user is defined else none) }}</option>{% for department in departments %}<option value="{{ department.id }}">{{ department.name }}</option>{% endfor %}</select>
+        </label>
+        <label>{{ tx("Prazo", user if user is defined else none) }}<input name="due_date" type="date"></label>
+        <label>{{ tx("Local", user if user is defined else none) }}<input name="location" maxlength="160"></label>
+      </div>
+      <label>{{ tx("Descrição", user if user is defined else none) }}<textarea name="description"></textarea></label>
+      <label>{{ tx("Observações", user if user is defined else none) }}<textarea name="notes"></textarea></label>
+      <div class="actions"><button class="success">{{ tx("Criar registo HSE/HST", user if user is defined else none) }}</button></div>
+    </form>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <div class="panel-heading"><h2>{{ tx("Registos recentes", user if user is defined else none) }}</h2><span class="badge blue">{{ records|length }}</span></div>
+  <table>
+    <thead>
+      <tr>
+        <th>{{ tx("Nº", user if user is defined else none) }}</th>
+        <th>{{ tx("Área", user if user is defined else none) }}</th>
+        <th>{{ tx("Título", user if user is defined else none) }}</th>
+        <th>{{ tx("Estado", user if user is defined else none) }}</th>
+        <th>{{ tx("Responsável", user if user is defined else none) }}</th>
+        <th>{{ tx("Prazo", user if user is defined else none) }}</th>
+        <th>{{ tx("Workflow", user if user is defined else none) }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for record in records %}
+        <tr>
+          <td>{{ record.number }}</td>
+          <td>{{ tx(record.module, user if user is defined else none) }}</td>
+          <td><strong>{{ record.title }}</strong><br><small class="muted">{{ record.location or "" }}</small></td>
+          <td><span class="badge {{ 'green' if record.status == 'Closed' else 'orange' if record.priority in ['High','Critical'] else 'blue' }}">{{ tv(record.status, user) }}</span></td>
+          <td>{{ record.owner.full_name if record.owner else "-" }}</td>
+          <td>{{ record.due_date.strftime('%Y-%m-%d') if record.due_date else "-" }}</td>
+          <td>
+            <div class="progress-line"><span style="width: {{ record.progress or 0 }}%"></span></div>
+            {% if can_workflow_hse %}
+              <form method="post" action="/hse/registos/{{ record.id }}/estado" class="inline-form">
+                <select name="status">{% for status in statuses %}<option value="{{ status }}" {% if record.status == status %}selected{% endif %}>{{ tv(status, user) }}</option>{% endfor %}</select>
+                <input name="progress" type="number" min="0" max="100" value="{{ record.progress or 0 }}" required>
+                <input name="update_note" placeholder="{{ tx("Nota obrigatória", user if user is defined else none) }}" required>
+                <button class="secondary compact">{{ tx("Atualizar", user if user is defined else none) }}</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7" class="empty-state">{{ tx("Ainda não existem registos HSE/HST para os filtros selecionados.", user if user is defined else none) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
 {% endblock %}

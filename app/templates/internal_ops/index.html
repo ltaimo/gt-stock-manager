@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <h1>{{ tx("Operações internas", user if user is defined else none) }}</h1>
+    <p class="muted">{{ tx("Controlo interno de combustível, água, energia e outros consumos operacionais.", user if user is defined else none) }}</p>
+  </div>
+  <a class="button secondary" href="/dashboard">{{ tx("Voltar ao dashboard", user if user is defined else none) }}</a>
+</header>
+
+<section class="stats-grid">
+  {% for key, kind in kinds.items() %}
+    <article class="stat-card">
+      <span>{{ tx(kind.label, user if user is defined else none) }}</span>
+      <strong>{{ "%.2f"|format(totals[key].amount|float) }} MZN</strong>
+      <small>{{ totals[key].count }} {{ tx("registos", user if user is defined else none) }}</small>
+    </article>
+  {% endfor %}
+</section>
+
+<section class="panel">
+  {% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
+  <form method="get" class="filters">
+    <select name="kind">
+      <option value="">{{ tx("Todos os tipos", user if user is defined else none) }}</option>
+      {% for key, kind in kinds.items() %}
+        <option value="{{ key }}" {% if selected_kind == key %}selected{% endif %}>{{ tx(kind.label, user if user is defined else none) }}</option>
+      {% endfor %}
+    </select>
+    <button class="secondary">{{ tx("Filtrar", user if user is defined else none) }}</button>
+  </form>
+
+  {% if can_create_internal_ops %}
+    <form method="post" action="/operacoes-internas/registos" class="form-stack">
+      <div class="form-grid">
+        <label>{{ tx("Tipo", user if user is defined else none) }}
+          <select name="kind" required>
+            {% for key, kind in kinds.items() %}
+              <option value="{{ key }}" {% if selected_kind == key %}selected{% endif %}>{{ tx(kind.label, user if user is defined else none) }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>{{ tx("Data", user if user is defined else none) }}<input type="date" name="record_date"></label>
+        <label>{{ tx("Descrição", user if user is defined else none) }}<input name="description" maxlength="220" required></label>
+        <label>{{ tx("Fornecedor", user if user is defined else none) }}<input name="supplier" maxlength="180"></label>
+        <label>{{ tx("Quantidade", user if user is defined else none) }}<input name="quantity" type="number" step="0.01" min="0" value="0"></label>
+        <label>{{ tx("Unidade", user if user is defined else none) }}<input name="unit" maxlength="30" placeholder="L / kWh / un"></label>
+        <label>{{ tx("Valor", user if user is defined else none) }}<input name="amount" type="number" step="0.01" min="0" required></label>
+        <label>{{ tx("Local", user if user is defined else none) }}<input name="location" maxlength="160"></label>
+        <label>{{ tx("Departamento", user if user is defined else none) }}
+          <select name="department_id"><option value="">{{ tx("Sem departamento", user if user is defined else none) }}</option>{% for department in departments %}<option value="{{ department.id }}">{{ department.name }}</option>{% endfor %}</select>
+        </label>
+        <label>{{ tx("Responsável", user if user is defined else none) }}<input name="responsible_person" maxlength="160"></label>
+        <label>{{ tx("Referência", user if user is defined else none) }}<input name="reference_number" maxlength="120"></label>
+      </div>
+      <label>{{ tx("Observações", user if user is defined else none) }}<textarea name="notes"></textarea></label>
+      <div class="actions"><button class="success">{{ tx("Registar operação interna", user if user is defined else none) }}</button></div>
+    </form>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <div class="panel-heading"><h2>{{ tx("Registos recentes", user if user is defined else none) }}</h2><span class="badge blue">{{ records|length }}</span></div>
+  <table>
+    <thead>
+      <tr>
+        <th>{{ tx("Nº", user if user is defined else none) }}</th>
+        <th>{{ tx("Data", user if user is defined else none) }}</th>
+        <th>{{ tx("Tipo", user if user is defined else none) }}</th>
+        <th>{{ tx("Descrição", user if user is defined else none) }}</th>
+        <th>{{ tx("Quantidade", user if user is defined else none) }}</th>
+        <th>{{ tx("Valor", user if user is defined else none) }}</th>
+        <th>{{ tx("Estado", user if user is defined else none) }}</th>
+        <th>{{ tx("Validação", user if user is defined else none) }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for record in records %}
+        <tr>
+          <td>{{ record.number }}</td>
+          <td>{{ record.record_date.strftime('%Y-%m-%d') }}</td>
+          <td>{{ tx(kinds[record.kind].label, user if user is defined else none) }}</td>
+          <td><strong>{{ record.description }}</strong><br><small class="muted">{{ record.supplier or "" }} {{ record.location or "" }}</small></td>
+          <td>{{ record.quantity }} {{ record.unit }}</td>
+          <td>{{ "%.2f"|format(record.amount|float) }} MZN</td>
+          <td><span class="badge {{ 'green' if record.status == 'Validated' else 'grey' if record.status == 'Cancelled' else 'orange' }}">{{ tv(record.status, user) }}</span></td>
+          <td>
+            {% if can_approve_internal_ops and record.status != 'Validated' %}
+              <form method="post" action="/operacoes-internas/registos/{{ record.id }}/validar" class="inline-form">
+                <select name="status">{% for status in statuses %}<option value="{{ status }}" {% if record.status == status %}selected{% endif %}>{{ tv(status, user) }}</option>{% endfor %}</select>
+                <button class="secondary compact">{{ tx("Atualizar", user if user is defined else none) }}</button>
+              </form>
+            {% else %}
+              {{ record.approved_by.full_name if record.approved_by else "-" }}
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="8" class="empty-state">{{ tx("Ainda não existem operações internas para os filtros selecionados.", user if user is defined else none) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
