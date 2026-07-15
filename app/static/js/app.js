@@ -363,6 +363,29 @@ function initReplenishmentForm() {
   update();
 }
 
+function initInternalOperationsForm() {
+  const select = document.querySelector("[data-operation-type]");
+  if (!select) return;
+  const update = () => {
+    const value = select.value;
+    document.querySelectorAll("[data-visible-for]").forEach((element) => {
+      const visible = element.dataset.visibleFor.split(/\s+/).includes(value);
+      element.hidden = !visible;
+      element.querySelectorAll("input, select, textarea").forEach((field) => {
+        field.disabled = !visible;
+        if (field.name === "odometer_reading" || field.name === "meter_reading") {
+          field.required = visible;
+        }
+        if (field.name === "asset_name" && value === "fuel_refuel") {
+          field.required = visible;
+        }
+      });
+    });
+  };
+  select.addEventListener("change", update);
+  update();
+}
+
 function drawBarLineChart(canvas, labels, bars, line) {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -481,6 +504,7 @@ window.addEventListener("load", () => {
   initRequisitionReview();
   initMovementForm();
   initReplenishmentForm();
+  initInternalOperationsForm();
 });
 window.addEventListener("resize", () => {
   window.clearTimeout(window.__chartResize);

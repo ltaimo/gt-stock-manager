@@ -18,9 +18,21 @@ router = APIRouter(prefix="/operacoes-internas", tags=["operacoes-internas"])
 
 OPERATION_KINDS = {
     "fuel": {"label": "Combustível", "unit": "L"},
-    "water": {"label": "Água", "unit": "un"},
+    "water": {"label": "Água", "unit": "L"},
     "energy": {"label": "Energia", "unit": "kWh"},
 }
+OPERATION_TYPES = {
+    "fuel": [
+        ("fuel_purchase_storage", "Compra para armazenamento"),
+        ("fuel_refuel", "Abastecimento de máquina/viatura"),
+    ],
+    "water": [("water_purchase", "Compra de água")],
+    "energy": [
+        ("energy_purchase", "Compra/pagamento de energia"),
+        ("energy_reading", "Leitura de energia"),
+    ],
+}
+PAYMENT_METHODS = ["Cheque", "Transferência", "Numerário", "Outro"]
 OPERATION_STATUSES = ["Registered", "Validated", "Cancelled"]
 
 
@@ -71,6 +83,8 @@ def operations_context(request: Request, db: Session, user: User, kind: str = ""
         "user": user,
         "records": records,
         "kinds": OPERATION_KINDS,
+        "operation_types": OPERATION_TYPES,
+        "payment_methods": PAYMENT_METHODS,
         "statuses": OPERATION_STATUSES,
         "totals": totals,
         "operation_options": operation_options,
@@ -98,14 +112,18 @@ def operations_home(
 def create_operation_record(
     request: Request,
     kind: str = Form(...),
+    operation_type: str | None = Form(None),
     record_date: str | None = Form(None),
     description: str = Form(...),
     supplier: str | None = Form(None),
     fuel_type: str | None = Form(None),
     asset_name: str | None = Form(None),
+    odometer_reading: str | None = Form(None),
+    meter_reading: str | None = Form(None),
     quantity: str | None = Form(None),
     unit: str | None = Form(None),
     amount: str | None = Form(None),
+    payment_method: str | None = Form(None),
     location: str | None = Form(None),
     department_id: str | None = Form(None),
     responsible_person: str | None = Form(None),
@@ -116,26 +134,47 @@ def create_operation_record(
 ):
     if kind not in OPERATION_KINDS:
         raise HTTPException(400, "Escolha um tipo de operação interna válido.")
+    allowed_operation_types = {value for value, _label in OPERATION_TYPES[kind]}
+    clean_operation_type = (operation_type or "").strip() or next(iter(allowed_operation_types))
+    if clean_operation_type not in allowed_operation_types:
+        raise HTTPException(400, "Escolha uma operação válida.")
     parsed_department_id = optional_int(department_id, "Departamento")
     department = db.get(Department, parsed_department_id) if parsed_department_id else None
     if parsed_department_id and not department:
         raise HTTPException(400, "O departamento selecionado não existe.")
     parsed_quantity = optional_float(quantity, "Quantidade", 0) or 0
-    parsed_amount = required_float(amount, "Valor")
+    parsed_amount = optional_float(amount, "Valor", 0) or 0
+    parsed_odometer = optional_float(odometer_reading, "Leitura do odómetro") if str(odometer_reading or "").strip() else None
+    parsed_meter = optional_float(meter_reading, "Leitura do contador") if str(meter_reading or "").strip() else None
     if parsed_quantity < 0 or parsed_amount < 0:
         raise HTTPException(400, "Quantidade e valor não podem ser negativos.")
+    if parsed_odometer is not None and parsed_odometer < 0:
+        raise HTTPException(400, "A leitura do odómetro não pode ser negativa.")
+    if parsed_meter is not None and parsed_meter < 0:
+        raise HTTPException(400, "A leitura do contador não pode ser negativa.")
+    if clean_operation_type == "fuel_refuel":
+        if not (asset_name or "").strip():
+            raise HTTPException(400, "Informe a máquina, viatura ou ativo abastecido.")
+        if parsed_odometer is None:
+            raise HTTPException(400, "A leitura do odómetro é obrigatória no abastecimento.")
+    if clean_operation_type == "energy_reading" and parsed_meter is None:
+        raise HTTPException(400, "A leitura do contador é obrigatória na leitura de energia.")
     with atomic(db):
         record = InternalOperationRecord(
             number=next_operation_number(db, kind),
             kind=kind,
+            operation_type=clean_operation_type,
             record_date=parse_record_date(record_date),
             description=required_text(description, "Descrição", 220),
             supplier=(supplier or "").strip() or None,
             fuel_type=(fuel_type or "").strip() or None,
             asset_name=(asset_name or "").strip() or None,
+            odometer_reading=parsed_odometer,
+            meter_reading=parsed_meter,
             quantity=parsed_quantity,
-            unit=(unit or "").strip() or OPERATION_KINDS[kind]["unit"],
+            unit=OPERATION_KINDS[kind]["unit"],
             amount=parsed_amount,
+            payment_method=(payment_method or "").strip() or None,
             location=(location or "").strip() or None,
             department_id=department.id if department else None,
             responsible_person=(responsible_person or "").strip() or None,

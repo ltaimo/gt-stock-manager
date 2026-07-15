@@ -209,6 +209,10 @@ class ApprovalSchemaMigrationTests(unittest.TestCase):
             "asset_name",
             {column["name"] for column in inspect(self.engine).get_columns("internal_operation_records")},
         )
+        migrated_internal_columns = {column["name"] for column in inspect(self.engine).get_columns("internal_operation_records")}
+        self.assertTrue(
+            {"operation_type", "odometer_reading", "meter_reading", "payment_method"}.issubset(migrated_internal_columns)
+        )
         self.assertIn("internal_operation_options", inspect(self.engine).get_table_names())
         with self.engine.connect() as connection:
             approver_role_id = connection.execute(

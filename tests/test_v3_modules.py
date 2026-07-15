@@ -150,6 +150,11 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.assertIn('name="description" maxlength="220" required', operations_selected.text)
         self.assertIn('type="hidden" name="kind" value="fuel"', operations_selected.text)
         self.assertNotIn('select name="kind"', operations_selected.text)
+        self.assertIn('name="operation_type"', operations_selected.text)
+        self.assertIn('value="fuel_purchase_storage"', operations_selected.text)
+        self.assertIn('value="fuel_refuel"', operations_selected.text)
+        self.assertIn('name="odometer_reading"', operations_selected.text)
+        self.assertIn('type="hidden" name="unit" value="L"', operations_selected.text)
 
         dashboard = self.client.get("/dashboard")
         self.assertEqual(dashboard.status_code, 200)
@@ -181,15 +186,31 @@ class V3ModuleFlowTests(unittest.TestCase):
 
     def test_internal_operation_create_validate_and_report(self):
         self.login()
+        missing_odometer = self.client.post(
+            "/operacoes-internas/registos",
+            data={
+                "kind": "fuel",
+                "operation_type": "fuel_refuel",
+                "description": "Abastecimento sem odometro",
+                "asset_name": "Empilhadeira 01",
+                "quantity": "10",
+                "amount": "900",
+            },
+        )
+        self.assertEqual(missing_odometer.status_code, 400)
+        self.assertIn("odómetro", missing_odometer.text)
+
         created = self.client.post(
             "/operacoes-internas/registos",
             data={
                 "kind": "fuel",
+                "operation_type": "fuel_refuel",
                 "record_date": "2026-07-15",
                 "description": "Abastecimento viatura operacional",
                 "supplier": "Fornecedor A",
                 "fuel_type": "Diesel 50ppm",
                 "asset_name": "Empilhadeira 01",
+                "odometer_reading": "125000",
                 "quantity": "50",
                 "unit": "L",
                 "amount": "4500",
@@ -203,8 +224,11 @@ class V3ModuleFlowTests(unittest.TestCase):
         record = self.db.scalar(select(InternalOperationRecord).where(InternalOperationRecord.kind == "fuel"))
         self.assertIsNotNone(record)
         self.assertTrue(record.number.startswith("FUEL-"))
+        self.assertEqual(record.operation_type, "fuel_refuel")
         self.assertEqual(record.fuel_type, "Diesel 50ppm")
         self.assertEqual(record.asset_name, "Empilhadeira 01")
+        self.assertEqual(float(record.odometer_reading), 125000)
+        self.assertEqual(record.unit, "L")
 
         validated = self.client.post(
             f"/operacoes-internas/registos/{record.id}/validar",
@@ -220,6 +244,41 @@ class V3ModuleFlowTests(unittest.TestCase):
         report = self.client.get("/relatorios/operacoes-internas")
         self.assertEqual(report.status_code, 200)
         self.assertIn("Abastecimento viatura operacional", report.text)
+        self.assertIn("125000", report.text)
+
+    def test_energy_reading_requires_meter_reading_and_uses_kwh(self):
+        self.login()
+        missing_meter = self.client.post(
+            "/operacoes-internas/registos",
+            data={
+                "kind": "energy",
+                "operation_type": "energy_reading",
+                "description": "Leitura mensal",
+                "quantity": "0",
+                "amount": "0",
+            },
+        )
+        self.assertEqual(missing_meter.status_code, 400)
+        self.assertIn("contador", missing_meter.text)
+
+        created = self.client.post(
+            "/operacoes-internas/registos",
+            data={
+                "kind": "energy",
+                "operation_type": "energy_reading",
+                "description": "Leitura mensal",
+                "meter_reading": "3456",
+                "quantity": "0",
+                "amount": "0",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(created.status_code, 303)
+        self.db.expire_all()
+        record = self.db.scalar(select(InternalOperationRecord).where(InternalOperationRecord.kind == "energy"))
+        self.assertEqual(record.operation_type, "energy_reading")
+        self.assertEqual(float(record.meter_reading), 3456)
+        self.assertEqual(record.unit, "kWh")
 
 
 if __name__ == "__main__":

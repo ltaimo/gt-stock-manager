@@ -99,10 +99,18 @@ def ensure_schema() -> None:
                 additions.append(statement)
     if "internal_operation_records" in tables:
         columns = {column["name"] for column in inspector.get_columns("internal_operation_records")}
+        if "operation_type" not in columns:
+            additions.append("ALTER TABLE internal_operation_records ADD COLUMN operation_type VARCHAR(40)")
         if "fuel_type" not in columns:
             additions.append("ALTER TABLE internal_operation_records ADD COLUMN fuel_type VARCHAR(120)")
         if "asset_name" not in columns:
             additions.append("ALTER TABLE internal_operation_records ADD COLUMN asset_name VARCHAR(160)")
+        if "odometer_reading" not in columns:
+            additions.append("ALTER TABLE internal_operation_records ADD COLUMN odometer_reading NUMERIC(14, 2)")
+        if "meter_reading" not in columns:
+            additions.append("ALTER TABLE internal_operation_records ADD COLUMN meter_reading NUMERIC(14, 2)")
+        if "payment_method" not in columns:
+            additions.append("ALTER TABLE internal_operation_records ADD COLUMN payment_method VARCHAR(80)")
 
     with engine.begin() as connection:
         for statement in additions:
