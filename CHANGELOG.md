@@ -1,5 +1,18 @@
 # Changelog
 
+## 3.0.0 - 2026-07-20
+
+- Introduz GTIMS como identidade da aplicação.
+- Adiciona módulos HSE/HST e Operações Internas ao sistema integrado.
+- Melhora o dashboard, navegação, cartões de módulos, ícones, notificações e experiência móvel.
+- Adiciona registos específicos para combustível, água e energia, incluindo compra, abastecimento, leituras e opções configuráveis.
+- Reforça permissões e perfis para preservar acessos existentes durante upgrades.
+- Repara perfis padrão antigos com permissões vazias sem apagar utilizadores, departamentos ou histórico.
+- Garante hierarquia da matriz de aprovações: níveis superiores aprovam níveis inferiores; níveis inferiores não aprovam valores superiores.
+- Protege produção exigindo `DATABASE_URL` quando `ENVIRONMENT=production`.
+- Remove `app.seed` do arranque de produção para não alterar dados reais em cada deploy.
+- Atualiza configuração de deploy para versão 3.0.0 e branding GTIMS.
+
 ## 2.1.1 - 2026-06-28
 
 - Implementa internacionalização completa em Português e Inglês.

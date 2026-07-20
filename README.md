@@ -1,8 +1,8 @@
 # Stock Management System
 
-Versão atual: **2.1.1**
+Versão atual: **3.0.0**
 
-Sistema web bilingue para gestão de economato, movimentos, requisições SR, Procurement, reposição, relatórios e utilizadores.
+Sistema web bilingue para gestão integrada GTIMS: economato, stock, movimentos, requisições SR, Procurement, reposição, HSE/HST, operações internas, relatórios, utilizadores e permissões.
 
 ## Stack
 
@@ -39,6 +39,8 @@ Use pelo menos 12 caracteres e altere a senha após o primeiro acesso.
 - Requisições
 - Procurement / Non-Stock
 - Reposição de stock
+- HSE / HST
+- Operações internas
 - Relatórios
 - Utilizadores
 - Perfis e permissões
@@ -57,6 +59,8 @@ Use pelo menos 12 caracteres e altere a senha após o primeiro acesso.
 - Utilizadores importados devem redefinir senha no primeiro login.
 - Valores persistidos permanecem canónicos; a tradução ocorre apenas na apresentação.
 - Nomes de produtos e categorias podem ter uma apresentação opcional em inglês sem substituir o original.
+- Em produção, `DATABASE_URL` é obrigatório para evitar arranque acidental com uma base local/vazia.
+- O arranque de produção executa apenas migração de esquema; não executa `app.seed` contra dados existentes.
 
 ## Manuais
 
