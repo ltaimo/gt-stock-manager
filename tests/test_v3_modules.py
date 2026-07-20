@@ -231,13 +231,54 @@ class V3ModuleFlowTests(unittest.TestCase):
             follow_redirects=False,
         )
         self.assertEqual(created.status_code, 303)
+        created = self.client.post(
+            "/configuracoes/operacoes-internas/opcoes",
+            data={"option_type": "location", "name": "Contador Bypass", "kind": "energy"},
+            follow_redirects=False,
+        )
+        self.assertEqual(created.status_code, 303)
+        created = self.client.post(
+            "/configuracoes/operacoes-internas/opcoes",
+            data={"option_type": "payment_method", "name": "Transferencia Bancaria", "kind": ""},
+            follow_redirects=False,
+        )
+        self.assertEqual(created.status_code, 303)
         self.db.expire_all()
+        payment_option = self.db.scalar(select(InternalOperationOption).where(InternalOperationOption.name == "Transferencia Bancaria"))
         self.assertIsNotNone(self.db.scalar(select(InternalOperationOption).where(InternalOperationOption.name == "Diesel 50ppm")))
+        self.assertIsNotNone(payment_option)
+
+        settings = self.client.get("/configuracoes")
+        self.assertEqual(settings.status_code, 200)
+        self.assertIn("ops-setting-card", settings.text)
+        self.assertIn("Tipos de combust", settings.text)
+        self.assertIn("M", settings.text)
 
         form = self.client.get("/operacoes-internas?kind=fuel")
         self.assertEqual(form.status_code, 200)
         self.assertIn("Diesel 50ppm", form.text)
         self.assertIn("Empilhadeira 01", form.text)
+        self.assertIn("Transferencia Bancaria", form.text)
+        self.assertIn('list="internal-company-options"', form.text)
+
+        energy_form = self.client.get("/operacoes-internas?kind=energy")
+        self.assertEqual(energy_form.status_code, 200)
+        self.assertIn("Contador Bypass", energy_form.text)
+
+        removed = self.client.post(
+            f"/configuracoes/operacoes-internas/opcoes/{payment_option.id}/remover",
+            follow_redirects=False,
+        )
+        self.assertEqual(removed.status_code, 303)
+        self.db.expire_all()
+        self.assertFalse(self.db.get(InternalOperationOption, payment_option.id).is_active)
+        reactivated = self.client.post(
+            f"/configuracoes/operacoes-internas/opcoes/{payment_option.id}/ativar",
+            follow_redirects=False,
+        )
+        self.assertEqual(reactivated.status_code, 303)
+        self.db.expire_all()
+        self.assertTrue(self.db.get(InternalOperationOption, payment_option.id).is_active)
 
     def test_internal_operation_create_validate_and_report(self):
         self.login()

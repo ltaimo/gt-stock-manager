@@ -73,54 +73,77 @@
   </div>
 </section>
 
-<section class="panel">
+<section class="panel internal-settings-panel">
   <div class="panel-heading">
     <div>
       <h2>{{ tx("Configurações de operações internas", user if user is defined else none) }}</h2>
-      <p class="muted">{{ tx("Registe fornecedores, tipos de combustível e ativos usados nos consumos internos.", user if user is defined else none) }}</p>
+      <p class="muted">{{ tx("Configure as listas usadas nos registos de combustível, água e energia.", user if user is defined else none) }}</p>
     </div>
+    <a class="button secondary" href="/operacoes-internas">{{ tx("Abrir operações internas", user if user is defined else none) }}</a>
   </div>
-  <form method="post" action="/configuracoes/operacoes-internas/opcoes" class="form-grid">
-    <label>{{ tx("Tipo", user if user is defined else none) }}
-      <select name="option_type" required>
-        <option value="company">{{ tx("Empresa / fornecedor", user if user is defined else none) }}</option>
-        <option value="fuel_type">{{ tx("Tipo de combustível", user if user is defined else none) }}</option>
-        <option value="asset">{{ tx("Máquina / viatura / ativo", user if user is defined else none) }}</option>
-      </select>
-    </label>
-    <label>{{ tx("Nome", user if user is defined else none) }}<input name="name" maxlength="160" required></label>
-    <label>{{ tx("Aplicável a", user if user is defined else none) }}
-      <select name="kind">
-        <option value="">{{ tx("Todas as operações", user if user is defined else none) }}</option>
-        <option value="fuel">{{ tx("Combustível", user if user is defined else none) }}</option>
-        <option value="water">{{ tx("Água", user if user is defined else none) }}</option>
-        <option value="energy">{{ tx("Energia", user if user is defined else none) }}</option>
-      </select>
-    </label>
-    <div class="actions"><button>{{ tx("Adicionar", user if user is defined else none) }}</button></div>
-  </form>
-  <table class="responsive-table">
-    <thead><tr><th>{{ tx("Tipo", user if user is defined else none) }}</th><th>{{ tx("Nome", user if user is defined else none) }}</th><th>{{ tx("Aplicável a", user if user is defined else none) }}</th><th>{{ tx("Estado", user if user is defined else none) }}</th><th></th></tr></thead>
-    <tbody>
-      {% for option in internal_options %}
-      <tr>
-        <td data-label="{{ tx("Tipo", user if user is defined else none) }}">{{ tx(option.option_type, user) }}</td>
-        <td data-label="{{ tx("Nome", user if user is defined else none) }}">{{ option.name }}</td>
-        <td data-label="{{ tx("Aplicável a", user if user is defined else none) }}">{{ tx(option.kind, user) if option.kind else tx("Todas as operações", user if user is defined else none) }}</td>
-        <td data-label="{{ tx("Estado", user if user is defined else none) }}"><span class="badge {{ 'green' if option.is_active else 'grey' }}">{{ tx('Ativo', user) if option.is_active else tx('Inativo', user) }}</span></td>
-        <td data-label="{{ tx("Acao", user if user is defined else none) }}">
-          {% if option.is_active %}
-          <form method="post" action="/configuracoes/operacoes-internas/opcoes/{{ option.id }}/remover" data-confirm="{{ tx("Desativar esta opção?", user if user is defined else none) }}">
-            <button class="danger compact">{{ tx("Remover", user if user is defined else none) }}</button>
-          </form>
-          {% endif %}
-        </td>
-      </tr>
-      {% else %}
-      <tr><td colspan="5">{{ tx("Sem opções de operações internas.", user if user is defined else none) }}</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="ops-settings-grid">
+    {% for option_type, group in internal_option_groups.items() %}
+    <article class="ops-setting-card">
+      <div class="module-card-top">
+        <span class="tile-code">{{ "%02d"|format(loop.index) }}</span>
+        <div class="ops-setting-counts">
+          <span class="badge green">{{ group.active_count }} {{ tx("ativos", user if user is defined else none) }}</span>
+          {% if group.inactive_count %}<span class="badge grey">{{ group.inactive_count }} {{ tx("inativos", user if user is defined else none) }}</span>{% endif %}
+        </div>
+      </div>
+      <h3>{{ tx(group.label, user if user is defined else none) }}</h3>
+      <p class="muted">{{ tx(group.description, user if user is defined else none) }}</p>
+
+      <form method="post" action="/configuracoes/operacoes-internas/opcoes" class="ops-setting-form">
+        <input type="hidden" name="option_type" value="{{ option_type }}">
+        <label>{{ tx(group.singular, user if user is defined else none) }}
+          <input name="name" maxlength="160" placeholder="{{ tx("Novo registo", user if user is defined else none) }}" required>
+        </label>
+        <label>{{ tx("Aplicável a", user if user is defined else none) }}
+          <select name="kind">
+            {% for kind_key, kind_label in internal_operation_kinds.items() %}
+              <option value="{{ kind_key }}" {% if kind_key == group.default_kind %}selected{% endif %}>{{ tx(kind_label, user if user is defined else none) }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button class="secondary">{{ tx("Adicionar", user if user is defined else none) }}</button>
+      </form>
+
+      <table class="responsive-table ops-options-table">
+        <thead>
+          <tr>
+            <th>{{ tx("Nome", user if user is defined else none) }}</th>
+            <th>{{ tx("Aplicável a", user if user is defined else none) }}</th>
+            <th>{{ tx("Estado", user if user is defined else none) }}</th>
+            <th>{{ tx("Ação", user if user is defined else none) }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for option in group.options %}
+          <tr>
+            <td data-label="{{ tx("Nome", user if user is defined else none) }}">{{ option.name }}</td>
+            <td data-label="{{ tx("Aplicável a", user if user is defined else none) }}">{{ tx(internal_operation_kinds.get(option.kind, option.kind), user) if option.kind else tx("Todas as operações", user if user is defined else none) }}</td>
+            <td data-label="{{ tx("Estado", user if user is defined else none) }}"><span class="badge {{ 'green' if option.is_active else 'grey' }}">{{ tx('Ativo', user) if option.is_active else tx('Inativo', user) }}</span></td>
+            <td data-label="{{ tx("Ação", user if user is defined else none) }}">
+              {% if option.is_active %}
+              <form method="post" action="/configuracoes/operacoes-internas/opcoes/{{ option.id }}/remover" data-confirm="{{ tx("Desativar esta opção?", user if user is defined else none) }}">
+                <button class="danger compact">{{ tx("Desativar", user if user is defined else none) }}</button>
+              </form>
+              {% else %}
+              <form method="post" action="/configuracoes/operacoes-internas/opcoes/{{ option.id }}/ativar">
+                <button class="success compact">{{ tx("Reativar", user if user is defined else none) }}</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="empty-state">{{ tx("Sem opções configuradas neste grupo.", user if user is defined else none) }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </article>
+    {% endfor %}
+  </div>
 </section>
 
 {% if can(user, 'stock_reset') %}

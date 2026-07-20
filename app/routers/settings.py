@@ -21,15 +21,80 @@ router = APIRouter(prefix="/configuracoes", tags=["configuracoes"])
 settings = get_settings()
 
 
+INTERNAL_OPERATION_KINDS = {
+    "": "Todas as operações",
+    "fuel": "Combustível",
+    "water": "Água",
+    "energy": "Energia",
+}
+
+INTERNAL_OPERATION_OPTION_TYPES = {
+    "company": {
+        "label": "Empresas / fornecedores",
+        "singular": "Empresa / fornecedor",
+        "description": "Entidades usadas em compras de combustível, água, energia e outros consumos.",
+        "default_kind": "",
+    },
+    "fuel_type": {
+        "label": "Tipos de combustível",
+        "singular": "Tipo de combustível",
+        "description": "Ex.: Diesel 50ppm, Gasolina, Óleo ou outro combustível usado nas operações.",
+        "default_kind": "fuel",
+    },
+    "asset": {
+        "label": "Viaturas e equipamentos",
+        "singular": "Viatura / equipamento",
+        "description": "Máquinas, viaturas, empilhadeiras e outros ativos abastecidos.",
+        "default_kind": "fuel",
+    },
+    "location": {
+        "label": "Locais e contadores",
+        "singular": "Local / contador",
+        "description": "Residências, bypass, escritórios, furos, contadores e pontos de consumo.",
+        "default_kind": "",
+    },
+    "payment_method": {
+        "label": "Métodos de pagamento",
+        "singular": "Método de pagamento",
+        "description": "Métodos usados em compras e pagamentos: cheque, transferência, numerário ou outros.",
+        "default_kind": "",
+    },
+}
+
+
+def grouped_internal_options(options: list[InternalOperationOption]) -> dict[str, dict]:
+    groups = {}
+    for option_type, meta in INTERNAL_OPERATION_OPTION_TYPES.items():
+        rows = [option for option in options if option.option_type == option_type]
+        groups[option_type] = {
+            **meta,
+            "option_type": option_type,
+            "options": rows,
+            "active_count": len([option for option in rows if option.is_active]),
+            "inactive_count": len([option for option in rows if not option.is_active]),
+        }
+    return groups
+
+
 @router.get("")
 def settings_home(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("settings_manage"))):
+    internal_options = db.scalars(
+        select(InternalOperationOption).order_by(
+            InternalOperationOption.option_type,
+            InternalOperationOption.kind,
+            InternalOperationOption.name,
+        )
+    ).all()
     return templates.TemplateResponse(request, "settings/index.html",
         {
             "request": request,
             "user": user,
             "categories": db.scalars(select(Category).order_by(Category.name)).all(),
             "departments": db.scalars(select(Department).order_by(Department.name)).all(),
-            "internal_options": db.scalars(select(InternalOperationOption).order_by(InternalOperationOption.option_type, InternalOperationOption.name)).all(),
+            "internal_options": internal_options,
+            "internal_option_groups": grouped_internal_options(internal_options),
+            "internal_option_types": INTERNAL_OPERATION_OPTION_TYPES,
+            "internal_operation_kinds": INTERNAL_OPERATION_KINDS,
             "reset_message": request.query_params.get("reset_message"),
             "reset_error": request.query_params.get("reset_error"),
             "reset_enabled": bool(settings.reset_stock_security_code),
@@ -91,7 +156,7 @@ def add_internal_operation_option(
     user: User = Depends(require_permission("settings_manage")),
 ):
     clean_type = required_text(option_type, "Tipo de configuracao", 40)
-    if clean_type not in {"company", "fuel_type", "asset"}:
+    if clean_type not in INTERNAL_OPERATION_OPTION_TYPES:
         raise HTTPException(400, "Escolha um tipo de configuracao valido.")
     clean_name = required_text(name, "Nome", 160)
     clean_kind = (kind or "").strip() or None
@@ -126,6 +191,18 @@ def remove_internal_operation_option(option_id: int, request: Request, db: Sessi
         old = {"type": option.option_type, "name": option.name, "active": option.is_active}
         option.is_active = False
         audit_log(db, user, "Desativou configuracao de operacao interna", "Configuracoes", option_id, old_value=old, request=request)
+    return RedirectResponse("/configuracoes", status_code=303)
+
+
+@router.post("/operacoes-internas/opcoes/{option_id}/ativar")
+def activate_internal_operation_option(option_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("settings_manage"))):
+    option = db.get(InternalOperationOption, option_id)
+    if not option:
+        raise HTTPException(404)
+    with atomic(db):
+        old = {"type": option.option_type, "name": option.name, "active": option.is_active}
+        option.is_active = True
+        audit_log(db, user, "Ativou configuracao de operacao interna", "Configuracoes", option_id, old_value=old, request=request)
     return RedirectResponse("/configuracoes", status_code=303)
 
 

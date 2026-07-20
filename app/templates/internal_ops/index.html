@@ -53,32 +53,20 @@
         <label>{{ tx("Data", user if user is defined else none) }}<input type="date" name="record_date"></label>
         <label>{{ tx("Descrição", user if user is defined else none) }}<input name="description" maxlength="220" required></label>
         <label>{{ tx("Empresa / fornecedor", user if user is defined else none) }}
-          <select name="supplier">
-            <option value="">{{ tx("Sem seleção", user if user is defined else none) }}</option>
-            {% for option in operation_options.company %}<option value="{{ option.name }}">{{ option.name }}</option>{% endfor %}
-          </select>
+          <input name="supplier" maxlength="180" list="internal-company-options" placeholder="{{ tx("Escolher ou escrever", user if user is defined else none) }}">
         </label>
         {% if selected_kind == "fuel" %}
         <label data-visible-for="fuel_purchase_storage fuel_refuel">{{ tx("Tipo de combustível", user if user is defined else none) }}
-          <select name="fuel_type">
-            <option value="">{{ tx("Sem seleção", user if user is defined else none) }}</option>
-            {% for option in operation_options.fuel_type %}<option value="{{ option.name }}">{{ option.name }}</option>{% endfor %}
-          </select>
+          <input name="fuel_type" maxlength="120" list="internal-fuel-type-options" placeholder="{{ tx("Escolher ou escrever", user if user is defined else none) }}">
         </label>
         <label data-visible-for="fuel_refuel">{{ tx("Máquina / viatura / ativo", user if user is defined else none) }}
-          <select name="asset_name">
-            <option value="">{{ tx("Sem seleção", user if user is defined else none) }}</option>
-            {% for option in operation_options.asset %}<option value="{{ option.name }}">{{ option.name }}</option>{% endfor %}
-          </select>
+          <input name="asset_name" maxlength="160" list="internal-asset-options" placeholder="{{ tx("Escolher ou escrever", user if user is defined else none) }}">
         </label>
         <label data-visible-for="fuel_refuel">{{ tx("Leitura do odómetro", user if user is defined else none) }}<input name="odometer_reading" type="number" step="0.01" min="0"></label>
         {% endif %}
         {% if selected_kind == "energy" %}
         <label data-visible-for="energy_reading">{{ tx("Local / contador", user if user is defined else none) }}
-          <select name="asset_name">
-            <option value="">{{ tx("Sem seleção", user if user is defined else none) }}</option>
-            {% for option in operation_options.asset %}<option value="{{ option.name }}">{{ option.name }}</option>{% endfor %}
-          </select>
+          <input name="asset_name" maxlength="160" list="internal-location-options" placeholder="{{ tx("Escolher ou escrever", user if user is defined else none) }}">
         </label>
         <label data-visible-for="energy_reading">{{ tx("Leitura do contador", user if user is defined else none) }}<input name="meter_reading" type="number" step="0.01" min="0"></label>
         {% endif %}
@@ -91,13 +79,25 @@
             {% for method in payment_methods %}<option value="{{ method }}">{{ tx(method, user if user is defined else none) }}</option>{% endfor %}
           </select>
         </label>
-        <label>{{ tx("Local", user if user is defined else none) }}<input name="location" maxlength="160"></label>
+        <label>{{ tx("Local", user if user is defined else none) }}<input name="location" maxlength="160" list="internal-location-options" placeholder="{{ tx("Escolher ou escrever", user if user is defined else none) }}"></label>
         <label>{{ tx("Departamento", user if user is defined else none) }}
           <select name="department_id"><option value="">{{ tx("Sem departamento", user if user is defined else none) }}</option>{% for department in departments %}<option value="{{ department.id }}">{{ department.name }}</option>{% endfor %}</select>
         </label>
         <label>{{ tx("Responsável", user if user is defined else none) }}<input name="responsible_person" maxlength="160"></label>
         <label>{{ tx("Referência", user if user is defined else none) }}<input name="reference_number" maxlength="120"></label>
       </div>
+      <datalist id="internal-company-options">
+        {% for option in operation_options.company %}<option value="{{ option.name }}"></option>{% endfor %}
+      </datalist>
+      <datalist id="internal-fuel-type-options">
+        {% for option in operation_options.fuel_type %}<option value="{{ option.name }}"></option>{% endfor %}
+      </datalist>
+      <datalist id="internal-asset-options">
+        {% for option in operation_options.asset %}<option value="{{ option.name }}"></option>{% endfor %}
+      </datalist>
+      <datalist id="internal-location-options">
+        {% for option in operation_options.location %}<option value="{{ option.name }}"></option>{% endfor %}
+      </datalist>
       <label>{{ tx("Observações", user if user is defined else none) }}<textarea name="notes"></textarea></label>
       <div class="actions"><button class="success">{{ tx("Registar operação interna", user if user is defined else none) }}</button></div>
     </form>

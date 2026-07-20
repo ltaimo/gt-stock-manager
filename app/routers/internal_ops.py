@@ -76,15 +76,16 @@ def operations_context(request: Request, db: Session, user: User, kind: str = ""
             for option in option_rows
             if option.option_type == option_type and (not option.kind or not kind or option.kind == kind)
         ]
-        for option_type in ["company", "fuel_type", "asset"]
+        for option_type in ["company", "fuel_type", "asset", "location", "payment_method"]
     }
+    payment_method_options = [option.name for option in operation_options["payment_method"]] or PAYMENT_METHODS
     return {
         "request": request,
         "user": user,
         "records": records,
         "kinds": OPERATION_KINDS,
         "operation_types": OPERATION_TYPES,
-        "payment_methods": PAYMENT_METHODS,
+        "payment_methods": payment_method_options,
         "statuses": OPERATION_STATUSES,
         "totals": totals,
         "operation_options": operation_options,
