@@ -7,6 +7,7 @@
 - Melhora o dashboard, navegação, cartões de módulos, ícones, notificações e experiência móvel.
 - Adiciona registos específicos para combustível, água e energia, incluindo compra, abastecimento, leituras e opções configuráveis.
 - Reorganiza as configurações de operações internas em grupos práticos: fornecedores, combustíveis, viaturas/equipamentos, locais/contadores e métodos de pagamento.
+- Simplifica a página de Configurações com botões por área e abertura seletiva dos detalhes para reduzir excesso de informação na entrada.
 - Reforça permissões e perfis para preservar acessos existentes durante upgrades.
 - Repara perfis padrão antigos com permissões vazias sem apagar utilizadores, departamentos ou histórico.
 - Garante hierarquia da matriz de aprovações: níveis superiores aprovam níveis inferiores; níveis inferiores não aprovam valores superiores.

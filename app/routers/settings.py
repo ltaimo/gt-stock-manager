@@ -62,6 +62,26 @@ INTERNAL_OPERATION_OPTION_TYPES = {
 }
 
 
+SETTINGS_SECTIONS = {
+    "categories": {
+        "label": "Categorias de produto",
+        "description": "Organização dos produtos e economato.",
+    },
+    "departments": {
+        "label": "Departamentos",
+        "description": "Estrutura usada em utilizadores, requisições, movimentos e relatórios.",
+    },
+    "internal_ops": {
+        "label": "Operações internas",
+        "description": "Listas de apoio para combustível, água, energia e consumos internos.",
+    },
+    "stock_reset": {
+        "label": "Reset de stock",
+        "description": "Área controlada para levar saldos de stock a zero com código de segurança.",
+    },
+}
+
+
 def grouped_internal_options(options: list[InternalOperationOption]) -> dict[str, dict]:
     groups = {}
     for option_type, meta in INTERNAL_OPERATION_OPTION_TYPES.items():
@@ -77,7 +97,21 @@ def grouped_internal_options(options: list[InternalOperationOption]) -> dict[str
 
 
 @router.get("")
-def settings_home(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("settings_manage"))):
+def settings_home(
+    request: Request,
+    section: str = "",
+    internal_group: str = "",
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("settings_manage")),
+):
+    clean_section = section.strip()
+    clean_internal_group = internal_group.strip()
+    if clean_section and clean_section not in SETTINGS_SECTIONS:
+        raise HTTPException(404)
+    if clean_section == "internal_ops" and clean_internal_group and clean_internal_group not in INTERNAL_OPERATION_OPTION_TYPES:
+        raise HTTPException(404)
+    if clean_section != "internal_ops":
+        clean_internal_group = ""
     internal_options = db.scalars(
         select(InternalOperationOption).order_by(
             InternalOperationOption.option_type,
@@ -95,6 +129,9 @@ def settings_home(request: Request, db: Session = Depends(get_db), user: User = 
             "internal_option_groups": grouped_internal_options(internal_options),
             "internal_option_types": INTERNAL_OPERATION_OPTION_TYPES,
             "internal_operation_kinds": INTERNAL_OPERATION_KINDS,
+            "settings_sections": SETTINGS_SECTIONS,
+            "selected_section": clean_section,
+            "selected_internal_group": clean_internal_group,
             "reset_message": request.query_params.get("reset_message"),
             "reset_error": request.query_params.get("reset_error"),
             "reset_enabled": bool(settings.reset_stock_security_code),
@@ -125,7 +162,7 @@ def add_category(
             db.add(category)
             db.flush()
         audit_log(db, user, "Guardou categoria de produto", "Configurações", category.id, new_value={"name": category.name, "name_en": category.name_en}, request=request)
-    return RedirectResponse("/configuracoes", status_code=303)
+    return RedirectResponse("/configuracoes?section=categories", status_code=303)
 
 
 @router.post("/categorias/{category_id}/remover")
@@ -143,7 +180,7 @@ def remove_category(category_id: int, request: Request, db: Session = Depends(ge
             action = "Removeu categoria de produto"
             db.delete(category)
         audit_log(db, user, action, "Configurações", category_id, old_value=old, request=request)
-    return RedirectResponse("/configuracoes", status_code=303)
+    return RedirectResponse("/configuracoes?section=categories", status_code=303)
 
 
 @router.post("/operacoes-internas/opcoes")
@@ -179,7 +216,7 @@ def add_internal_operation_option(
             db.add(option)
             db.flush()
         audit_log(db, user, "Guardou configuracao de operacao interna", "Configuracoes", option.id, new_value={"type": option.option_type, "name": option.name, "kind": option.kind}, request=request)
-    return RedirectResponse("/configuracoes", status_code=303)
+    return RedirectResponse(f"/configuracoes?section=internal_ops&internal_group={clean_type}", status_code=303)
 
 
 @router.post("/operacoes-internas/opcoes/{option_id}/remover")
@@ -191,7 +228,7 @@ def remove_internal_operation_option(option_id: int, request: Request, db: Sessi
         old = {"type": option.option_type, "name": option.name, "active": option.is_active}
         option.is_active = False
         audit_log(db, user, "Desativou configuracao de operacao interna", "Configuracoes", option_id, old_value=old, request=request)
-    return RedirectResponse("/configuracoes", status_code=303)
+    return RedirectResponse(f"/configuracoes?section=internal_ops&internal_group={option.option_type}", status_code=303)
 
 
 @router.post("/operacoes-internas/opcoes/{option_id}/ativar")
@@ -203,7 +240,7 @@ def activate_internal_operation_option(option_id: int, request: Request, db: Ses
         old = {"type": option.option_type, "name": option.name, "active": option.is_active}
         option.is_active = True
         audit_log(db, user, "Ativou configuracao de operacao interna", "Configuracoes", option_id, old_value=old, request=request)
-    return RedirectResponse("/configuracoes", status_code=303)
+    return RedirectResponse(f"/configuracoes?section=internal_ops&internal_group={option.option_type}", status_code=303)
 
 
 @router.post("/departamentos")
@@ -225,7 +262,7 @@ def add_department(
             db.add(department)
             db.flush()
         audit_log(db, user, "Guardou departamento", "Configurações", department.id, new_value={"name": department.name}, request=request)
-    return RedirectResponse("/configuracoes", status_code=303)
+    return RedirectResponse("/configuracoes?section=departments", status_code=303)
 
 
 @router.post("/departamentos/{department_id}/remover")
@@ -247,7 +284,7 @@ def remove_department(department_id: int, request: Request, db: Session = Depend
             action = "Removeu departamento"
             db.delete(department)
         audit_log(db, user, action, "Configurações", department_id, old_value=old, request=request)
-    return RedirectResponse("/configuracoes", status_code=303)
+    return RedirectResponse("/configuracoes?section=departments", status_code=303)
 
 
 @router.get("/matriz")
@@ -334,13 +371,13 @@ def reset_stock(
     configured_code = settings.reset_stock_security_code
     if not configured_code:
         message = quote("O código de segurança para o reset de stock não está configurado.")
-        return RedirectResponse(f"/configuracoes?reset_error={message}", status_code=303)
+        return RedirectResponse(f"/configuracoes?section=stock_reset&reset_error={message}", status_code=303)
     if confirmation.strip().upper() != "RESETAR STOCK":
         message = quote('Escreva exatamente "RESETAR STOCK" para confirmar.')
-        return RedirectResponse(f"/configuracoes?reset_error={message}", status_code=303)
+        return RedirectResponse(f"/configuracoes?section=stock_reset&reset_error={message}", status_code=303)
     if not secrets.compare_digest(security_code.strip(), configured_code):
         message = quote("Código de segurança inválido.")
-        return RedirectResponse(f"/configuracoes?reset_error={message}", status_code=303)
+        return RedirectResponse(f"/configuracoes?section=stock_reset&reset_error={message}", status_code=303)
 
     with atomic(db):
         result = reset_all_stock(db, user)
@@ -350,4 +387,4 @@ def reset_stock(
         f"Stock resetado com sucesso. Produtos afetados: {result['products_affected']}; "
         f"quantidade removida: {result['quantity_removed']:g}."
     )
-    return RedirectResponse(f"/configuracoes?reset_message={message}", status_code=303)
+    return RedirectResponse(f"/configuracoes?section=stock_reset&reset_message={message}", status_code=303)

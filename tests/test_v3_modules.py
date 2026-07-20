@@ -250,9 +250,22 @@ class V3ModuleFlowTests(unittest.TestCase):
 
         settings = self.client.get("/configuracoes")
         self.assertEqual(settings.status_code, 200)
-        self.assertIn("ops-setting-card", settings.text)
-        self.assertIn("Tipos de combust", settings.text)
-        self.assertIn("M", settings.text)
+        self.assertIn("settings-hub", settings.text)
+        self.assertIn("/configuracoes?section=internal_ops", settings.text)
+        self.assertNotIn("ops-setting-form", settings.text)
+
+        internal_settings = self.client.get("/configuracoes?section=internal_ops")
+        self.assertEqual(internal_settings.status_code, 200)
+        self.assertIn("settings-subhub", internal_settings.text)
+        self.assertIn("Tipos de combust", internal_settings.text)
+        self.assertIn("M", internal_settings.text)
+        self.assertNotIn("ops-setting-form", internal_settings.text)
+
+        fuel_type_settings = self.client.get("/configuracoes?section=internal_ops&internal_group=fuel_type")
+        self.assertEqual(fuel_type_settings.status_code, 200)
+        self.assertIn("ops-setting-card single", fuel_type_settings.text)
+        self.assertIn("ops-setting-form", fuel_type_settings.text)
+        self.assertIn("Diesel 50ppm", fuel_type_settings.text)
 
         form = self.client.get("/operacoes-internas?kind=fuel")
         self.assertEqual(form.status_code, 200)

@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
 <header class="page-header">
-  <h1>{{ tx("Configuracoes", user if user is defined else none) }}</h1>
+  <div>
+    <h1>{{ tx("Configuracoes", user if user is defined else none) }}</h1>
+    <p class="muted">{{ tx("Escolha uma área de configuração para abrir apenas o que precisa editar.", user if user is defined else none) }}</p>
+  </div>
   <div class="actions">
     {% if can(user, 'users_manage') %}<a class="button secondary" href="/utilizadores">{{ tx("Utilizadores", user if user is defined else none) }}</a>{% endif %}
     {% if can(user, 'profiles_manage') %}<a class="button secondary" href="/perfis">{{ tx("Perfis de acesso", user if user is defined else none) }}</a>{% endif %}
@@ -12,146 +15,206 @@
 {% if reset_message %}<div class="alert green">{{ tm(reset_message, user, request) }}</div>{% endif %}
 {% if reset_error %}<div class="alert red">{{ tm(reset_error, user, request) }}</div>{% endif %}
 
-<section class="grid-two">
-  <div class="panel">
-    <h2>{{ tx("Categorias de produto", user if user is defined else none) }}</h2>
-    <p class="muted">{{ tx("Usadas apenas para organizar produtos/economato. Nao sao perfis de acesso.", user if user is defined else none) }}</p>
-    <form method="post" action="/configuracoes/categorias" class="inline-form">
-      <input name="name" placeholder="{{ tx("Nova categoria", user if user is defined else none) }}" required>
-      <input name="name_en" placeholder="{{ tx("Nome em inglês (opcional)", user) }}">
-      <button>{{ tx("Adicionar", user if user is defined else none) }}</button>
-    </form>
-    <table class="responsive-table">
-      <thead><tr><th>{{ tx("Categoria", user if user is defined else none) }}</th><th>{{ tx("Estado", user if user is defined else none) }}</th><th></th></tr></thead>
-      <tbody>
-        {% for c in categories %}
-        <tr>
-          <td data-label="{{ tx("Categoria", user if user is defined else none) }}">{{ lname(c, user) }}</td>
-          <td data-label="{{ tx('Estado', user) }}"><span class="badge {{ 'green' if c.is_active else 'grey' }}">{{ tx('Ativa', user) if c.is_active else tx('Inativa', user) }}</span></td>
-          <td data-label="{{ tx("Acao", user if user is defined else none) }}">
-            {% if c.is_active %}
-            <form method="post" action="/configuracoes/categorias/{{ c.id }}/remover" data-confirm="{{ tx("Remover/desativar esta categoria? Produtos existentes serao preservados.", user if user is defined else none) }}">
-              <button class="danger compact">{{ tx("Remover", user if user is defined else none) }}</button>
-            </form>
-            {% endif %}
-          </td>
-        </tr>
-        {% else %}
-        <tr><td colspan="3">{{ tx("Sem categorias.", user if user is defined else none) }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <div class="panel">
-    <h2>{{ tx("Departamentos", user if user is defined else none) }}</h2>
-    <p class="muted">{{ tx("Usados em utilizadores, requisicoes, movimentos e relatorios.", user if user is defined else none) }}</p>
-    <form method="post" action="/configuracoes/departamentos" class="inline-form">
-      <input name="name" placeholder="{{ tx("Novo departamento", user if user is defined else none) }}" required>
-      <button>{{ tx("Adicionar", user if user is defined else none) }}</button>
-    </form>
-    <table class="responsive-table">
-      <thead><tr><th>{{ tx("Departamento", user if user is defined else none) }}</th><th>{{ tx("Estado", user if user is defined else none) }}</th><th></th></tr></thead>
-      <tbody>
-        {% for d in departments %}
-        <tr>
-          <td data-label="{{ tx("Departamento", user if user is defined else none) }}">{{ d.name }}</td>
-          <td data-label="{{ tx('Estado', user) }}"><span class="badge {{ 'green' if d.is_active else 'grey' }}">{{ tx('Ativo', user) if d.is_active else tx('Inativo', user) }}</span></td>
-          <td data-label="{{ tx("Acao", user if user is defined else none) }}">
-            {% if d.is_active %}
-            <form method="post" action="/configuracoes/departamentos/{{ d.id }}/remover" data-confirm="{{ tx("Remover/desativar este departamento? Historico existente sera preservado.", user if user is defined else none) }}">
-              <button class="danger compact">{{ tx("Remover", user if user is defined else none) }}</button>
-            </form>
-            {% endif %}
-          </td>
-        </tr>
-        {% else %}
-        <tr><td colspan="3">{{ tx("Sem departamentos.", user if user is defined else none) }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+<section class="action-hub settings-hub" aria-label="{{ tx("Áreas de configuração", user if user is defined else none) }}">
+  {% for key, section in settings_sections.items() %}
+    {% if key != 'stock_reset' or can(user, 'stock_reset') %}
+    <a class="action-tile {% if selected_section == key %}active{% endif %}" href="/configuracoes?section={{ key }}">
+      <span class="tile-code">{{ "%02d"|format(loop.index) }}</span>
+      <span class="tile-icon" aria-hidden="true">{{ "▦" if key == "categories" else "☷" if key == "departments" else "⚙" if key == "internal_ops" else "!" }}</span>
+      <strong>{{ tx(section.label, user if user is defined else none) }}</strong>
+      <small>{{ tx(section.description, user if user is defined else none) }}</small>
+    </a>
+    {% endif %}
+  {% endfor %}
 </section>
 
+{% if not selected_section %}
+<section class="panel">
+  <div class="choice-empty-state">
+    <strong>{{ tx("Escolha uma configuração", user if user is defined else none) }}</strong>
+    <p class="muted">{{ tx("A página fica limpa por padrão. Clique num botão acima para abrir categorias, departamentos, operações internas ou reset de stock.", user if user is defined else none) }}</p>
+  </div>
+</section>
+{% endif %}
+
+{% if selected_section == "categories" %}
+<section class="panel">
+  <div class="panel-heading">
+    <div>
+      <h2>{{ tx("Categorias de produto", user if user is defined else none) }}</h2>
+      <p class="muted">{{ tx("Usadas apenas para organizar produtos/economato. Nao sao perfis de acesso.", user if user is defined else none) }}</p>
+    </div>
+    <a class="button secondary" href="/configuracoes">{{ tx("Voltar às configurações", user if user is defined else none) }}</a>
+  </div>
+  <form method="post" action="/configuracoes/categorias" class="inline-form">
+    <input name="name" placeholder="{{ tx("Nova categoria", user if user is defined else none) }}" required>
+    <input name="name_en" placeholder="{{ tx("Nome em inglês (opcional)", user) }}">
+    <button>{{ tx("Adicionar", user if user is defined else none) }}</button>
+  </form>
+  <table class="responsive-table">
+    <thead><tr><th>{{ tx("Categoria", user if user is defined else none) }}</th><th>{{ tx("Estado", user if user is defined else none) }}</th><th></th></tr></thead>
+    <tbody>
+      {% for c in categories %}
+      <tr>
+        <td data-label="{{ tx("Categoria", user if user is defined else none) }}">{{ lname(c, user) }}</td>
+        <td data-label="{{ tx('Estado', user) }}"><span class="badge {{ 'green' if c.is_active else 'grey' }}">{{ tx('Ativa', user) if c.is_active else tx('Inativa', user) }}</span></td>
+        <td data-label="{{ tx("Acao", user if user is defined else none) }}">
+          {% if c.is_active %}
+          <form method="post" action="/configuracoes/categorias/{{ c.id }}/remover" data-confirm="{{ tx("Remover/desativar esta categoria? Produtos existentes serao preservados.", user if user is defined else none) }}">
+            <button class="danger compact">{{ tx("Remover", user if user is defined else none) }}</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3">{{ tx("Sem categorias.", user if user is defined else none) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if selected_section == "departments" %}
+<section class="panel">
+  <div class="panel-heading">
+    <div>
+      <h2>{{ tx("Departamentos", user if user is defined else none) }}</h2>
+      <p class="muted">{{ tx("Usados em utilizadores, requisicoes, movimentos e relatorios.", user if user is defined else none) }}</p>
+    </div>
+    <a class="button secondary" href="/configuracoes">{{ tx("Voltar às configurações", user if user is defined else none) }}</a>
+  </div>
+  <form method="post" action="/configuracoes/departamentos" class="inline-form">
+    <input name="name" placeholder="{{ tx("Novo departamento", user if user is defined else none) }}" required>
+    <button>{{ tx("Adicionar", user if user is defined else none) }}</button>
+  </form>
+  <table class="responsive-table">
+    <thead><tr><th>{{ tx("Departamento", user if user is defined else none) }}</th><th>{{ tx("Estado", user if user is defined else none) }}</th><th></th></tr></thead>
+    <tbody>
+      {% for d in departments %}
+      <tr>
+        <td data-label="{{ tx("Departamento", user if user is defined else none) }}">{{ d.name }}</td>
+        <td data-label="{{ tx('Estado', user) }}"><span class="badge {{ 'green' if d.is_active else 'grey' }}">{{ tx('Ativo', user) if d.is_active else tx('Inativo', user) }}</span></td>
+        <td data-label="{{ tx("Acao", user if user is defined else none) }}">
+          {% if d.is_active %}
+          <form method="post" action="/configuracoes/departamentos/{{ d.id }}/remover" data-confirm="{{ tx("Remover/desativar este departamento? Historico existente sera preservado.", user if user is defined else none) }}">
+            <button class="danger compact">{{ tx("Remover", user if user is defined else none) }}</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3">{{ tx("Sem departamentos.", user if user is defined else none) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if selected_section == "internal_ops" %}
 <section class="panel internal-settings-panel">
   <div class="panel-heading">
     <div>
       <h2>{{ tx("Configurações de operações internas", user if user is defined else none) }}</h2>
-      <p class="muted">{{ tx("Configure as listas usadas nos registos de combustível, água e energia.", user if user is defined else none) }}</p>
+      <p class="muted">{{ tx("Escolha primeiro o tipo de lista que deseja configurar.", user if user is defined else none) }}</p>
     </div>
-    <a class="button secondary" href="/operacoes-internas">{{ tx("Abrir operações internas", user if user is defined else none) }}</a>
+    <div class="actions">
+      <a class="button secondary" href="/operacoes-internas">{{ tx("Abrir operações internas", user if user is defined else none) }}</a>
+      <a class="button secondary" href="/configuracoes">{{ tx("Voltar", user if user is defined else none) }}</a>
+    </div>
   </div>
-  <div class="ops-settings-grid">
+
+  <div class="action-hub settings-subhub" aria-label="{{ tx("Configurações de operações internas", user if user is defined else none) }}">
     {% for option_type, group in internal_option_groups.items() %}
-    <article class="ops-setting-card">
-      <div class="module-card-top">
-        <span class="tile-code">{{ "%02d"|format(loop.index) }}</span>
-        <div class="ops-setting-counts">
-          <span class="badge green">{{ group.active_count }} {{ tx("ativos", user if user is defined else none) }}</span>
-          {% if group.inactive_count %}<span class="badge grey">{{ group.inactive_count }} {{ tx("inativos", user if user is defined else none) }}</span>{% endif %}
-        </div>
-      </div>
-      <h3>{{ tx(group.label, user if user is defined else none) }}</h3>
-      <p class="muted">{{ tx(group.description, user if user is defined else none) }}</p>
-
-      <form method="post" action="/configuracoes/operacoes-internas/opcoes" class="ops-setting-form">
-        <input type="hidden" name="option_type" value="{{ option_type }}">
-        <label>{{ tx(group.singular, user if user is defined else none) }}
-          <input name="name" maxlength="160" placeholder="{{ tx("Novo registo", user if user is defined else none) }}" required>
-        </label>
-        <label>{{ tx("Aplicável a", user if user is defined else none) }}
-          <select name="kind">
-            {% for kind_key, kind_label in internal_operation_kinds.items() %}
-              <option value="{{ kind_key }}" {% if kind_key == group.default_kind %}selected{% endif %}>{{ tx(kind_label, user if user is defined else none) }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <button class="secondary">{{ tx("Adicionar", user if user is defined else none) }}</button>
-      </form>
-
-      <table class="responsive-table ops-options-table">
-        <thead>
-          <tr>
-            <th>{{ tx("Nome", user if user is defined else none) }}</th>
-            <th>{{ tx("Aplicável a", user if user is defined else none) }}</th>
-            <th>{{ tx("Estado", user if user is defined else none) }}</th>
-            <th>{{ tx("Ação", user if user is defined else none) }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for option in group.options %}
-          <tr>
-            <td data-label="{{ tx("Nome", user if user is defined else none) }}">{{ option.name }}</td>
-            <td data-label="{{ tx("Aplicável a", user if user is defined else none) }}">{{ tx(internal_operation_kinds.get(option.kind, option.kind), user) if option.kind else tx("Todas as operações", user if user is defined else none) }}</td>
-            <td data-label="{{ tx("Estado", user if user is defined else none) }}"><span class="badge {{ 'green' if option.is_active else 'grey' }}">{{ tx('Ativo', user) if option.is_active else tx('Inativo', user) }}</span></td>
-            <td data-label="{{ tx("Ação", user if user is defined else none) }}">
-              {% if option.is_active %}
-              <form method="post" action="/configuracoes/operacoes-internas/opcoes/{{ option.id }}/remover" data-confirm="{{ tx("Desativar esta opção?", user if user is defined else none) }}">
-                <button class="danger compact">{{ tx("Desativar", user if user is defined else none) }}</button>
-              </form>
-              {% else %}
-              <form method="post" action="/configuracoes/operacoes-internas/opcoes/{{ option.id }}/ativar">
-                <button class="success compact">{{ tx("Reativar", user if user is defined else none) }}</button>
-              </form>
-              {% endif %}
-            </td>
-          </tr>
-          {% else %}
-          <tr><td colspan="4" class="empty-state">{{ tx("Sem opções configuradas neste grupo.", user if user is defined else none) }}</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </article>
+    <a class="action-tile {% if selected_internal_group == option_type %}active{% endif %}" href="/configuracoes?section=internal_ops&internal_group={{ option_type }}">
+      <span class="tile-code">{{ "%02d"|format(loop.index) }}</span>
+      <strong>{{ tx(group.label, user if user is defined else none) }}</strong>
+      <small>{{ group.active_count }} {{ tx("ativos", user if user is defined else none) }}{% if group.inactive_count %} · {{ group.inactive_count }} {{ tx("inativos", user if user is defined else none) }}{% endif %}</small>
+    </a>
     {% endfor %}
   </div>
-</section>
 
-{% if can(user, 'stock_reset') %}
+  {% if not selected_internal_group %}
+  <div class="choice-empty-state">
+    <strong>{{ tx("Escolha uma lista de operações internas", user if user is defined else none) }}</strong>
+    <p class="muted">{{ tx("Clique em Empresas, Tipos de combustível, Viaturas, Locais ou Métodos de pagamento para abrir apenas essa configuração.", user if user is defined else none) }}</p>
+  </div>
+  {% else %}
+  {% set group = internal_option_groups[selected_internal_group] %}
+  <article class="ops-setting-card single">
+    <div class="module-card-top">
+      <div>
+        <h3>{{ tx(group.label, user if user is defined else none) }}</h3>
+        <p class="muted">{{ tx(group.description, user if user is defined else none) }}</p>
+      </div>
+      <div class="ops-setting-counts">
+        <span class="badge green">{{ group.active_count }} {{ tx("ativos", user if user is defined else none) }}</span>
+        {% if group.inactive_count %}<span class="badge grey">{{ group.inactive_count }} {{ tx("inativos", user if user is defined else none) }}</span>{% endif %}
+      </div>
+    </div>
+
+    <form method="post" action="/configuracoes/operacoes-internas/opcoes" class="ops-setting-form">
+      <input type="hidden" name="option_type" value="{{ selected_internal_group }}">
+      <label>{{ tx(group.singular, user if user is defined else none) }}
+        <input name="name" maxlength="160" placeholder="{{ tx("Novo registo", user if user is defined else none) }}" required>
+      </label>
+      <label>{{ tx("Aplicável a", user if user is defined else none) }}
+        <select name="kind">
+          {% for kind_key, kind_label in internal_operation_kinds.items() %}
+            <option value="{{ kind_key }}" {% if kind_key == group.default_kind %}selected{% endif %}>{{ tx(kind_label, user if user is defined else none) }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button class="secondary">{{ tx("Adicionar", user if user is defined else none) }}</button>
+    </form>
+
+    <table class="responsive-table ops-options-table">
+      <thead>
+        <tr>
+          <th>{{ tx("Nome", user if user is defined else none) }}</th>
+          <th>{{ tx("Aplicável a", user if user is defined else none) }}</th>
+          <th>{{ tx("Estado", user if user is defined else none) }}</th>
+          <th>{{ tx("Ação", user if user is defined else none) }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for option in group.options %}
+        <tr>
+          <td data-label="{{ tx("Nome", user if user is defined else none) }}">{{ option.name }}</td>
+          <td data-label="{{ tx("Aplicável a", user if user is defined else none) }}">{{ tx(internal_operation_kinds.get(option.kind, option.kind), user) if option.kind else tx("Todas as operações", user if user is defined else none) }}</td>
+          <td data-label="{{ tx("Estado", user if user is defined else none) }}"><span class="badge {{ 'green' if option.is_active else 'grey' }}">{{ tx('Ativo', user) if option.is_active else tx('Inativo', user) }}</span></td>
+          <td data-label="{{ tx("Ação", user if user is defined else none) }}">
+            {% if option.is_active %}
+            <form method="post" action="/configuracoes/operacoes-internas/opcoes/{{ option.id }}/remover" data-confirm="{{ tx("Desativar esta opção?", user if user is defined else none) }}">
+              <button class="danger compact">{{ tx("Desativar", user if user is defined else none) }}</button>
+            </form>
+            {% else %}
+            <form method="post" action="/configuracoes/operacoes-internas/opcoes/{{ option.id }}/ativar">
+              <button class="success compact">{{ tx("Reativar", user if user is defined else none) }}</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="empty-state">{{ tx("Sem opções configuradas neste grupo.", user if user is defined else none) }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </article>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if selected_section == "stock_reset" and can(user, 'stock_reset') %}
 <section class="panel danger-zone">
-  <h2>{{ tx("Zona de perigo", user if user is defined else none) }}</h2>
-  <p>
-    {{ tx("O reset leva o stock atual de todos os produtos a zero. O historico nao e apagado: sao criados movimentos de acerto e a acao fica registada na auditoria.", user if user is defined else none) }}
-  </p>
+  <div class="panel-heading">
+    <div>
+      <h2>{{ tx("Zona de perigo", user if user is defined else none) }}</h2>
+      <p class="muted">
+        {{ tx("O reset leva o stock atual de todos os produtos a zero. O historico nao e apagado: sao criados movimentos de acerto e a acao fica registada na auditoria.", user if user is defined else none) }}
+      </p>
+    </div>
+    <a class="button secondary" href="/configuracoes">{{ tx("Voltar às configurações", user if user is defined else none) }}</a>
+  </div>
   {% if reset_enabled %}
   <form method="post" action="/configuracoes/stock/reset" class="form-stack" data-confirm="{{ tx("Confirmar o reset total do stock? Todos os saldos atuais serao levados a zero.", user if user is defined else none) }}">
     <label>{{ tx("Confirmacao", user if user is defined else none) }}
