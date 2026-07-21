@@ -40,3 +40,9 @@ services:
         value: "+258844231830"
       - key: WHATSAPP_WEBHOOK_URL
         sync: false
+      - key: SYNC_MODE
+        value: off
+      - key: SYNC_TOKEN
+        sync: false
+      - key: MIRROR_READ_ONLY
+        value: "true"

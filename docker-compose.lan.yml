@@ -1,0 +1,57 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-stock_manager}
+      POSTGRES_USER: ${POSTGRES_USER:-stock_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-stock_user} -d ${POSTGRES_DB:-stock_manager}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_NAME: ${APP_NAME:-GT Integrated Management System}
+      APP_SUBTITLE: ${APP_SUBTITLE:-Gestao de Terminais, SA}
+      APP_SHORT_NAME: ${APP_SHORT_NAME:-GTIMS}
+      APP_VERSION: ${APP_VERSION:-3.0.0}
+      ENVIRONMENT: production
+      SECRET_KEY: ${SECRET_KEY}
+      RESET_STOCK_SECURITY_CODE: ${RESET_STOCK_SECURITY_CODE}
+      INITIAL_SUPERADMIN_PASSWORD: ${INITIAL_SUPERADMIN_PASSWORD}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-stock_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-stock_manager}
+      UPLOADS_DIR: /data/uploads
+      OUTPUTS_DIR: /data/outputs
+      DOCUMENTS_DIR: /data/uploads/stock_documents
+      EMAIL_OUTBOX_DIR: /data/outputs/email_outbox
+      WHATSAPP_OUTBOX_DIR: /data/outputs/whatsapp_outbox
+      LOGO_PATH: /app/app/static/img/logo-gt.png
+      SESSION_COOKIE_SECURE: "false"
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-stock@gtsa.local}
+      WHATSAPP_WEBHOOK_URL: ${WHATSAPP_WEBHOOK_URL:-}
+      WHATSAPP_SENDER: ${WHATSAPP_SENDER:-+258844231830}
+      DEFAULT_LANGUAGE: ${DEFAULT_LANGUAGE:-pt}
+    volumes:
+      - ./server-data/app:/data
+    ports:
+      - "${GTIMS_PORT:-8000}:8000"
+    command: >
+      sh -c "python -m app.maintenance.migrate_schema &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+volumes:
+  postgres_data:

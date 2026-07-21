@@ -45,6 +45,12 @@ class Settings:
     whatsapp_webhook_url = os.getenv("WHATSAPP_WEBHOOK_URL", "")
     whatsapp_sender = os.getenv("WHATSAPP_SENDER", "+258844231830")
     default_language = os.getenv("DEFAULT_LANGUAGE", "pt")
+    sync_mode = os.getenv("SYNC_MODE", "off").strip().lower()
+    sync_target_url = os.getenv("SYNC_TARGET_URL", "").strip()
+    sync_token = os.getenv("SYNC_TOKEN", "").strip()
+    sync_interval_seconds = int(os.getenv("SYNC_INTERVAL_SECONDS", "300"))
+    sync_auto_push = os.getenv("SYNC_AUTO_PUSH", "false").lower() == "true"
+    mirror_read_only = os.getenv("MIRROR_READ_ONLY", "true").lower() == "true"
 
     @property
     def secure_cookies(self) -> bool:

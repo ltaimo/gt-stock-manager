@@ -62,6 +62,15 @@ Use pelo menos 12 caracteres e altere a senha após o primeiro acesso.
 - Em produção, `DATABASE_URL` é obrigatório para evitar arranque acidental com uma base local/vazia.
 - O arranque de produção executa apenas migração de esquema; não executa `app.seed` contra dados existentes.
 
+## Servidor local de rede
+
+Para instalar o GTIMS num computador-servidor acessível dentro da rede interna,
+use `docker-compose.lan.yml` e siga `docs/local-network-server.md`.
+
+Para um modo temporario sem instalar Docker, Python ou PostgreSQL, gere o pacote
+portable com `scripts/create_windows_portable_no_install_package.ps1` e siga
+`docs/portable-no-install.md`.
+
 ## Manuais
 
 - `docs/manual/GT-Stock-Manager-Manual-PT.docx` e respetivo PDF.

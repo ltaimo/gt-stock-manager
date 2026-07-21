@@ -15,6 +15,16 @@ Para apresentação rápida, use `render.yaml` e siga:
 
 [Render Deploy](render-deploy.md)
 
+## Servidor Local de Rede
+
+Para uso interno num computador da empresa, use `docker-compose.lan.yml` e siga:
+
+[GTIMS em servidor local de rede](local-network-server.md)
+
+Para uma fase temporaria sem instalar Docker/Python/PostgreSQL no servidor, use:
+
+[GTIMS Portable sem instalacao](portable-no-install.md)
+
 ## Variáveis Obrigatórias
 
 Copie `.env.example` e configure:
