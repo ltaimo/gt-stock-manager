@@ -4,10 +4,20 @@ from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+RUNTIME_DIR = BASE_DIR / ".runtime"
 
 
 def env_path(name: str, default: Path) -> Path:
     return Path(os.getenv(name, str(default))).resolve()
+
+
+def ensure_writable_dir(path: Path, fallback: Path) -> Path:
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+    except OSError:
+        fallback.mkdir(parents=True, exist_ok=True)
+        return fallback
 
 
 def resolve_database_url() -> str:
@@ -60,9 +70,15 @@ class Settings:
 @lru_cache
 def get_settings() -> Settings:
     settings = Settings()
-    settings.uploads_dir.mkdir(parents=True, exist_ok=True)
-    settings.outputs_dir.mkdir(parents=True, exist_ok=True)
-    settings.documents_dir.mkdir(parents=True, exist_ok=True)
-    settings.email_outbox_dir.mkdir(parents=True, exist_ok=True)
-    settings.whatsapp_outbox_dir.mkdir(parents=True, exist_ok=True)
+    settings.uploads_dir = ensure_writable_dir(settings.uploads_dir, RUNTIME_DIR / "uploads")
+    settings.outputs_dir = ensure_writable_dir(settings.outputs_dir, RUNTIME_DIR / "outputs")
+    if not os.getenv("DOCUMENTS_DIR"):
+        settings.documents_dir = settings.uploads_dir / "stock_documents"
+    if not os.getenv("EMAIL_OUTBOX_DIR"):
+        settings.email_outbox_dir = settings.outputs_dir / "email_outbox"
+    if not os.getenv("WHATSAPP_OUTBOX_DIR"):
+        settings.whatsapp_outbox_dir = settings.outputs_dir / "whatsapp_outbox"
+    settings.documents_dir = ensure_writable_dir(settings.documents_dir, settings.uploads_dir / "stock_documents")
+    settings.email_outbox_dir = ensure_writable_dir(settings.email_outbox_dir, settings.outputs_dir / "email_outbox")
+    settings.whatsapp_outbox_dir = ensure_writable_dir(settings.whatsapp_outbox_dir, settings.outputs_dir / "whatsapp_outbox")
     return settings

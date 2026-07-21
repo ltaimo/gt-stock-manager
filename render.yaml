@@ -25,13 +25,13 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: UPLOADS_DIR
-        value: /data/uploads
+        value: /opt/render/project/src/.runtime/uploads
       - key: OUTPUTS_DIR
-        value: /data/outputs
+        value: /opt/render/project/src/.runtime/outputs
       - key: DOCUMENTS_DIR
-        value: /data/uploads/stock_documents
+        value: /opt/render/project/src/.runtime/uploads/stock_documents
       - key: EMAIL_OUTBOX_DIR
-        value: /data/outputs/email_outbox
+        value: /opt/render/project/src/.runtime/outputs/email_outbox
       - key: SECRET_KEY
         generateValue: true
       - key: RESET_STOCK_SECURITY_CODE
