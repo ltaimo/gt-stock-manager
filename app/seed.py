@@ -20,7 +20,7 @@ from app.models.core import (
 )
 from app.security import hash_password
 from app.services.categorization import normalize_text
-from app.services.inventory import post_movement, recalculate_product_stock
+from app.services.inventory import merge_product_warehouse_stock, post_movement, recalculate_product_stock
 
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
@@ -158,6 +158,7 @@ def consolidate_fixture_duplicate_products(db) -> int:
                 else:
                     document_link.product_id = canonical.id
 
+            merge_product_warehouse_stock(db, source=duplicate, target=canonical)
             db.flush()
             db.delete(duplicate)
             consolidated += 1

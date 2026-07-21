@@ -26,9 +26,22 @@
       </select>
     </label>
     <label>{{ tx("Aprovação pela matriz", user if user is defined else none) }}<input value="{{ tx("Calculada pelo valor total dos itens", user) }}" disabled></label>
-    <label>{{ tx("Tipo", user if user is defined else none) }}<select name="req_type" id="requisition-type"><option value="REQUISIÇÃO">{{ tx("REQUISIÇÃO", user if user is defined else none) }}</option><option value="DEVOLUÇÃO">{{ tx("DEVOLUÇÃO", user if user is defined else none) }}</option><option value="OUTRO">{{ tx("OUTRO", user if user is defined else none) }}</option></select></label>
+    <label>{{ tx("Tipo", user if user is defined else none) }}
+      <select name="req_type" id="requisition-type">
+        <option value="REQUISICAO">{{ tx("REQUISIÇÃO", user if user is defined else none) }}</option>
+        <option value="DEVOLUCAO">{{ tx("DEVOLUÇÃO", user if user is defined else none) }}</option>
+        <option value="OUTRO">{{ tx("OUTRO", user if user is defined else none) }}</option>
+      </select>
+    </label>
+    <label>{{ tx("Armazém", user if user is defined else none) }}
+      <select name="warehouse_id" data-warehouse-select required>
+        {% for warehouse in warehouses %}
+          <option value="{{ warehouse.id }}" {% if warehouse.id == default_warehouse_id %}selected{% endif %}>{{ warehouse.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
   </div>
-  <p class="muted">{{ tx("Apenas itens com stock podem ser selecionados. O valor total define o aprovador pela matriz de aprovações.", user if user is defined else none) }}</p>
+  <p class="muted">{{ tx("Apenas itens com stock podem ser selecionados no armazém escolhido. O valor total define o aprovador pela matriz de aprovações.", user if user is defined else none) }}</p>
   <table id="items-table">
     <thead><tr><th>{{ tx("Código / Item", user if user is defined else none) }}</th><th>{{ tx("Qtde", user if user is defined else none) }}</th><th>{{ tx("Preço unit.", user if user is defined else none) }}</th><th>{{ tx("Subtotal", user if user is defined else none) }}</th><th>{{ tx("Obs", user if user is defined else none) }}</th><th></th></tr></thead>
     <tbody>
@@ -36,7 +49,7 @@
         <td>
           <select name="product_id" required>
             {% for p in products %}
-            <option value="{{ p.id }}" data-stock="{{ p.current_stock|float }}" data-unit="{{ p.unit }}" data-price="{{ p.unit_price|float }}">
+            <option value="{{ p.id }}" data-stock="{{ p.current_stock|float }}" data-stock-map='{{ stock_by_product.get(p.id, {}) | tojson }}' data-unit="{{ p.unit }}" data-price="{{ p.unit_price|float }}">
               {{ p.code }} · {{ lname(p, user) }} · {{ tx('disponível', user) }} {{ p.current_stock }} {{ p.unit }} · {{ "%.2f"|format(p.unit_price|float) }} MZN
             </option>
             {% endfor %}

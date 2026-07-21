@@ -36,6 +36,8 @@ def field_label(field_name: str) -> str:
 
 
 def optional_int(value: str | None, field_name: str) -> int | None:
+    if value is not None and not isinstance(value, (str, int, float)):
+        return None
     cleaned = str(value or "").strip()
     if not cleaned:
         return None

@@ -28,6 +28,7 @@
     <div>
       <p><strong>{{ tx("Requisitante:", user if user is defined else none) }}</strong> {{ case.requisition.requesting_user.full_name }}</p>
       <p><strong>{{ tx("Departamento:", user if user is defined else none) }}</strong> {{ case.requisition.department.name if case.requisition.department else '' }}</p>
+      {% if case.requisition.req_type == 'REPOSICAO' %}<p><strong>{{ tx("Armazém de destino:", user if user is defined else none) }}</strong> {{ case.requisition.warehouse.name if case.requisition.warehouse else tx("Armazém Principal", user) }}</p>{% endif %}
       <p><strong>{{ tx("Tipo:", user if user is defined else none) }}</strong> {{ tx(case.item_type or 'Bem', user) }}</p>
       <p><strong>{{ tx("TdR No.:", user if user is defined else none) }}</strong> {{ case.tdr_number or ('TdR-' ~ case.requisition.number) }}</p>
       <p><strong>{{ tx("Job title:", user if user is defined else none) }}</strong> {{ case.job_title or '-' }}</p>

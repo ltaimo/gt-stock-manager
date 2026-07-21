@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import get_db
-from app.models.core import ApprovalMatrixRule, Category, Department, InternalOperationOption, Product, Requisition, Role, StockMovement, User
+from app.models.core import ApprovalMatrixRule, Category, Department, InternalOperationOption, Product, ProductWarehouseStock, Requisition, Role, StockMovement, User, Warehouse
 from app.routers.common import templates
 from app.security import grant_permissions, require_permission
 from app.services.audit import audit_log
@@ -71,6 +71,10 @@ SETTINGS_SECTIONS = {
         "label": "Departamentos",
         "description": "Estrutura usada em utilizadores, requisições, movimentos e relatórios.",
     },
+    "warehouses": {
+        "label": "Armazéns",
+        "description": "Separação física dos saldos de stock por armazém.",
+    },
     "internal_ops": {
         "label": "Operações internas",
         "description": "Listas de apoio para combustível, água, energia e consumos internos.",
@@ -125,6 +129,7 @@ def settings_home(
             "user": user,
             "categories": db.scalars(select(Category).order_by(Category.name)).all(),
             "departments": db.scalars(select(Department).order_by(Department.name)).all(),
+            "warehouses": db.scalars(select(Warehouse).order_by(Warehouse.is_default.desc(), Warehouse.name)).all(),
             "internal_options": internal_options,
             "internal_option_groups": grouped_internal_options(internal_options),
             "internal_option_types": INTERNAL_OPERATION_OPTION_TYPES,
@@ -285,6 +290,93 @@ def remove_department(department_id: int, request: Request, db: Session = Depend
             db.delete(department)
         audit_log(db, user, action, "Configurações", department_id, old_value=old, request=request)
     return RedirectResponse("/configuracoes?section=departments", status_code=303)
+
+
+@router.post("/armazens")
+def add_warehouse(
+    request: Request,
+    name: str | None = Form(None),
+    code: str | None = Form(None),
+    location: str | None = Form(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("settings_manage")),
+):
+    clean_name = required_text(name, "Nome do armazém", 120)
+    clean_code = " ".join((code or "").strip().upper().split()) or None
+    clean_location = " ".join((location or "").strip().split()) or None
+    if clean_code and len(clean_code) > 40:
+        raise HTTPException(400, "Código do armazém não pode exceder 40 caracteres.")
+    if clean_location and len(clean_location) > 160:
+        raise HTTPException(400, "Localização do armazém não pode exceder 160 caracteres.")
+    existing = db.scalar(select(Warehouse).where(Warehouse.name.ilike(clean_name)))
+    if clean_code:
+        duplicate_code = db.scalar(select(Warehouse).where(Warehouse.code.ilike(clean_code)))
+        if duplicate_code and (not existing or duplicate_code.id != existing.id):
+            raise HTTPException(400, "Já existe um armazém com este código.")
+    with atomic(db):
+        if existing:
+            existing.name = clean_name
+            existing.code = clean_code or existing.code
+            existing.location = clean_location
+            existing.is_active = True
+            warehouse = existing
+        else:
+            warehouse = Warehouse(name=clean_name, code=clean_code, location=clean_location, is_active=True)
+            db.add(warehouse)
+            db.flush()
+        audit_log(
+            db,
+            user,
+            "Guardou armazém",
+            "Configurações",
+            warehouse.id,
+            new_value={"name": warehouse.name, "code": warehouse.code, "location": warehouse.location},
+            request=request,
+        )
+    return RedirectResponse("/configuracoes?section=warehouses", status_code=303)
+
+
+@router.post("/armazens/{warehouse_id}/remover")
+def remove_warehouse(warehouse_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("settings_manage"))):
+    warehouse = db.get(Warehouse, warehouse_id)
+    if not warehouse:
+        raise HTTPException(404)
+    if warehouse.is_default:
+        raise HTTPException(400, "O armazém principal não pode ser removido.")
+    current_stock = db.scalar(
+        select(func.coalesce(func.sum(ProductWarehouseStock.quantity), 0)).where(
+            ProductWarehouseStock.warehouse_id == warehouse.id
+        )
+    ) or 0
+    if float(current_stock or 0) != 0:
+        raise HTTPException(400, "Não é possível remover/desativar um armazém com saldo de stock.")
+    in_use = (
+        db.scalar(select(StockMovement.id).where(StockMovement.warehouse_id == warehouse.id).limit(1))
+        or db.scalar(select(StockMovement.id).where(StockMovement.destination_warehouse_id == warehouse.id).limit(1))
+        or db.scalar(select(Requisition.id).where(Requisition.warehouse_id == warehouse.id).limit(1))
+    )
+    with atomic(db):
+        old = {"name": warehouse.name, "active": warehouse.is_active}
+        if in_use:
+            warehouse.is_active = False
+            action = "Desativou armazém"
+        else:
+            action = "Removeu armazém"
+            db.delete(warehouse)
+        audit_log(db, user, action, "Configurações", warehouse_id, old_value=old, request=request)
+    return RedirectResponse("/configuracoes?section=warehouses", status_code=303)
+
+
+@router.post("/armazens/{warehouse_id}/ativar")
+def activate_warehouse(warehouse_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("settings_manage"))):
+    warehouse = db.get(Warehouse, warehouse_id)
+    if not warehouse:
+        raise HTTPException(404)
+    with atomic(db):
+        old = {"name": warehouse.name, "active": warehouse.is_active}
+        warehouse.is_active = True
+        audit_log(db, user, "Reativou armazém", "Configurações", warehouse_id, old_value=old, request=request)
+    return RedirectResponse("/configuracoes?section=warehouses", status_code=303)
 
 
 @router.get("/matriz")

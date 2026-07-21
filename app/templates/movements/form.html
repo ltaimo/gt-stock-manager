@@ -22,8 +22,30 @@
         <input type="radio" name="action_type" value="DEVOLUÇÃO">
         <strong>{{ tx("Devolução", user if user is defined else none) }}</strong><span>{{ tx("Devolver ao stock", user if user is defined else none) }}</span>
       </label>
+      <label class="movement-action transfer">
+        <input type="radio" name="action_type" value="TRANSFERENCIA">
+        <strong>{{ tx("Transferência", user if user is defined else none) }}</strong><span>{{ tx("Mover entre armazéns", user if user is defined else none) }}</span>
+      </label>
     </div>
   </fieldset>
+
+  <div class="form-grid">
+    <label>{{ tx("Armazém", user if user is defined else none) }}
+      <select name="warehouse_id" data-warehouse-select required>
+        {% for warehouse in warehouses %}
+          <option value="{{ warehouse.id }}" {% if warehouse.id == default_warehouse_id %}selected{% endif %}>{{ warehouse.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label data-transfer-target hidden>{{ tx("Armazém de destino", user if user is defined else none) }}
+      <select name="destination_warehouse_id" data-destination-warehouse>
+        <option value="">{{ tx("Escolher armazém de destino", user if user is defined else none) }}</option>
+        {% for warehouse in warehouses %}
+          <option value="{{ warehouse.id }}">{{ warehouse.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
 
   <table id="movement-items-table">
     <thead>
@@ -39,7 +61,7 @@
         <td>
           <select name="product_id" required>
             {% for p in products %}
-              <option value="{{ p.id }}" data-stock="{{ p.current_stock|float }}" data-unit="{{ p.unit }}">
+              <option value="{{ p.id }}" data-stock="{{ p.current_stock|float }}" data-stock-map='{{ stock_by_product.get(p.id, {}) | tojson }}' data-unit="{{ p.unit }}">
                 {{ p.code }} · {{ lname(p, user) }}
               </option>
             {% endfor %}

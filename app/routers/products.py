@@ -11,7 +11,14 @@ from app.routers.common import templates
 from app.security import current_user, require_permission
 from app.services.audit import audit_log
 from app.services.forms import optional_float, optional_int, required_float, required_text
-from app.services.inventory import StockError, adjust_product_stock
+from app.services.inventory import (
+    StockError,
+    active_warehouses,
+    adjust_product_stock,
+    default_warehouse,
+    warehouse_breakdown,
+    warehouse_stock_map,
+)
 from app.services.transactions import atomic
 
 router = APIRouter(prefix="/produtos", tags=["produtos"])
@@ -36,6 +43,31 @@ def product_categories(db: Session, product: Product | None = None) -> list[Cate
     return db.scalars(stmt.order_by(Category.name)).all()
 
 
+def product_form_context(
+    request: Request,
+    db: Session,
+    user: User,
+    product: Product | None,
+    **extra,
+) -> dict:
+    stock_by_warehouse = warehouse_stock_map(db, [product]).get(product.id, {}) if product else {}
+    context = {
+        "request": request,
+        "user": user,
+        "product": product,
+        "categories": product_categories(db, product),
+        "warehouses": active_warehouses(db),
+        "default_warehouse_id": default_warehouse(db).id,
+        "stock_by_warehouse": stock_by_warehouse,
+        "next_code": next_product_code(db) if product is None else None,
+        "error": None,
+        "duplicate": None,
+        "adjustment_error": None,
+    }
+    context.update(extra)
+    return context
+
+
 @router.get("")
 def list_products(request: Request, q: str = "", status: str = "", db: Session = Depends(get_db), user: User = Depends(current_user)):
     stmt = select(Product).outerjoin(Category)
@@ -53,14 +85,23 @@ def list_products(request: Request, q: str = "", status: str = "", db: Session =
     if status:
         stmt = stmt.where(Product.status == status)
     products = db.scalars(stmt.order_by(Product.name)).all()
-    return templates.TemplateResponse(request, "products/index.html", {"request": request, "user": user, "products": products, "q": q, "status": status})
+    return templates.TemplateResponse(
+        request,
+        "products/index.html",
+        {
+            "request": request,
+            "user": user,
+            "products": products,
+            "q": q,
+            "status": status,
+            "warehouse_breakdown": lambda product: warehouse_breakdown(db, product),
+        },
+    )
 
 
 @router.get("/novo")
 def new_product(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("products_manage"))):
-    return templates.TemplateResponse(request, "products/form.html",
-        {"request": request, "user": user, "product": None, "categories": product_categories(db), "next_code": next_product_code(db), "error": None, "duplicate": None},
-    )
+    return templates.TemplateResponse(request, "products/form.html", product_form_context(request, db, user, None))
 
 
 @router.post("/novo")
@@ -92,16 +133,17 @@ def create_product(
         raise HTTPException(400, "A categoria selecionada não existe.")
     duplicate = db.scalar(select(Product).where(Product.name.ilike(clean_name)))
     if duplicate:
-        return templates.TemplateResponse(request, "products/form.html",
-            {
-                "request": request,
-                "user": user,
-                "product": None,
-                "categories": product_categories(db),
-                "next_code": next_product_code(db),
-                "error": "Este produto já existe. Para aumentar o stock, registe uma entrada em Movimentos.",
-                "duplicate": duplicate,
-            },
+        return templates.TemplateResponse(
+            request,
+            "products/form.html",
+            product_form_context(
+                request,
+                db,
+                user,
+                None,
+                error="Este produto já existe. Para aumentar o stock, registe uma entrada em Movimentos.",
+                duplicate=duplicate,
+            ),
             status_code=400,
         )
     code = next_product_code(db)
@@ -128,7 +170,7 @@ def edit_product(product_id: int, request: Request, db: Session = Depends(get_db
     product = db.get(Product, product_id)
     if not product:
         raise HTTPException(404)
-    return templates.TemplateResponse(request, "products/form.html", {"request": request, "user": user, "product": product, "categories": product_categories(db, product)})
+    return templates.TemplateResponse(request, "products/form.html", product_form_context(request, db, user, product))
 
 
 @router.post("/{product_id}/editar")
@@ -209,6 +251,7 @@ def update_product(
 def adjust_stock(
     product_id: int,
     request: Request,
+    warehouse_id: str | None = Form(None),
     target_quantity: str | None = Form(None),
     reason: str | None = Form(None),
     db: Session = Depends(get_db),
@@ -220,9 +263,17 @@ def adjust_stock(
     target = required_float(target_quantity, "Nova quantidade existente")
     clean_reason = required_text(reason, "Motivo do ajuste", 500)
     old_quantity = float(product.current_stock or 0)
+    parsed_warehouse_id = optional_int(warehouse_id, "Armazém")
     try:
         with atomic(db):
-            movement = adjust_product_stock(db, product=product, target_quantity=target, reason=clean_reason, actor=user)
+            movement = adjust_product_stock(
+                db,
+                product=product,
+                target_quantity=target,
+                reason=clean_reason,
+                actor=user,
+                warehouse_id=parsed_warehouse_id,
+            )
             audit_log(
                 db,
                 user,
@@ -230,12 +281,19 @@ def adjust_stock(
                 "Stock",
                 product.id,
                 old_value={"quantity": old_quantity},
-                new_value={"quantity": target, "reason": clean_reason, "movement_id": movement.id},
+                new_value={
+                    "quantity": target,
+                    "reason": clean_reason,
+                    "movement_id": movement.id,
+                    "warehouse_id": movement.warehouse_id,
+                },
                 request=request,
             )
     except StockError as exc:
-        return templates.TemplateResponse(request, "products/form.html",
-            {"request": request, "user": user, "product": product, "categories": product_categories(db, product), "adjustment_error": str(exc)},
+        return templates.TemplateResponse(
+            request,
+            "products/form.html",
+            product_form_context(request, db, user, product, adjustment_error=str(exc)),
             status_code=400,
         )
     return RedirectResponse(f"/produtos/{product.id}/editar?stock_adjusted=1", status_code=303)

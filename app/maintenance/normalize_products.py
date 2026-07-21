@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from app.database import SessionLocal
 from app.models.core import AuditLog, Product, RequisitionItem, StockDocumentProduct, StockMovement, User
-from app.services.inventory import recalculate_product_stock
+from app.services.inventory import merge_product_warehouse_stock, recalculate_product_stock
 from app.services.transactions import atomic
 
 
@@ -121,6 +121,7 @@ def consolidate_exact_duplicate_products(db) -> int:
                     db.delete(document_link)
                 else:
                     document_link.product_id = canonical.id
+            merge_product_warehouse_stock(db, source=duplicate, target=canonical)
             db.flush()
             db.delete(duplicate)
             consolidated += 1

@@ -19,7 +19,21 @@
 <div class="panel">
   <table>
     <thead>
-      <tr><th>{{ tx("Código", user if user is defined else none) }}</th><th>{{ tx("Produto/Marca", user if user is defined else none) }}</th><th>{{ tx("Categoria", user if user is defined else none) }}</th><th>{{ tx("Unidade", user if user is defined else none) }}</th><th>{{ tx("Preço Unit.", user if user is defined else none) }}</th><th>{{ tx("Qtde", user if user is defined else none) }}</th><th>{{ tx("Entrada", user if user is defined else none) }}</th><th>{{ tx("Saída", user if user is defined else none) }}</th><th>{{ tx("Controlo", user if user is defined else none) }}</th><th>{{ tx("Alerta", user if user is defined else none) }}</th><th>{{ tx("Estado", user if user is defined else none) }}</th><th></th></tr>
+      <tr>
+        <th>{{ tx("Código", user if user is defined else none) }}</th>
+        <th>{{ tx("Produto/Marca", user if user is defined else none) }}</th>
+        <th>{{ tx("Categoria", user if user is defined else none) }}</th>
+        <th>{{ tx("Unidade", user if user is defined else none) }}</th>
+        <th>{{ tx("Preço Unit.", user if user is defined else none) }}</th>
+        <th>{{ tx("Qtde total", user if user is defined else none) }}</th>
+        <th>{{ tx("Por armazém", user if user is defined else none) }}</th>
+        <th>{{ tx("Entrada", user if user is defined else none) }}</th>
+        <th>{{ tx("Saída", user if user is defined else none) }}</th>
+        <th>{{ tx("Controlo", user if user is defined else none) }}</th>
+        <th>{{ tx("Alerta", user if user is defined else none) }}</th>
+        <th>{{ tx("Estado", user if user is defined else none) }}</th>
+        <th></th>
+      </tr>
     </thead>
     <tbody>
     {% for p in products %}
@@ -30,6 +44,7 @@
         <td>{{ p.unit }}</td>
         <td>{{ "%.2f"|format(p.unit_price|float) }} MZN</td>
         <td>{{ p.current_stock }}</td>
+        <td>{{ warehouse_breakdown(p) }}</td>
         <td>{{ p.total_entries }}</td>
         <td>{{ p.total_exits }}</td>
         <td><span class="badge {{ 'green' if p.requires_stock_control else 'grey' }}">{{ tx('Monitorizado', user) if p.requires_stock_control else tx('Pontual', user) }}</span></td>

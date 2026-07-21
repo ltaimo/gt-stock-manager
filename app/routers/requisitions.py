@@ -6,13 +6,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.core import Product, Requisition, RequisitionItem, RequisitionStatus, Role, User
+from app.models.core import Product, Requisition, RequisitionItem, RequisitionStatus, User
 from app.routers.common import templates
 from app.security import current_user, has_permission, require_permission
 from app.services.audit import audit_log
 from app.services.approval_policy import can_user_approve_assignment
 from app.services.forms import optional_int, parse_float_list, parse_int_list
-from app.services.inventory import StockError
+from app.services.inventory import StockError, active_warehouses, default_warehouse, product_warehouse_quantity, warehouse_stock_map
 from app.services.notifications import notify_requisition_decision, notify_requisition_pending
 from app.services.procurement import approval_label, classify_procurement
 from app.services.requisition_pdf import requisition_to_pdf
@@ -52,16 +52,24 @@ def requisition_form_context(
 ) -> dict:
     managers = manager_options(db)
     products = db.scalars(select(Product).where(Product.status == "active").order_by(Product.name)).all()
+    warehouses = active_warehouses(db)
     return {
         "request": request,
         "user": user,
         "products": products,
         "products_without_price": sum(1 for product in products if float(product.unit_price or 0) <= 0),
+        "warehouses": warehouses,
+        "default_warehouse_id": default_warehouse(db).id,
+        "stock_by_product": warehouse_stock_map(db, products),
         "managers": managers,
         "default_manager_id": default_manager_id(user, managers),
         "authorization_person": "Gestor de Estoque",
         "error": error,
     }
+
+
+def is_stock_request(req_type: str) -> bool:
+    return "REQUISI" in (req_type or "").upper() or (req_type or "").upper() == "REQUISICAO"
 
 
 def validate_requisition_items(
@@ -70,11 +78,12 @@ def validate_requisition_items(
     product_ids: list[int],
     quantities: list[float],
     *,
+    warehouse_id: int | None = None,
     require_unit_price: bool = True,
 ) -> list[tuple[int, Product, float]]:
     validated: list[tuple[int, Product, float]] = []
     requested_totals: dict[int, float] = {}
-    is_stock_request = "REQUISI" in (req_type or "").upper()
+    stock_request = is_stock_request(req_type)
 
     for idx, product_id in enumerate(product_ids):
         quantity = float(quantities[idx]) if idx < len(quantities) else 0
@@ -89,15 +98,15 @@ def validate_requisition_items(
     if not validated:
         raise StockError("Adicione pelo menos um item com quantidade válida.")
 
-    if is_stock_request:
+    if stock_request:
         for _idx, product, _quantity in validated:
             requested = requested_totals[product.id]
-            available = float(product.current_stock or 0)
+            available = product_warehouse_quantity(db, product, warehouse_id)
             if available <= 0:
-                raise StockError(f"O item {product.code} - {product.name} não tem stock disponível.")
+                raise StockError(f"O item {product.code} - {product.name} não tem stock disponível no armazém selecionado.")
             if requested > available:
                 raise StockError(
-                    f"A quantidade pedida para {product.code} - {product.name} excede o stock disponível ({available:g})."
+                    f"A quantidade pedida para {product.code} - {product.name} excede o stock disponível no armazém selecionado ({available:g})."
                 )
             if require_unit_price and float(product.unit_price or 0) <= 0:
                 raise StockError(
@@ -136,15 +145,16 @@ def requisition_detail_context(request: Request, db: Session, user: User, req: R
         "req": req,
         "error": error,
         "can_review_requisition": can_review_requisition(db, req, user),
+        "item_stock_at_warehouse": lambda item: product_warehouse_quantity(db, item.product, req.warehouse_id),
     }
 
 
 def normalize_req_type(req_type: str) -> str:
     normalized = (req_type or "").strip().upper()
-    if normalized in {"REQUISIÇÃO", "REQUISIÇÃO"}:
-        return "REQUISIÇÃO"
-    if normalized in {"DEVOLUÇÃO", "DEVOLUÇÃO"}:
-        return "DEVOLUÇÃO"
+    if "REQUISI" in normalized:
+        return "REQUISICAO"
+    if "DEVOL" in normalized:
+        return "DEVOLUCAO"
     if normalized == "OUTRO":
         return "OUTRO"
     raise HTTPException(400, "Tipo de requisição inválido.")
@@ -171,7 +181,8 @@ def new_requisition(request: Request, db: Session = Depends(get_db), user: User 
 def create_requisition(
     request: Request,
     operational_manager_id: str | None = Form(None),
-    req_type: str = Form("REQUISIÇÃO"),
+    warehouse_id: str | None = Form(None),
+    req_type: str = Form("REQUISICAO"),
     product_id: list[str] = Form([]),
     quantity: list[str] = Form([]),
     observation: list[str] = Form([]),
@@ -180,6 +191,7 @@ def create_requisition(
     user: User = Depends(require_permission("stock_requisitions_create")),
 ):
     parsed_manager_id = optional_int(operational_manager_id, "Gestor operacional")
+    parsed_warehouse_id = optional_int(warehouse_id, "Armazém")
     if len(product_id) != len(quantity):
         raise HTTPException(400, "Cada item deve ter uma quantidade correspondente.")
     parsed_product_ids = parse_int_list(product_id, "Produto")
@@ -196,6 +208,7 @@ def create_requisition(
             req_type,
             parsed_product_ids,
             parsed_quantities,
+            warehouse_id=parsed_warehouse_id,
             require_unit_price=bool(submit),
         )
         with atomic(db):
@@ -205,6 +218,7 @@ def create_requisition(
                 number=next_requisition_number(db),
                 requesting_user_id=user.id,
                 department_id=user.department_id,
+                warehouse_id=parsed_warehouse_id,
                 operational_manager=manager.full_name if manager else None,
                 authorization_person=approval_label_value,
                 approver_role_id=approver_role_id,
@@ -229,7 +243,9 @@ def create_requisition(
                 notify_requisition_pending(db, req)
             audit_log(db, user, "Criou requisição", "Requisições", req.number, request=request)
     except StockError as exc:
-        return templates.TemplateResponse(request, "requisitions/form.html",
+        return templates.TemplateResponse(
+            request,
+            "requisitions/form.html",
             requisition_form_context(request, db, user, str(exc)),
             status_code=400,
         )
@@ -259,6 +275,7 @@ def submit_requisition(req_id: int, request: Request, db: Session = Depends(get_
             req.req_type,
             [item.product_id for item in req.items],
             [float(item.quantity_requested) for item in req.items],
+            warehouse_id=req.warehouse_id,
         )
         with atomic(db):
             total_value = requisition_value(validated_items)
@@ -348,12 +365,12 @@ def review_requisition(
                     item.review_observation = reason
                 notify_requisition_decision(db, req, user, "Rejeitada")
             elif decision == "approve":
-                approve_requisition(req)
+                approve_requisition(req, db=db)
                 notify_requisition_decision(db, req, user, "Aprovada")
             else:
                 quantities = {parsed_item_ids[idx]: parsed_quantities[idx] for idx in range(min(len(parsed_item_ids), len(parsed_quantities)))}
                 notes = {parsed_item_ids[idx]: review_observation[idx] for idx in range(min(len(parsed_item_ids), len(review_observation)))}
-                approve_requisition(req, approved_quantities=quantities, review_notes=notes)
+                approve_requisition(req, approved_quantities=quantities, review_notes=notes, db=db)
                 req.notes = (rejection_reason or "").strip() or req.notes
                 notify_requisition_decision(db, req, user, "Aprovada parcialmente")
 
@@ -378,6 +395,7 @@ def review_requisition(
 
 @router.post("/{req_id}/issue")
 def issue(req_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("requisitions_issue"))):
+    req = None
     try:
         with atomic(db):
             req = db.scalar(select(Requisition).where(Requisition.id == req_id).with_for_update())
@@ -386,6 +404,8 @@ def issue(req_id: int, request: Request, db: Session = Depends(get_db), user: Us
             issue_requisition(db, req, user)
             audit_log(db, user, "Emitiu requisição", "Requisições", req.number, request=request)
     except StockError as exc:
+        if not req:
+            raise HTTPException(404) from exc
         return templates.TemplateResponse(
             request,
             "requisitions/detail.html",
@@ -410,14 +430,3 @@ def requisition_pdf(req_id: int, request: Request, db: Session = Depends(get_db)
         media_type="application/pdf",
         headers={"Content-Disposition": f'{disposition}; filename="{req.number}.pdf"'},
     )
-
-
-def normalize_req_type(req_type: str) -> str:
-    normalized = (req_type or "").strip().upper()
-    if "REQUISI" in normalized:
-        return "REQUISICAO"
-    if "DEVOL" in normalized:
-        return "DEVOLUCAO"
-    if normalized == "OUTRO":
-        return "OUTRO"
-    raise HTTPException(400, "Tipo de requisição inválido.")

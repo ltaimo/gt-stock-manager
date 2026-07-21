@@ -4,7 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.core import Requisition, RequisitionStatus, User
-from app.services.inventory import StockError, post_movement
+from app.services.inventory import StockError, post_movement, product_warehouse_quantity
 
 
 def next_requisition_number(db: Session) -> str:
@@ -33,12 +33,14 @@ def approve_requisition(
     req: Requisition,
     approved_quantities: dict[int, float] | None = None,
     review_notes: dict[int, str] | None = None,
+    db: Session | None = None,
 ) -> None:
     if req.status != RequisitionStatus.submitted.value:
         raise StockError("Apenas requisições submetidas podem ser aprovadas.")
     notes = review_notes or {}
     approved_any = False
     partial = False
+    warehouse_id = getattr(req, "warehouse_id", None)
     for item in req.items:
         requested = float(item.quantity_requested or 0)
         approved = requested if approved_quantities is None else float(approved_quantities.get(item.id, 0) or 0)
@@ -50,7 +52,8 @@ def approve_requisition(
             raise StockError(
                 f"Indique o motivo da rejeição total ou parcial do item {item.product.code} - {item.product.name}."
             )
-        if "REQU" in (req.req_type or "").upper() and approved > float(item.product.current_stock or 0):
+        available = product_warehouse_quantity(db, item.product, warehouse_id) if db else float(item.product.current_stock or 0)
+        if "REQU" in (req.req_type or "").upper() and approved > available:
             raise StockError(f"Stock insuficiente para {item.product.code} - {item.product.name}.")
         item.quantity_issued = approved
         item.quantity_rejected = rejected
@@ -76,6 +79,7 @@ def issue_requisition(
         raise StockError("Apenas requisições aprovadas podem ser emitidas.")
     action = movement_action_for_requisition(req)
     notes = review_notes or {}
+    warehouse_id = getattr(req, "warehouse_id", None)
 
     quantities: dict[int, float] = {}
     for item in req.items:
@@ -100,7 +104,7 @@ def issue_requisition(
     if action == "SAÍDA":
         for item in req.items:
             approved = quantities[item.id]
-            if approved and float(item.product.current_stock or 0) < approved:
+            if approved and product_warehouse_quantity(db, item.product, warehouse_id) < approved:
                 raise StockError(f"Stock insuficiente para {item.product.code} - {item.product.name}.")
 
     issued_any = False
@@ -138,6 +142,7 @@ def issue_requisition(
             notes=item.review_observation or item.observation or f"Movimento automático da requisição {req.number}",
             reference_number=req.number,
             adjustment_direction="increase" if action == "ACERTO" else None,
+            warehouse_id=warehouse_id,
         )
 
     if not issued_any:

@@ -30,6 +30,7 @@ class MovementAction(str, Enum):
     saida = "SAÍDA"
     devolucao = "DEVOLUÇÃO"
     acerto = "ACERTO"
+    transferencia = "TRANSFERENCIA"
 
 
 class RequisitionStatus(str, Enum):
@@ -59,6 +60,20 @@ class Department(Base):
     name: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class Warehouse(Base):
+    __tablename__ = "warehouses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    code: Mapped[str | None] = mapped_column(String(40), unique=True)
+    location: Mapped[str | None] = mapped_column(String(160))
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    product_stocks: Mapped[list["ProductWarehouseStock"]] = relationship(back_populates="warehouse")
 
 
 class User(Base):
@@ -118,6 +133,7 @@ class Product(Base):
     category: Mapped[Category | None] = relationship()
     created_by: Mapped[User | None] = relationship()
     movements: Mapped[list["StockMovement"]] = relationship(back_populates="product")
+    warehouse_stocks: Mapped[list["ProductWarehouseStock"]] = relationship(back_populates="product", cascade="all, delete-orphan")
 
     @property
     def alert_status(self) -> str:
@@ -157,6 +173,8 @@ class StockMovement(Base):
     posted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
     action_type: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), nullable=False)
+    warehouse_id: Mapped[int | None] = mapped_column(ForeignKey("warehouses.id"), index=True)
+    destination_warehouse_id: Mapped[int | None] = mapped_column(ForeignKey("warehouses.id"), index=True)
     quantity: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     signed_quantity: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     destination: Mapped[str | None] = mapped_column(String(180))
@@ -169,6 +187,8 @@ class StockMovement(Base):
     override_authorized_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
 
     product: Mapped[Product] = relationship(back_populates="movements")
+    warehouse: Mapped[Warehouse | None] = relationship(foreign_keys=[warehouse_id])
+    destination_warehouse: Mapped[Warehouse | None] = relationship(foreign_keys=[destination_warehouse_id])
     requesting_user: Mapped[User | None] = relationship(foreign_keys=[requesting_user_id])
     registered_by: Mapped[User] = relationship(foreign_keys=[registered_by_id])
     department: Mapped[Department | None] = relationship()
@@ -182,6 +202,7 @@ class Requisition(Base):
     request_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     requesting_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     department_id: Mapped[int | None] = mapped_column(ForeignKey("departments.id"))
+    warehouse_id: Mapped[int | None] = mapped_column(ForeignKey("warehouses.id"), index=True)
     operational_manager: Mapped[str | None] = mapped_column(String(160))
     authorization_person: Mapped[str | None] = mapped_column(String(160))
     approver_role_id: Mapped[int | None] = mapped_column(ForeignKey("roles.id"))
@@ -196,6 +217,7 @@ class Requisition(Base):
 
     requesting_user: Mapped[User] = relationship(foreign_keys=[requesting_user_id])
     department: Mapped[Department | None] = relationship()
+    warehouse: Mapped[Warehouse | None] = relationship()
     approver_role: Mapped[Role | None] = relationship()
     items: Mapped[list["RequisitionItem"]] = relationship(back_populates="requisition", cascade="all, delete-orphan")
     procurement_case: Mapped["ProcurementCase | None"] = relationship(back_populates="requisition", cascade="all, delete-orphan")
@@ -219,6 +241,20 @@ class RequisitionItem(Base):
 
     requisition: Mapped[Requisition] = relationship(back_populates="items")
     product: Mapped[Product] = relationship()
+
+
+class ProductWarehouseStock(Base):
+    __tablename__ = "product_warehouse_stocks"
+    __table_args__ = (UniqueConstraint("product_id", "warehouse_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), nullable=False, index=True)
+    warehouse_id: Mapped[int] = mapped_column(ForeignKey("warehouses.id"), nullable=False, index=True)
+    quantity: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    product: Mapped[Product] = relationship(back_populates="warehouse_stocks")
+    warehouse: Mapped[Warehouse] = relationship(back_populates="product_stocks")
 
 
 class AuditLog(Base):

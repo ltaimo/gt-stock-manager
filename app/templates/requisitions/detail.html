@@ -18,6 +18,7 @@
     <strong>{{ tx("Valor estimado:", user if user is defined else none) }}</strong> {{ "%.2f"|format(req.estimated_value|float) }} MZN
     <strong>{{ tx("Requisitante:", user if user is defined else none) }}</strong> {{ req.requesting_user.full_name }}
     <strong>{{ tx("Departamento:", user if user is defined else none) }}</strong> {{ req.department.name if req.department else '' }}
+    <strong>{{ tx("Armazém:", user if user is defined else none) }}</strong> {{ req.warehouse.name if req.warehouse else tx("Armazém Principal", user) }}
   </p>
   <p>
     <strong>{{ tx("Gestor Operacional:", user if user is defined else none) }}</strong> {{ req.operational_manager or '' }}
@@ -46,7 +47,7 @@
         <td>{{ i.quantity_requested }} {{ i.product.unit }}</td>
         <td>{{ i.quantity_issued or 0 }} {{ i.product.unit }}</td>
         <td>{{ i.quantity_rejected or 0 }} {{ i.product.unit }}</td>
-        <td>{{ i.product.current_stock }} {{ i.product.unit }}</td>
+        <td>{{ item_stock_at_warehouse(i) }} {{ i.product.unit }}</td>
         <td><span class="badge {{ 'green' if i.review_status == 'Aprovado' else 'orange' if i.review_status == 'Parcial' else 'red' if i.review_status == 'Rejeitado' else 'grey' }}">{{ tv(i.review_status or 'Pendente', user) }}</span></td>
         <td>{{ i.review_observation or i.observation or '' }}</td>
       </tr>
@@ -86,15 +87,15 @@
       <tbody>
         {% for i in req.items %}
         {% set requested = i.quantity_requested|float %}
-        {% set available = i.product.current_stock|float %}
-        {% set suggested = requested if req.req_type != 'REQUISIÇÃO' or available >= requested else available %}
+        {% set available = item_stock_at_warehouse(i)|float %}
+        {% set suggested = requested if req.req_type not in ['REQUISIÇÃO', 'REQUISICAO'] or available >= requested else available %}
         <tr data-review-row data-requested="{{ requested }}">
           <td>
             <input type="hidden" name="item_id" value="{{ i.id }}">
             <strong>{{ i.product.code }}</strong><br>{{ lname(i.product, user) }}
           </td>
           <td>{{ i.quantity_requested }} {{ i.product.unit }}</td>
-          <td>{{ i.product.current_stock }} {{ i.product.unit }}</td>
+          <td>{{ available }} {{ i.product.unit }}</td>
           <td>
             <input class="approved-quantity" type="number" name="approved_quantity" min="0" max="{{ i.quantity_requested }}" step="0.01" value="{{ suggested if suggested > 0 else 0 }}">
           </td>

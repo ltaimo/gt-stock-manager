@@ -109,6 +109,12 @@ def ensure_schema() -> None:
             additions.append("ALTER TABLE products ADD COLUMN unit_price NUMERIC(14, 2) DEFAULT 0")
         if "requires_stock_control" not in columns:
             additions.append("ALTER TABLE products ADD COLUMN requires_stock_control BOOLEAN DEFAULT true")
+    if "stock_movements" in tables:
+        columns = {column["name"] for column in inspector.get_columns("stock_movements")}
+        if "warehouse_id" not in columns:
+            additions.append("ALTER TABLE stock_movements ADD COLUMN warehouse_id INTEGER")
+        if "destination_warehouse_id" not in columns:
+            additions.append("ALTER TABLE stock_movements ADD COLUMN destination_warehouse_id INTEGER")
     if "categories" in tables:
         columns = {column["name"] for column in inspector.get_columns("categories")}
         if "name_en" not in columns:
@@ -119,6 +125,8 @@ def ensure_schema() -> None:
             additions.append("ALTER TABLE requisitions ADD COLUMN estimated_value NUMERIC(14, 2) DEFAULT 0")
         if "approver_role_id" not in columns:
             additions.append("ALTER TABLE requisitions ADD COLUMN approver_role_id INTEGER REFERENCES roles(id)")
+        if "warehouse_id" not in columns:
+            additions.append("ALTER TABLE requisitions ADD COLUMN warehouse_id INTEGER")
     if "roles" in tables:
         columns = {column["name"] for column in inspector.get_columns("roles")}
         if "permissions" not in columns:
@@ -177,8 +185,133 @@ def ensure_schema() -> None:
             additions.append("ALTER TABLE internal_operation_records ADD COLUMN payment_method VARCHAR(80)")
 
     with engine.begin() as connection:
+        if "warehouses" not in tables:
+            connection.execute(
+                text(
+                    """
+                    CREATE TABLE warehouses (
+                        id INTEGER PRIMARY KEY,
+                        name VARCHAR(120) UNIQUE NOT NULL,
+                        code VARCHAR(40) UNIQUE,
+                        location VARCHAR(160),
+                        is_default BOOLEAN DEFAULT false,
+                        is_active BOOLEAN DEFAULT true,
+                        created_at TIMESTAMP
+                    )
+                    """
+                )
+            )
+        if "product_warehouse_stocks" not in tables:
+            connection.execute(
+                text(
+                    """
+                    CREATE TABLE product_warehouse_stocks (
+                        id INTEGER PRIMARY KEY,
+                        product_id INTEGER NOT NULL REFERENCES products(id),
+                        warehouse_id INTEGER NOT NULL REFERENCES warehouses(id),
+                        quantity NUMERIC(12, 2) DEFAULT 0,
+                        updated_at TIMESTAMP,
+                        UNIQUE(product_id, warehouse_id)
+                    )
+                    """
+                )
+            )
+            connection.execute(text("CREATE INDEX ix_product_warehouse_stocks_product_id ON product_warehouse_stocks (product_id)"))
+            connection.execute(text("CREATE INDEX ix_product_warehouse_stocks_warehouse_id ON product_warehouse_stocks (warehouse_id)"))
         for statement in additions:
             connection.execute(text(statement))
+        current_tables = set(inspect(connection).get_table_names())
+        if "warehouses" in current_tables:
+            default_warehouse = connection.execute(
+                text("SELECT id FROM warehouses WHERE is_default = true LIMIT 1")
+            ).first()
+            if not default_warehouse:
+                default_warehouse = connection.execute(
+                    text("SELECT id FROM warehouses WHERE lower(name) = lower(:name) LIMIT 1"),
+                    {"name": "Armazém Principal"},
+                ).first()
+            if default_warehouse:
+                default_warehouse_id = default_warehouse[0]
+                connection.execute(
+                    text(
+                        """
+                        UPDATE warehouses
+                        SET is_default = true, is_active = true
+                        WHERE id = :warehouse_id
+                        """
+                    ),
+                    {"warehouse_id": default_warehouse_id},
+                )
+            else:
+                connection.execute(
+                    text(
+                        """
+                        INSERT INTO warehouses (name, code, is_default, is_active, created_at)
+                        VALUES (:name, :code, true, true, CURRENT_TIMESTAMP)
+                        """
+                    ),
+                    {"name": "Armazém Principal", "code": "ARM-PRINCIPAL"},
+                )
+                default_warehouse_id = connection.execute(
+                    text("SELECT id FROM warehouses WHERE is_default = true LIMIT 1")
+                ).scalar_one()
+
+            if "stock_movements" in current_tables:
+                movement_columns = {column["name"] for column in inspect(connection).get_columns("stock_movements")}
+                if "warehouse_id" in movement_columns:
+                    connection.execute(
+                        text(
+                            """
+                            UPDATE stock_movements
+                            SET warehouse_id = :warehouse_id
+                            WHERE warehouse_id IS NULL
+                            """
+                        ),
+                        {"warehouse_id": default_warehouse_id},
+                    )
+            if "requisitions" in current_tables:
+                requisition_columns = {column["name"] for column in inspect(connection).get_columns("requisitions")}
+                if "warehouse_id" in requisition_columns:
+                    if "req_type" in requisition_columns:
+                        connection.execute(
+                            text(
+                                """
+                                UPDATE requisitions
+                                SET warehouse_id = :warehouse_id
+                                WHERE warehouse_id IS NULL
+                                  AND (req_type IS NULL OR req_type <> 'NS')
+                                """
+                            ),
+                            {"warehouse_id": default_warehouse_id},
+                        )
+                    else:
+                        connection.execute(
+                            text(
+                                """
+                                UPDATE requisitions
+                                SET warehouse_id = :warehouse_id
+                                WHERE warehouse_id IS NULL
+                                """
+                            ),
+                            {"warehouse_id": default_warehouse_id},
+                        )
+            if {"products", "product_warehouse_stocks"}.issubset(current_tables):
+                connection.execute(
+                    text(
+                        """
+                        INSERT INTO product_warehouse_stocks (product_id, warehouse_id, quantity, updated_at)
+                        SELECT products.id, :warehouse_id, coalesce(products.current_stock, 0), CURRENT_TIMESTAMP
+                        FROM products
+                        WHERE NOT EXISTS (
+                            SELECT 1
+                            FROM product_warehouse_stocks
+                            WHERE product_warehouse_stocks.product_id = products.id
+                              AND product_warehouse_stocks.warehouse_id = :warehouse_id
+                        )
+                        """
+                    ),
+                    {"warehouse_id": default_warehouse_id},
+                )
         if "internal_operation_options" not in tables:
             connection.execute(
                 text(

@@ -1,12 +1,25 @@
 <table>
-  <thead><tr><th>{{ tx("Data", user if user is defined else none) }}</th><th>{{ tx("Acção", user if user is defined else none) }}</th><th>{{ tx("Item", user if user is defined else none) }}</th><th>{{ tx("Origem / Destino", user if user is defined else none) }}</th><th>{{ tx("Quantidade", user if user is defined else none) }}</th><th>{{ tx("Requisitante", user if user is defined else none) }}</th><th>{{ tx("Responsável", user if user is defined else none) }}</th><th>{{ tx("Referência", user if user is defined else none) }}</th></tr></thead>
+  <thead>
+    <tr>
+      <th>{{ tx("Data", user if user is defined else none) }}</th>
+      <th>{{ tx("Ação", user if user is defined else none) }}</th>
+      <th>{{ tx("Item", user if user is defined else none) }}</th>
+      <th>{{ tx("Armazém", user if user is defined else none) }}</th>
+      <th>{{ tx("Destino", user if user is defined else none) }}</th>
+      <th>{{ tx("Quantidade", user if user is defined else none) }}</th>
+      <th>{{ tx("Requisitante", user if user is defined else none) }}</th>
+      <th>{{ tx("Responsável", user if user is defined else none) }}</th>
+      <th>{{ tx("Referência", user if user is defined else none) }}</th>
+    </tr>
+  </thead>
   <tbody>
   {% for m in recent_movements or movements %}
     <tr>
       <td>{{ m.posted_at.strftime('%Y-%m-%d %H:%M') }}</td>
       <td>{{ tv(m.action_type, user) }}</td>
       <td>{{ m.product.code }} · {{ lname(m.product, user) }}</td>
-      <td>{{ m.destination or '' }}</td>
+      <td>{{ m.warehouse.name if m.warehouse else '' }}</td>
+      <td>{{ m.destination_warehouse.name if m.destination_warehouse else m.destination or '' }}</td>
       <td>{{ m.quantity }}</td>
       <td>{{ m.requesting_user.full_name if m.requesting_user else '' }}</td>
       <td>{{ m.responsible_person or '' }}</td>

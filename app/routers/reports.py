@@ -7,10 +7,11 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.i18n import language_for, localized_name, translate_text, translate_value
-from app.models.core import Department, HseRecord, InternalOperationRecord, ProcurementCase, Product, Requisition, StockMovement, User
+from app.models.core import Department, HseRecord, InternalOperationRecord, ProcurementCase, Product, Requisition, StockMovement, User, Warehouse
 from app.routers.common import templates
 from app.security import current_user, has_permission, require_permission
 from app.services.exports import rows_to_csv, rows_to_pdf, rows_to_xlsx
+from app.services.inventory import warehouse_breakdown
 
 router = APIRouter(prefix="/relatorios", tags=["relatorios"])
 
@@ -42,6 +43,7 @@ def stock_rows(db: Session, language: str = "pt"):
             translate_value(p.status, language),
             translate_text("Sim" if p.requires_stock_control else "Não", language),
             translate_value(p.alert_status, language),
+            warehouse_breakdown(db, p),
         )
         for p in products
     ]
@@ -62,7 +64,7 @@ def products_requiring_attention(db: Session) -> list[Product]:
 @router.get("/stock")
 def stock_report(request: Request, export: str = "", db: Session = Depends(get_db), user: User = Depends(require_permission("reports"))):
     language = language_for(user, request)
-    headers = [translate_text(value, language) for value in ["Código", "Produto", "Categoria", "Unidade", "Preço Unit.", "Stock Atual", "Stock Mínimo", "Entradas", "Saídas", "Estado", "Monitorizado", "Alerta"]]
+    headers = [translate_text(value, language) for value in ["Código", "Produto", "Categoria", "Unidade", "Preço Unit.", "Stock Atual", "Stock Mínimo", "Entradas", "Saídas", "Estado", "Monitorizado", "Alerta", "Por armazém"]]
     rows = stock_rows(db, language)
     if export == "xlsx":
         return Response(rows_to_xlsx(headers, rows, translate_text("Stock", language), language), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": 'attachment; filename="stock.xlsx"'})
@@ -78,6 +80,7 @@ def movement_report(
     request: Request,
     action: str = "",
     product_id: int | None = None,
+    warehouse_id: int | None = None,
     department_id: int | None = None,
     user_id: int | None = None,
     date_from: str = "",
@@ -92,6 +95,11 @@ def movement_report(
         stmt = stmt.where(StockMovement.action_type == action)
     if product_id:
         stmt = stmt.where(StockMovement.product_id == product_id)
+    if warehouse_id:
+        stmt = stmt.where(
+            (StockMovement.warehouse_id == warehouse_id)
+            | (StockMovement.destination_warehouse_id == warehouse_id)
+        )
     if department_id:
         stmt = stmt.where(StockMovement.department_id == department_id)
     if user_id:
@@ -104,8 +112,22 @@ def movement_report(
     except ValueError as exc:
         raise HTTPException(400, "Informe datas válidas no formato AAAA-MM-DD.") from exc
     movements = db.scalars(stmt).all()
-    headers = [translate_text(value, language) for value in ["Data", "Ação", "Código", "Item", "Destino", "Quantidade", "Tipo", "Responsável", "Departamento"]]
-    rows = [(m.posted_at, translate_value(m.action_type, language), m.product.code, m.product.name_en or m.product.name if language == "en" else m.product.name, m.destination, m.quantity, m.reference_number, m.responsible_person, m.department.name if m.department else "") for m in movements]
+    headers = [translate_text(value, language) for value in ["Data", "Ação", "Código", "Item", "Armazém", "Destino", "Quantidade", "Tipo", "Responsável", "Departamento"]]
+    rows = [
+        (
+            m.posted_at,
+            translate_value(m.action_type, language),
+            m.product.code,
+            m.product.name_en or m.product.name if language == "en" else m.product.name,
+            m.warehouse.name if m.warehouse else "",
+            m.destination_warehouse.name if m.destination_warehouse else m.destination,
+            m.quantity,
+            m.reference_number,
+            m.responsible_person,
+            m.department.name if m.department else "",
+        )
+        for m in movements
+    ]
     if export == "xlsx":
         return Response(rows_to_xlsx(headers, rows, translate_text("Movimentos", language), language), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": 'attachment; filename="movimentos.xlsx"'})
     if export == "pdf":
@@ -118,11 +140,13 @@ def movement_report(
             "rows": rows,
             "action": action,
             "product_id": product_id,
+            "warehouse_id": warehouse_id,
             "department_id": department_id,
             "user_id": user_id,
             "date_from": date_from,
             "date_to": date_to,
             "products": db.scalars(select(Product).order_by(Product.name)).all(),
+            "warehouses": db.scalars(select(Warehouse).where(Warehouse.is_active == True).order_by(Warehouse.is_default.desc(), Warehouse.name)).all(),
             "departments": db.scalars(select(Department).order_by(Department.name)).all(),
             "users": db.scalars(select(User).order_by(User.full_name)).all(),
         },

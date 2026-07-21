@@ -7,13 +7,13 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.i18n import language_for
-from app.models.core import MovementAction, ProcurementCase, Product, Requisition, RequisitionItem, RequisitionStatus, User
+from app.models.core import MovementAction, ProcurementCase, Product, Requisition, RequisitionItem, RequisitionStatus, User, Warehouse
 from app.routers.common import templates
 from app.security import current_user, has_permission, require_permission
 from app.services.audit import audit_log
 from app.services.approval_policy import can_user_approve_assignment
 from app.services.forms import optional_float, optional_int, parse_float_list, parse_int_list, required_float, required_text
-from app.services.inventory import StockError, post_movement
+from app.services.inventory import StockError, active_warehouses, default_warehouse, post_movement
 from app.services.notifications import (
     notify_procurement_budget_pending,
     notify_procurement_classification_pending,
@@ -197,6 +197,8 @@ def replenishment_form_context(request: Request, db: Session, user: User, error:
         "request": request,
         "user": user,
         "products": products,
+        "warehouses": active_warehouses(db),
+        "default_warehouse_id": default_warehouse(db).id,
         "selected_ids": selected_ids,
         "suggested_quantity": suggested_replenishment_quantity,
         "error": error,
@@ -218,6 +220,7 @@ def new_replenishment(
 def create_replenishment(
     request: Request,
     product_id: list[str] = Form([]),
+    warehouse_id: str | None = Form(None),
     quantity: list[str] = Form([]),
     estimated_unit_price: list[str] = Form([]),
     justification: str | None = Form(None),
@@ -229,6 +232,10 @@ def create_replenishment(
 ):
     if not product_id:
         raise HTTPException(400, "Selecione pelo menos um produto para reposição.")
+    parsed_warehouse_id = optional_int(warehouse_id, "Armazém")
+    warehouse = db.get(Warehouse, parsed_warehouse_id) if parsed_warehouse_id else default_warehouse(db)
+    if not warehouse or not warehouse.is_active:
+        raise HTTPException(400, "Escolha um armazém ativo para a reposição.")
     if len(product_id) != len(quantity) or len(product_id) != len(estimated_unit_price):
         raise HTTPException(400, "Cada produto deve ter quantidade e preço estimado correspondentes.")
     product_ids = parse_int_list(product_id, "Produto")
@@ -265,6 +272,7 @@ def create_replenishment(
             number=next_replenishment_number(db),
             requesting_user_id=user.id,
             department_id=user.department_id,
+            warehouse_id=warehouse.id,
             estimated_value=total_value,
             authorization_person=approval_label(approval_rule),
             req_type="REPOSICAO",
@@ -280,7 +288,7 @@ def create_replenishment(
                     product_id=product.id,
                     quantity_requested=quantity_value,
                     estimated_unit_price=price_value,
-                    destination="Armazém / Stock",
+                    destination=warehouse.name,
                     observation=clean_justification,
                 )
             )
@@ -317,7 +325,7 @@ def create_replenishment(
             "Criou pedido de reposição de stock",
             "Procurement",
             req.number,
-            new_value={"items": len(selected_products), "estimated_value": total_value},
+            new_value={"items": len(selected_products), "estimated_value": total_value, "warehouse_id": warehouse.id},
             request=request,
         )
     return RedirectResponse(f"/procurement/{case.id}", status_code=303)
@@ -669,11 +677,12 @@ def receive_replenishment(
                     action_type=MovementAction.entrada.value,
                     quantity=quantity_value,
                     registered_by=user,
-                    destination="Armazém / Stock",
+                    destination=case.requisition.warehouse.name if case.requisition.warehouse else "Armazém / Stock",
                     responsible_person=user.full_name,
                     department_id=user.department_id,
                     notes=clean_note,
                     reference_number=case.po_number,
+                    warehouse_id=case.requisition.warehouse_id,
                 )
                 item.quantity_received = float(item.quantity_received or 0) + quantity_value
                 item.review_status = (

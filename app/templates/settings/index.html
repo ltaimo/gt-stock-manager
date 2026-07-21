@@ -20,7 +20,7 @@
     {% if key != 'stock_reset' or can(user, 'stock_reset') %}
     <a class="action-tile {% if selected_section == key %}active{% endif %}" href="/configuracoes?section={{ key }}">
       <span class="tile-code">{{ "%02d"|format(loop.index) }}</span>
-      <span class="tile-icon" aria-hidden="true">{{ "▦" if key == "categories" else "☷" if key == "departments" else "⚙" if key == "internal_ops" else "!" }}</span>
+      <span class="tile-icon" aria-hidden="true">{{ "▦" if key == "categories" else "☷" if key == "departments" else "▣" if key == "warehouses" else "⚙" if key == "internal_ops" else "!" }}</span>
       <strong>{{ tx(section.label, user if user is defined else none) }}</strong>
       <small>{{ tx(section.description, user if user is defined else none) }}</small>
     </a>
@@ -32,7 +32,7 @@
 <section class="panel">
   <div class="choice-empty-state">
     <strong>{{ tx("Escolha uma configuração", user if user is defined else none) }}</strong>
-    <p class="muted">{{ tx("A página fica limpa por padrão. Clique num botão acima para abrir categorias, departamentos, operações internas ou reset de stock.", user if user is defined else none) }}</p>
+    <p class="muted">{{ tx("A página fica limpa por padrão. Clique num botão acima para abrir categorias, departamentos, armazéns, operações internas ou reset de stock.", user if user is defined else none) }}</p>
   </div>
 </section>
 {% endif %}
@@ -104,6 +104,50 @@
       </tr>
       {% else %}
       <tr><td colspan="3">{{ tx("Sem departamentos.", user if user is defined else none) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if selected_section == "warehouses" %}
+<section class="panel">
+  <div class="panel-heading">
+    <div>
+      <h2>{{ tx("Armazéns", user if user is defined else none) }}</h2>
+      <p class="muted">{{ tx("Separe fisicamente os saldos de stock. O Armazém Principal preserva todo o histórico existente.", user if user is defined else none) }}</p>
+    </div>
+    <a class="button secondary" href="/configuracoes">{{ tx("Voltar às configurações", user if user is defined else none) }}</a>
+  </div>
+  <form method="post" action="/configuracoes/armazens" class="inline-form">
+    <input name="name" placeholder="{{ tx("Novo armazém", user if user is defined else none) }}" required>
+    <input name="code" placeholder="{{ tx("Código", user if user is defined else none) }}">
+    <input name="location" placeholder="{{ tx("Localização", user if user is defined else none) }}">
+    <button>{{ tx("Adicionar", user if user is defined else none) }}</button>
+  </form>
+  <table class="responsive-table">
+    <thead><tr><th>{{ tx("Armazém", user if user is defined else none) }}</th><th>{{ tx("Código", user if user is defined else none) }}</th><th>{{ tx("Localização", user if user is defined else none) }}</th><th>{{ tx("Estado", user if user is defined else none) }}</th><th></th></tr></thead>
+    <tbody>
+      {% for warehouse in warehouses %}
+      <tr>
+        <td data-label="{{ tx("Armazém", user if user is defined else none) }}">{{ warehouse.name }}{% if warehouse.is_default %} <span class="badge blue">{{ tx("Principal", user) }}</span>{% endif %}</td>
+        <td data-label="{{ tx("Código", user if user is defined else none) }}">{{ warehouse.code or '-' }}</td>
+        <td data-label="{{ tx("Localização", user if user is defined else none) }}">{{ warehouse.location or '-' }}</td>
+        <td data-label="{{ tx('Estado', user) }}"><span class="badge {{ 'green' if warehouse.is_active else 'grey' }}">{{ tx('Ativo', user) if warehouse.is_active else tx('Inativo', user) }}</span></td>
+        <td data-label="{{ tx("Ação", user if user is defined else none) }}">
+          {% if warehouse.is_active and not warehouse.is_default %}
+          <form method="post" action="/configuracoes/armazens/{{ warehouse.id }}/remover" data-confirm="{{ tx("Remover/desativar este armazém? O histórico existente será preservado.", user if user is defined else none) }}">
+            <button class="danger compact">{{ tx("Remover", user if user is defined else none) }}</button>
+          </form>
+          {% elif not warehouse.is_active %}
+          <form method="post" action="/configuracoes/armazens/{{ warehouse.id }}/ativar">
+            <button class="success compact">{{ tx("Reativar", user if user is defined else none) }}</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">{{ tx("Sem armazéns.", user if user is defined else none) }}</td></tr>
       {% endfor %}
     </tbody>
   </table>

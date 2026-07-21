@@ -10,7 +10,14 @@ from app.security import require_permission
 from app.services.audit import audit_log
 from app.services.documents import save_stock_document
 from app.services.forms import optional_int, parse_float_list, parse_int_list
-from app.services.inventory import StockError, post_movement
+from app.services.inventory import (
+    StockError,
+    active_warehouses,
+    default_warehouse,
+    post_movement,
+    product_warehouse_quantity,
+    warehouse_stock_map,
+)
 from app.services.transactions import atomic
 
 router = APIRouter(prefix="/movimentos", tags=["movimentos"])
@@ -24,14 +31,21 @@ ACTION_ALIASES = {
     "DEVOLUCAO": MovementAction.devolucao.value,
     "DEVOLUÇÃO": MovementAction.devolucao.value,
     "DEVOLUÃ‡ÃƒO": MovementAction.devolucao.value,
+    "TRANSFERENCIA": MovementAction.transferencia.value,
+    "TRANSFERÊNCIA": MovementAction.transferencia.value,
 }
 
 
 def movement_form_context(request: Request, db: Session, user: User, error: str | None = None) -> dict:
+    products = db.scalars(select(Product).where(Product.status == "active").order_by(Product.name)).all()
+    warehouses = active_warehouses(db)
     return {
         "request": request,
         "user": user,
-        "products": db.scalars(select(Product).where(Product.status == "active").order_by(Product.name)).all(),
+        "products": products,
+        "warehouses": warehouses,
+        "default_warehouse_id": default_warehouse(db).id,
+        "stock_by_product": warehouse_stock_map(db, products),
         "departments": db.scalars(select(Department).where(Department.is_active == True).order_by(Department.name)).all(),
         "requesters": db.scalars(select(User).where(User.is_active == True).order_by(User.full_name)).all(),
         "error": error,
@@ -49,7 +63,13 @@ def new_movement(request: Request, db: Session = Depends(get_db), user: User = D
     return templates.TemplateResponse(request, "movements/form.html", movement_form_context(request, db, user))
 
 
-def validate_movement_lines(db: Session, product_ids: list[int], quantities: list[float], action_type: str) -> list[tuple[Product, float]]:
+def validate_movement_lines(
+    db: Session,
+    product_ids: list[int],
+    quantities: list[float],
+    action_type: str,
+    warehouse_id: int | None,
+) -> list[tuple[Product, float]]:
     lines: list[tuple[Product, float]] = []
     requested_totals: dict[int, float] = {}
     for index, product_id in enumerate(product_ids):
@@ -65,17 +85,17 @@ def validate_movement_lines(db: Session, product_ids: list[int], quantities: lis
     if not lines:
         raise StockError("Adicione pelo menos um produto ao movimento.")
 
-    if action_type == MovementAction.saida.value:
+    if action_type in {MovementAction.saida.value, MovementAction.transferencia.value}:
         checked: set[int] = set()
         for product, _quantity in lines:
             if product.id in checked:
                 continue
             checked.add(product.id)
-            available = float(product.current_stock or 0)
+            available = product_warehouse_quantity(db, product, warehouse_id)
             requested = requested_totals[product.id]
             if requested > available:
                 raise StockError(
-                    f"A saída total para {product.code} - {product.name} excede o stock disponível ({available:g})."
+                    f"A saída total para {product.code} - {product.name} excede o stock disponível no armazém selecionado ({available:g})."
                 )
     return lines
 
@@ -86,6 +106,8 @@ async def create_movement(
     product_id: list[str] = Form([]),
     action_type: str | None = Form(None),
     quantity: list[str] = Form([]),
+    warehouse_id: str | None = Form(None),
+    destination_warehouse_id: str | None = Form(None),
     department_id: str | None = Form(None),
     origin: str | None = Form(None),
     responsible_person: str | None = Form(None),
@@ -103,15 +125,23 @@ async def create_movement(
             raise StockError("Cada produto deve ter uma quantidade correspondente.")
         parsed_product_ids = parse_int_list(product_id, "Produto")
         parsed_quantities = parse_float_list(quantity, "Quantidade")
+        parsed_warehouse_id = optional_int(warehouse_id, "Armazém")
+        parsed_destination_warehouse_id = optional_int(destination_warehouse_id, "Armazém de destino")
         parsed_department_id = optional_int(department_id, "Departamento")
         parsed_requester_id = optional_int(requesting_user_id, "Requisitante")
         raw_action = (action_type or "").strip().upper()
         clean_action = ACTION_ALIASES.get(raw_action, raw_action)
-        if clean_action not in {MovementAction.entrada.value, MovementAction.saida.value, MovementAction.devolucao.value}:
+        allowed_actions = {
+            MovementAction.entrada.value,
+            MovementAction.saida.value,
+            MovementAction.devolucao.value,
+            MovementAction.transferencia.value,
+        }
+        if clean_action not in allowed_actions:
             raise StockError("Escolha uma ação de movimento válida.")
         if document_type not in {"Guia", "Fatura", "Proforma", "Outro"}:
             raise StockError("Tipo de documento inválido.")
-        lines = validate_movement_lines(db, parsed_product_ids, parsed_quantities, clean_action)
+        lines = validate_movement_lines(db, parsed_product_ids, parsed_quantities, clean_action, parsed_warehouse_id)
 
         with atomic(db):
             department = db.get(Department, parsed_department_id) if parsed_department_id else None
@@ -121,6 +151,12 @@ async def create_movement(
                     raise StockError("Indique a origem ou o fornecedor da entrada.")
                 if len(destination) > 180:
                     raise StockError("Origem ou fornecedor não pode exceder 180 caracteres.")
+                movement_department_id = None
+                movement_requester_id = None
+            elif clean_action == MovementAction.transferencia.value:
+                if not parsed_destination_warehouse_id:
+                    raise StockError("Escolha o armazém de destino da transferência.")
+                destination = None
                 movement_department_id = None
                 movement_requester_id = None
             else:
@@ -151,6 +187,8 @@ async def create_movement(
                         department_id=movement_department_id,
                         notes=notes,
                         reference_number=reference_number,
+                        warehouse_id=parsed_warehouse_id,
+                        destination_warehouse_id=parsed_destination_warehouse_id,
                     )
                 )
 
@@ -173,6 +211,8 @@ async def create_movement(
                 new_value={
                     "items": [{"product": product.code, "quantity": line_quantity} for product, line_quantity in lines],
                     "action": clean_action,
+                    "warehouse_id": parsed_warehouse_id,
+                    "destination_warehouse_id": parsed_destination_warehouse_id,
                 },
                 request=request,
             )

@@ -36,12 +36,19 @@
     {{ tx("Esta operação cria um movimento de acerto e fica registada na auditoria. A quantidade nunca pode ser negativa e o motivo é obrigatório.", user if user is defined else none) }}
   </p>
   {% if adjustment_error %}<div class="alert red">{{ tm(adjustment_error, user, request) }}</div>{% endif %}
-  <form method="post" action="/produtos/{{ product.id }}/ajustar-stock" class="form-stack" data-confirm="{{ tx("Confirmar o ajuste da quantidade existente? Esta ação ficará registada.", user if user is defined else none) }}">
+  <form method="post" action="/produtos/{{ product.id }}/ajustar-stock" class="form-stack" data-stock-adjust-form data-confirm="{{ tx("Confirmar o ajuste da quantidade existente? Esta ação ficará registada.", user if user is defined else none) }}">
     <label>{{ tx("Quantidade atual", user if user is defined else none) }}
-      <input value="{{ product.current_stock }} {{ product.unit }}" disabled>
+      <input value="{{ stock_by_warehouse.get(default_warehouse_id, product.current_stock)|float }} {{ product.unit }}" data-current-warehouse-stock data-unit="{{ product.unit }}" disabled>
+    </label>
+    <label>{{ tx("Armazém", user if user is defined else none) }}
+      <select name="warehouse_id" data-product-warehouse-select required>
+        {% for warehouse in warehouses %}
+          <option value="{{ warehouse.id }}" data-stock="{{ stock_by_warehouse.get(warehouse.id, 0)|float }}" {% if warehouse.id == default_warehouse_id %}selected{% endif %}>{{ warehouse.name }}</option>
+        {% endfor %}
+      </select>
     </label>
     <label>{{ tx("Nova quantidade existente", user if user is defined else none) }}
-      <input name="target_quantity" type="number" min="0" step="0.01" value="{{ product.current_stock }}" required>
+      <input name="target_quantity" type="number" min="0" step="0.01" value="{{ stock_by_warehouse.get(default_warehouse_id, product.current_stock)|float }}" data-target-warehouse-stock required>
     </label>
     <label>{{ tx("Motivo obrigatório do ajuste", user if user is defined else none) }}
       <textarea name="reason" maxlength="500" placeholder="{{ tx("Explique a contagem física, correção de registo ou outro motivo.", user if user is defined else none) }}" required></textarea>

@@ -36,6 +36,24 @@ function uiMessage(key) {
   return document.body?.dataset[key] || "";
 }
 
+function currentWarehouseId() {
+  return document.querySelector("[data-warehouse-select]")?.value || "";
+}
+
+function optionStockForCurrentWarehouse(option) {
+  if (!option) return 0;
+  try {
+    const map = JSON.parse(option.dataset.stockMap || "{}");
+    const warehouseId = currentWarehouseId();
+    if (warehouseId && Object.prototype.hasOwnProperty.call(map, warehouseId)) {
+      return Number(map[warehouseId] || 0);
+    }
+  } catch (_error) {
+    // Fall back to consolidated stock if older markup has no warehouse map.
+  }
+  return Number(option.dataset.stock || 0);
+}
+
 function initNavigation() {
   const body = document.body;
   const openButton = document.querySelector("[data-menu-open]");
@@ -113,7 +131,7 @@ function selectedProductData(row) {
   const option = select ? select.options[select.selectedIndex] : null;
   return {
     select,
-    stock: Number(option?.dataset.stock || 0),
+    stock: optionStockForCurrentWarehouse(option),
     unit: option?.dataset.unit || "",
     price: Number(option?.dataset.price || 0),
     productId: option?.value || "",
@@ -173,7 +191,7 @@ function updateRequisitionProductAvailability() {
   const stockRequest = isStockRequisition();
   document.querySelectorAll("select[name='product_id']").forEach((select) => {
     Array.from(select.options).forEach((option) => {
-      option.disabled = stockRequest && Number(option.dataset.stock || 0) <= 0;
+      option.disabled = stockRequest && optionStockForCurrentWarehouse(option) <= 0;
     });
     if (select.selectedOptions[0]?.disabled) {
       const available = Array.from(select.options).find((option) => !option.disabled);
@@ -188,8 +206,10 @@ function updateRequisitionProductAvailability() {
 function initRequisitionForm() {
   const type = document.getElementById("requisition-type");
   if (!type) return;
+  const warehouse = document.querySelector("[data-warehouse-select]");
   document.querySelectorAll("[data-requisition-item]").forEach(initRequisitionItemRow);
   type.addEventListener("change", updateRequisitionProductAvailability);
+  warehouse?.addEventListener("change", updateRequisitionProductAvailability);
   type.closest("form")?.addEventListener("submit", (event) => {
     if (!validateRequisitionTotals()) event.preventDefault();
   });
@@ -225,12 +245,17 @@ function initMovementForm() {
     const action = (actionGroup.querySelector("input[name='action_type']:checked")?.value || "ENTRADA").toUpperCase();
     return action === "SAÍDA" || action === "SAIDA" || action === "SAÃDA";
   };
+  const isTransfer = () => {
+    const action = (actionGroup.querySelector("input[name='action_type']:checked")?.value || "ENTRADA").toUpperCase();
+    return action === "TRANSFERENCIA" || action === "TRANSFERÊNCIA";
+  };
+  const isStockOutAction = () => isExit() || isTransfer();
 
   const selectedMovementProductData = (row) => {
     const select = row.querySelector("select[name='product_id']");
     const option = select ? select.options[select.selectedIndex] : null;
     return {
-      stock: Number(option?.dataset.stock || 0),
+      stock: optionStockForCurrentWarehouse(option),
       unit: option?.dataset.unit || "",
       productId: option?.value || "",
     };
@@ -243,7 +268,7 @@ function initMovementForm() {
     const updateRow = () => {
       const { stock, unit } = selectedMovementProductData(row);
       if (hint) hint.textContent = `${stock} ${unit}`;
-      if (quantity) quantity.max = isExit() ? String(stock) : "";
+      if (quantity) quantity.max = isStockOutAction() ? String(stock) : "";
       validateMovementTotals();
     };
     if (select) select.addEventListener("change", updateRow);
@@ -263,7 +288,7 @@ function initMovementForm() {
       current.total += Number(quantity.value || 0);
       totals.set(productId, current);
     });
-    if (!isExit()) return true;
+    if (!isStockOutAction()) return true;
     let valid = true;
     totals.forEach(({ total, stock, quantity }) => {
       if (total > stock) {
@@ -277,6 +302,7 @@ function initMovementForm() {
   const updateFields = () => {
     const action = actionGroup.querySelector("input[name='action_type']:checked")?.value || "ENTRADA";
     const isEntry = action === "ENTRADA";
+    const transfer = isTransfer();
     document.querySelectorAll("[data-movement-entry]").forEach((element) => {
       element.hidden = !isEntry;
       element.querySelectorAll("input, select").forEach((field) => {
@@ -284,12 +310,18 @@ function initMovementForm() {
       });
     });
     document.querySelectorAll("[data-movement-exit]").forEach((element) => {
-      element.hidden = isEntry;
+      element.hidden = isEntry || transfer;
       element.querySelectorAll("select[name='department_id']").forEach((field) => {
-        field.required = !isEntry;
+        field.required = !isEntry && !transfer;
       });
       element.querySelectorAll("input[name='responsible_person']").forEach((field) => {
         field.required = action === "SAÍDA";
+      });
+    });
+    document.querySelectorAll("[data-transfer-target]").forEach((element) => {
+      element.hidden = !transfer;
+      element.querySelectorAll("select").forEach((field) => {
+        field.required = transfer;
       });
     });
     document.querySelectorAll("[data-movement-item]").forEach(window.initMovementItemRow);
@@ -299,10 +331,29 @@ function initMovementForm() {
   actionGroup.querySelectorAll("input[name='action_type']").forEach((input) => {
     input.addEventListener("change", updateFields);
   });
+  document.querySelector("[data-warehouse-select]")?.addEventListener("change", updateFields);
   actionGroup.closest("form")?.addEventListener("submit", (event) => {
     if (!window.validateMovementTotals()) event.preventDefault();
   });
   updateFields();
+}
+
+function initProductStockAdjustment() {
+  document.querySelectorAll("[data-stock-adjust-form]").forEach((form) => {
+    const warehouse = form.querySelector("[data-product-warehouse-select]");
+    const current = form.querySelector("[data-current-warehouse-stock]");
+    const target = form.querySelector("[data-target-warehouse-stock]");
+    if (!warehouse || !current || !target) return;
+    const update = () => {
+      const option = warehouse.options[warehouse.selectedIndex];
+      const stock = Number(option?.dataset.stock || 0);
+      const unit = current.dataset.unit || "";
+      current.value = `${stock} ${unit}`.trim();
+      target.value = String(stock);
+    };
+    warehouse.addEventListener("change", update);
+    update();
+  });
 }
 
 function initReplenishmentForm() {
@@ -503,6 +554,7 @@ window.addEventListener("load", () => {
   initRequisitionForm();
   initRequisitionReview();
   initMovementForm();
+  initProductStockAdjustment();
   initReplenishmentForm();
   initInternalOperationsForm();
 });

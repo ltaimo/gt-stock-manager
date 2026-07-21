@@ -69,6 +69,13 @@
   <section class="panel">
     <h2>{{ tx("Dados do pedido", user if user is defined else none) }}</h2>
     <div class="form-grid">
+      <label>{{ tx("Armazém de destino", user if user is defined else none) }}
+        <select name="warehouse_id" required>
+          {% for warehouse in warehouses %}
+            <option value="{{ warehouse.id }}" {% if warehouse.id == default_warehouse_id %}selected{% endif %}>{{ warehouse.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
       <label>{{ tx("Centro de custo", user if user is defined else none) }}
         <input name="cost_center" placeholder="{{ tx("Opcional", user if user is defined else none) }}">
       </label>
