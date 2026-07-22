@@ -62,6 +62,7 @@ class Settings:
     sync_auto_push = os.getenv("SYNC_AUTO_PUSH", "false").lower() == "true"
     mirror_read_only = os.getenv("MIRROR_READ_ONLY", "true").lower() == "true"
     session_timeout_minutes = int(os.getenv("SESSION_TIMEOUT_MINUTES", "30"))
+    require_requisition_unit_prices = os.getenv("REQUIRE_REQUISITION_UNIT_PRICES", "false").lower() == "true"
 
     @property
     def session_timeout_seconds(self) -> int:

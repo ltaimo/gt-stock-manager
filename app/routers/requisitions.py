@@ -5,6 +5,7 @@ from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.database import get_db
 from app.models.core import Product, Requisition, RequisitionItem, RequisitionStatus, User
 from app.routers.common import templates
@@ -20,6 +21,7 @@ from app.services.requisitions import approve_requisition, issue_requisition, ne
 from app.services.transactions import atomic
 
 router = APIRouter(prefix="/requisicoes", tags=["requisicoes"])
+settings = get_settings()
 
 
 def manager_options(db: Session) -> list[User]:
@@ -79,7 +81,7 @@ def validate_requisition_items(
     quantities: list[float],
     *,
     warehouse_id: int | None = None,
-    require_unit_price: bool = True,
+    require_unit_price: bool = False,
 ) -> list[tuple[int, Product, float]]:
     validated: list[tuple[int, Product, float]] = []
     requested_totals: dict[int, float] = {}
@@ -209,7 +211,7 @@ def create_requisition(
             parsed_product_ids,
             parsed_quantities,
             warehouse_id=parsed_warehouse_id,
-            require_unit_price=bool(submit),
+            require_unit_price=bool(submit) and settings.require_requisition_unit_prices,
         )
         with atomic(db):
             total_value = requisition_value(validated_items)
@@ -276,6 +278,7 @@ def submit_requisition(req_id: int, request: Request, db: Session = Depends(get_
             [item.product_id for item in req.items],
             [float(item.quantity_requested) for item in req.items],
             warehouse_id=req.warehouse_id,
+            require_unit_price=settings.require_requisition_unit_prices,
         )
         with atomic(db):
             total_value = requisition_value(validated_items)

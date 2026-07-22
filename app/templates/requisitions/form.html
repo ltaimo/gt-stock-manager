@@ -9,7 +9,7 @@
 {% if products_without_price %}
   <div class="alert orange">
     <strong>{{ products_without_price }}</strong>
-    {{ tx("produtos ativos não têm preço unitário. Preencha o preço antes de submeter requisições com estes produtos para garantir a aprovação correta pela matriz.", user) }}
+    {{ tx("produtos ativos não têm preço unitário. Ao selecioná-los, o valor do pedido será calculado como 0 MZN e seguirá o primeiro nível da matriz de aprovações.", user) }}
   </div>
 {% endif %}
 <form method="post" class="form-stack" spellcheck="true" data-autosave-form="stock-requisition-new" data-autosave-row="[data-requisition-item]" data-autosave-add="[data-add-row]">

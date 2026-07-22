@@ -37,11 +37,18 @@ class RequisitionCreationValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(StockError, "excede o stock"):
             validate_requisition_items(db, "REQUISIÇÃO", [1, 1], [3, 3])
 
-    def test_submitted_requisition_rejects_item_without_unit_price(self):
+    def test_requisition_allows_item_without_unit_price_while_prices_are_being_loaded(self):
+        db = FakeSession([product(1, 5, unit_price=0)])
+
+        validated = validate_requisition_items(db, "REQUISIÇÃO", [1], [1])
+
+        self.assertEqual(validated[0][2], 1)
+
+    def test_strict_unit_price_flag_can_reject_item_without_unit_price_later(self):
         db = FakeSession([product(1, 5, unit_price=0)])
 
         with self.assertRaisesRegex(StockError, "preço unitário"):
-            validate_requisition_items(db, "REQUISIÇÃO", [1], [1])
+            validate_requisition_items(db, "REQUISIÇÃO", [1], [1], require_unit_price=True)
 
     def test_draft_requisition_can_keep_item_without_unit_price(self):
         db = FakeSession([product(1, 5, unit_price=0)])
