@@ -35,7 +35,7 @@
         <td data-label="{{ tx("Departamento", user if user is defined else none) }}">{{ case.requisition.department.name if case.requisition.department else '' }}</td>
         <td data-label="{{ tx('Tipo', user) }}">{{ tx(case.item_type or 'Bem', user) }}</td>
         <td data-label="{{ tx('Origem', user) }}">{{ tx('Reposição de stock', user) if case.requisition.req_type == 'REPOSICAO' else 'Non-stock' }}</td>
-        <td data-label="{{ tx("Budget", user if user is defined else none) }}">{{ "%.2f"|format(case.estimated_budget|float) }} MZN</td>
+        <td data-label="{{ tx("Budget", user if user is defined else none) }}">{% if case.estimated_budget|float > 0 %}{{ "%.2f"|format(case.estimated_budget|float) }} MZN{% else %}{{ tx("Nao informado", user) }}{% endif %}</td>
         <td data-label="{{ tx("TdR", user if user is defined else none) }}">{{ tv(case.tor_status, user) if case.tor_status else '-' }}</td>
         <td data-label="{{ tx("Orçamento", user if user is defined else none) }}">
           <span class="badge {{ 'green' if case.budget_confirmed else 'red' if case.budget_confirmed == false else 'orange' }}">

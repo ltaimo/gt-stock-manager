@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
@@ -16,7 +18,8 @@ router = APIRouter()
 
 @router.get("/login")
 def login_form(request: Request):
-    return templates.TemplateResponse(request, "auth/login.html", {"request": request, "error": None})
+    error = "Sessao expirada por inatividade. Inicie sessao novamente." if request.query_params.get("timeout") == "1" else None
+    return templates.TemplateResponse(request, "auth/login.html", {"request": request, "error": error})
 
 
 @router.post("/login")
@@ -30,6 +33,7 @@ def login(request: Request, username: str | None = Form(None), password: str | N
         return templates.TemplateResponse(request, "auth/login.html", {"request": request, "error": "Credenciais inválidas."}, status_code=400)
     request.session["user_id"] = user.id
     request.session["language"] = user.preferred_language or "pt"
+    request.session["last_activity_at"] = datetime.now(timezone.utc).timestamp()
     with atomic(db):
         touch_last_login(user)
         audit_log(db, user, "Login", "Auth", user.id, request=request)

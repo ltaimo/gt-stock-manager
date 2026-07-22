@@ -193,6 +193,17 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> User:
     return user
 
 
+def session_is_expired(last_activity: object, now_ts: float, timeout_seconds: int) -> bool:
+    if timeout_seconds <= 0:
+        return False
+    if last_activity is None:
+        return False
+    try:
+        return now_ts - float(last_activity) > timeout_seconds
+    except (TypeError, ValueError):
+        return True
+
+
 def optional_user(request: Request, db: Session = Depends(get_db)) -> User | None:
     user_id = request.session.get("user_id")
     return db.get(User, int(user_id)) if user_id else None

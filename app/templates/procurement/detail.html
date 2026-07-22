@@ -33,7 +33,7 @@
       <p><strong>{{ tx("TdR No.:", user if user is defined else none) }}</strong> {{ case.tdr_number or ('TdR-' ~ case.requisition.number) }}</p>
       <p><strong>{{ tx("Job title:", user if user is defined else none) }}</strong> {{ case.job_title or '-' }}</p>
       <p><strong>{{ tx("Prioridade:", user if user is defined else none) }}</strong> {{ case.priority }}</p>
-      <p><strong>{{ tx("Budget estimado:", user if user is defined else none) }}</strong> {{ "%.2f"|format(case.estimated_budget|float) }} MZN</p>
+      <p><strong>{{ tx("Budget estimado:", user if user is defined else none) }}</strong> {% if case.estimated_budget|float > 0 %}{{ "%.2f"|format(case.estimated_budget|float) }} MZN{% else %}{{ tx("Nao informado", user) }}{% endif %}</p>
     </div>
     <div>
       <p><strong>{{ tx("Estado:", user if user is defined else none) }}</strong> <span class="badge orange">{{ tv(case.status, user) }}</span></p>
@@ -41,7 +41,7 @@
       <p><strong>{{ tx("Budget:", user if user is defined else none) }}</strong> {{ tx('Confirmado', user) if case.budget_confirmed else tx('Sem budget', user) if case.budget_confirmed == false else tx('Pendente', user) }}</p>
       <p><strong>{{ tx("Modalidade:", user if user is defined else none) }}</strong> {{ case.modality or '-' }}</p>
       <p><strong>{{ tx("Aprovação final:", user if user is defined else none) }}</strong> {{ case.approval_route or '-' }}</p>
-      <p><strong>{{ tx("Base da aprovação:", user if user is defined else none) }}</strong> {{ "%.2f"|format((case.po_value or case.estimated_budget)|float) }} MZN</p>
+      <p><strong>{{ tx("Base da aprovação:", user if user is defined else none) }}</strong> {% if (case.po_value or case.estimated_budget)|float > 0 %}{{ "%.2f"|format((case.po_value or case.estimated_budget)|float) }} MZN{% else %}{{ tx("Nao informado", user) }}{% endif %}</p>
     </div>
   </div>
   <p><strong>{{ tx("Descrição / TdR / escopo:", user if user is defined else none) }}</strong><br>{{ case.description }}</p>
@@ -226,7 +226,7 @@
 <section class="panel">
   <h2>{{ tx("Aprovação por valor", user if user is defined else none) }}</h2>
   <p>
-    <strong>{{ tx("Valor base:", user if user is defined else none) }}</strong> {{ "%.2f"|format((case.po_value or case.estimated_budget)|float) }} MZN<br>
+    <strong>{{ tx("Valor base:", user if user is defined else none) }}</strong> {% if (case.po_value or case.estimated_budget)|float > 0 %}{{ "%.2f"|format((case.po_value or case.estimated_budget)|float) }} MZN{% else %}{{ tx("Nao informado", user) }}{% endif %}<br>
     <strong>{{ tx("Perfil aprovador:", user if user is defined else none) }}</strong> {{ case.approval_route or 'Por definir na matriz' }}<br>
     <strong>{{ tx("Modalidade:", user if user is defined else none) }}</strong> {{ case.modality or 'Por definir' }}
   </p>

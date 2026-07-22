@@ -147,7 +147,7 @@
       <thead><tr><th>{{ tx("Nº", user if user is defined else none) }}</th><th>{{ tx("Budget", user if user is defined else none) }}</th><th>{{ tx("Estado", user if user is defined else none) }}</th></tr></thead>
       <tbody>
       {% for case in pending_procurement %}
-        <tr><td><a href="/procurement/{{ case.id }}">{{ case.requisition.number }}</a></td><td>{{ "%.2f"|format(case.estimated_budget|float) }} MZN</td><td><span class="badge orange">{{ tv(case.status, user) }}</span></td></tr>
+        <tr><td><a href="/procurement/{{ case.id }}">{{ case.requisition.number }}</a></td><td>{% if case.estimated_budget|float > 0 %}{{ "%.2f"|format(case.estimated_budget|float) }} MZN{% else %}{{ tx("Nao informado", user) }}{% endif %}</td><td><span class="badge orange">{{ tv(case.status, user) }}</span></td></tr>
       {% else %}
         <tr><td colspan="3"><div class="empty-state">{{ tx("Sem processos de procurement abertos.", user if user is defined else none) }}</div></td></tr>
       {% endfor %}

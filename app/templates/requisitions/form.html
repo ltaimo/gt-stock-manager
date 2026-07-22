@@ -12,7 +12,7 @@
     {{ tx("produtos ativos não têm preço unitário. Preencha o preço antes de submeter requisições com estes produtos para garantir a aprovação correta pela matriz.", user) }}
   </div>
 {% endif %}
-<form method="post" class="form-stack" spellcheck="true">
+<form method="post" class="form-stack" spellcheck="true" data-autosave-form="stock-requisition-new" data-autosave-row="[data-requisition-item]" data-autosave-add="[data-add-row]">
   <div class="form-grid">
     <label>{{ tx("Departamento", user if user is defined else none) }}<input value="{{ user.department.name if user.department else 'Sem departamento definido' }}" disabled></label>
     <label>{{ tx("Gestor Operacional em serviço", user if user is defined else none) }}
@@ -69,7 +69,7 @@
   <p class="muted"><strong>{{ tx("Total estimado:", user if user is defined else none) }}</strong> <span id="requisition-total">0.00</span> MZN</p>
   <div class="actions">
     <button type="button" class="secondary" data-add-row>{{ tx("Adicionar item", user if user is defined else none) }}</button>
-    <a class="button secondary" href="/requisicoes">{{ tx("Cancelar", user if user is defined else none) }}</a>
+    <a class="button secondary" href="/requisicoes" data-discard-autosave>{{ tx("Cancelar", user if user is defined else none) }}</a>
     <button name="draft" value="1" class="blue">{{ tx("Guardar rascunho", user if user is defined else none) }}</button>
     <button name="submit" value="1" class="success">{{ tx("Submeter requisição", user if user is defined else none) }}</button>
   </div>

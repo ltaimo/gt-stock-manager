@@ -63,5 +63,6 @@ templates.env.globals["app_name"] = settings.app_name
 templates.env.globals["app_version"] = settings.app_version
 templates.env.globals["app_subtitle"] = settings.app_subtitle
 templates.env.globals["app_short_name"] = settings.app_short_name
+templates.env.globals["session_timeout_seconds"] = settings.session_timeout_seconds
 templates.env.globals["logo_available"] = settings.logo_path.exists
 templates.env.globals["unread_notifications"] = unread_count

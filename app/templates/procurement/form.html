@@ -4,7 +4,7 @@
   <h1>{{ tx("Nova requisição non-stock", user if user is defined else none) }}</h1>
   <p class="muted">{{ tx("Use este fluxo para bens, serviços ou obras que não existem no stock. Anexe aqui a descrição/TdR inicial, requisitos técnicos e HSE quando aplicável.", user if user is defined else none) }}</p>
   {% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
-  <form method="post" class="form-stack">
+  <form method="post" class="form-stack" data-autosave-form="procurement-non-stock-new">
     <div class="form-grid">
       <label>{{ tx("TdR No.", user if user is defined else none) }}
         <input name="tdr_number" placeholder="{{ tx("Gerado automaticamente se vazio", user if user is defined else none) }}">
@@ -45,7 +45,8 @@
         </select>
       </label>
       <label>{{ tx("Budget estimado (MZN)", user if user is defined else none) }}
-        <input name="estimated_budget" type="number" min="0" step="0.01" required>
+        <input name="estimated_budget" type="number" min="0" step="0.01" placeholder="{{ tx("Opcional se ainda nÃ£o souber o valor", user if user is defined else none) }}">
+        <small class="muted">{{ tx("Pode submeter sem valor estimado e atualizar quando houver cotação ou PO.", user if user is defined else none) }}</small>
       </label>
       <label>{{ tx("Data requerida", user if user is defined else none) }}
         <input name="required_date" type="date">
@@ -55,7 +56,7 @@
       {{ tx("Fluxo: criação da necessidade → aprovação HOD → aprovação Terminal Manager → budget → procurement/tracker → avaliação técnica/financeira → PO → entrega/execução → nota de recebimento → arquivo.", user if user is defined else none) }}
     </div>
     <div class="actions">
-      <a class="button secondary" href="/procurement">{{ tx("Cancelar", user if user is defined else none) }}</a>
+      <a class="button secondary" href="/procurement" data-discard-autosave>{{ tx("Cancelar", user if user is defined else none) }}</a>
       <button>{{ tx("Submeter TdR para aprovação HOD", user if user is defined else none) }}</button>
     </div>
   </form>

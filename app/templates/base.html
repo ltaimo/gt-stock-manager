@@ -8,6 +8,8 @@
 </head>
 <body
   spellcheck="true"
+  data-i18n-autosave-restored="{{ tx("Rascunho automatico restaurado. Reveja e submeta quando estiver pronto.", user if user is defined else none) }}"
+  data-session-timeout-seconds="{{ session_timeout_seconds if user else 0 }}"
   data-i18n-max-available="{{ tx("Máximo disponível", user if user is defined else none) }}"
   data-i18n-no-stock="{{ tx("Este item não tem stock disponível.", user if user is defined else none) }}"
   data-i18n-exceeds-stock="{{ tx("A quantidade total pedida excede o stock disponível ({stock}).", user if user is defined else none) }}"

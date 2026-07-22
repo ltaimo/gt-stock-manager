@@ -61,6 +61,11 @@ class Settings:
     sync_interval_seconds = int(os.getenv("SYNC_INTERVAL_SECONDS", "300"))
     sync_auto_push = os.getenv("SYNC_AUTO_PUSH", "false").lower() == "true"
     mirror_read_only = os.getenv("MIRROR_READ_ONLY", "true").lower() == "true"
+    session_timeout_minutes = int(os.getenv("SESSION_TIMEOUT_MINUTES", "30"))
+
+    @property
+    def session_timeout_seconds(self) -> int:
+        return max(self.session_timeout_minutes, 0) * 60
 
     @property
     def secure_cookies(self) -> bool:

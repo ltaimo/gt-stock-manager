@@ -1,4 +1,5 @@
 from urllib.parse import urlsplit
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -12,6 +13,7 @@ from app.database import Base, engine
 from app.errors import http_error_handler, unexpected_error_handler, validation_error_handler
 from app.maintenance.migrate_schema import ensure_schema
 from app.routers import about, audit, auth, dashboard, documents, hse, imports, internal_ops, movements, notifications, preferences, procurement, products, profiles, reports, requisitions, settings as settings_router, sync, users
+from app.security import session_is_expired
 from app.services.sync import push_snapshot_to_target
 
 
@@ -24,8 +26,31 @@ app.add_exception_handler(RequestValidationError, validation_error_handler)
 app.add_exception_handler(HTTPException, http_error_handler)
 app.add_exception_handler(StarletteHTTPException, http_error_handler)
 app.add_exception_handler(Exception, unexpected_error_handler)
-app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, same_site="lax", https_only=settings.secure_cookies)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+
+@app.middleware("http")
+async def session_timeout_guard(request: Request, call_next):
+    path = request.url.path
+    if path.startswith("/static") or path.startswith("/api/sync/"):
+        return await call_next(request)
+
+    if request.session.get("user_id"):
+        now_ts = datetime.now(timezone.utc).timestamp()
+        if session_is_expired(
+            request.session.get("last_activity_at"),
+            now_ts,
+            settings.session_timeout_seconds,
+        ):
+            language = request.session.get("language") or settings.default_language
+            request.session.clear()
+            request.session["language"] = language
+            if path.startswith("/api/") or "application/json" in request.headers.get("accept", ""):
+                return JSONResponse({"detail": "Sessao expirada por inatividade."}, status_code=401)
+            return RedirectResponse("/login?timeout=1", status_code=303)
+        request.session["last_activity_at"] = now_ts
+
+    return await call_next(request)
 
 
 async def _sync_mirror_loop():
@@ -98,6 +123,9 @@ async def browser_security(request: Request, call_next):
         "base-uri 'self'; form-action 'self'"
     )
     return response
+
+
+app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, same_site="lax", https_only=settings.secure_cookies)
 
 for router in [auth.router, dashboard.router, products.router, movements.router, requisitions.router, procurement.router, hse.router, internal_ops.router, settings_router.router, preferences.router, reports.router, users.router, profiles.router, imports.router, audit.router, notifications.router, documents.router, sync.router, about.router]:
     app.include_router(router)

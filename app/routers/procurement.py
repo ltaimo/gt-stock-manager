@@ -12,7 +12,7 @@ from app.routers.common import templates
 from app.security import current_user, has_permission, require_permission
 from app.services.audit import audit_log
 from app.services.approval_policy import can_user_approve_assignment
-from app.services.forms import optional_float, optional_int, parse_float_list, parse_int_list, required_float, required_text
+from app.services.forms import optional_float, optional_int, parse_float_list, parse_int_list, required_text
 from app.services.inventory import StockError, active_warehouses, default_warehouse, post_movement
 from app.services.notifications import (
     notify_procurement_budget_pending,
@@ -128,7 +128,7 @@ def create_non_stock(
     user: User = Depends(require_permission("non_stock_requisitions_create")),
 ):
     clean_description = required_text(description, "Descricao / escopo", 2000)
-    budget = required_float(estimated_budget, "Orcamento estimado")
+    budget = optional_float(estimated_budget, "Orcamento estimado", default=0) or 0
     if budget < 0:
         raise HTTPException(400, "O orçamento estimado não pode ser negativo.")
     if priority not in {"Baixa", "Normal", "Alta", "Urgente"}:

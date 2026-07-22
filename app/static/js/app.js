@@ -546,6 +546,122 @@ function initDashboardCharts() {
   drawDonutChart(document.getElementById("unitChart"), data.units.labels, data.units.values);
 }
 
+function autosaveKey(form) {
+  return `gtims:auto-draft:${form.dataset.autosaveForm}:${window.location.pathname}`;
+}
+
+function autosaveFields(form) {
+  return Array.from(form.elements).filter((field) => {
+    return field.name && !field.disabled && field.type !== "hidden" && field.type !== "submit" && field.type !== "button";
+  });
+}
+
+function serializeAutosaveForm(form) {
+  const data = {};
+  autosaveFields(form).forEach((field) => {
+    let value;
+    if (field.type === "checkbox") value = field.checked;
+    else if (field.type === "radio") {
+      if (!field.checked) return;
+      value = field.value;
+    } else {
+      value = field.value;
+    }
+    if (!Object.prototype.hasOwnProperty.call(data, field.name)) data[field.name] = [];
+    data[field.name].push(value);
+  });
+  return { savedAt: Date.now(), data };
+}
+
+function ensureAutosaveRows(form, savedData) {
+  const rowSelector = form.dataset.autosaveRow;
+  const addSelector = form.dataset.autosaveAdd;
+  if (!rowSelector || !addSelector) return;
+  const repeatedNames = new Set();
+  form.querySelector(rowSelector)?.querySelectorAll("[name]").forEach((field) => repeatedNames.add(field.name));
+  const needed = Math.max(1, ...Array.from(repeatedNames).map((name) => (savedData[name] || []).length));
+  const addButton = form.querySelector(addSelector);
+  while (addButton && form.querySelectorAll(rowSelector).length < needed) {
+    addButton.click();
+  }
+}
+
+function restoreAutosaveForm(form) {
+  let payload;
+  try {
+    payload = JSON.parse(window.localStorage.getItem(autosaveKey(form)) || "null");
+  } catch (_error) {
+    return false;
+  }
+  if (!payload?.data) return false;
+
+  ensureAutosaveRows(form, payload.data);
+  const counters = {};
+  autosaveFields(form).forEach((field) => {
+    const values = payload.data[field.name];
+    if (!values) return;
+    const index = counters[field.name] || 0;
+    counters[field.name] = index + 1;
+    if (typeof values[index] === "undefined") return;
+    if (field.type === "checkbox") field.checked = Boolean(values[index]);
+    else if (field.type === "radio") field.checked = field.value === values[index];
+    else field.value = values[index];
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    field.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  return true;
+}
+
+function initAutosaveForms() {
+  document.querySelectorAll("form[data-autosave-form]").forEach((form) => {
+    const key = autosaveKey(form);
+    let saveTimer;
+    const save = () => {
+      window.clearTimeout(saveTimer);
+      saveTimer = window.setTimeout(() => {
+        window.localStorage.setItem(key, JSON.stringify(serializeAutosaveForm(form)));
+      }, 250);
+    };
+
+    if (restoreAutosaveForm(form)) {
+      const message = document.createElement("div");
+      message.className = "alert blue";
+      message.textContent = uiMessage("i18nAutosaveRestored") || "Rascunho automatico restaurado.";
+      form.prepend(message);
+    }
+
+    form.addEventListener("input", save);
+    form.addEventListener("change", save);
+    form.addEventListener("submit", (event) => {
+      if (!event.defaultPrevented) window.localStorage.removeItem(key);
+    });
+    document.querySelectorAll("[data-discard-autosave]").forEach((element) => {
+      element.addEventListener("click", () => window.localStorage.removeItem(key));
+    });
+  });
+}
+
+function initAutoLogout() {
+  const timeoutSeconds = Number(document.body?.dataset.sessionTimeoutSeconds || 0);
+  if (!timeoutSeconds) return;
+  let timer;
+  const logout = () => {
+    const form = document.createElement("form");
+    form.method = "post";
+    form.action = "/logout";
+    document.body.appendChild(form);
+    form.submit();
+  };
+  const reset = () => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(logout, timeoutSeconds * 1000);
+  };
+  ["click", "keydown", "mousemove", "scroll", "touchstart", "input"].forEach((eventName) => {
+    document.addEventListener(eventName, reset, { passive: true });
+  });
+  reset();
+}
+
 window.addEventListener("load", () => {
   initNavigation();
   initResponsiveTables();
@@ -557,6 +673,8 @@ window.addEventListener("load", () => {
   initProductStockAdjustment();
   initReplenishmentForm();
   initInternalOperationsForm();
+  initAutosaveForms();
+  initAutoLogout();
 });
 window.addEventListener("resize", () => {
   window.clearTimeout(window.__chartResize);

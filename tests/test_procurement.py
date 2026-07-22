@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
 from app.models.core import ApprovalMatrixRule, Department, ProcurementCase, Product, Requisition, RequisitionItem, RequisitionStatus, Role, User
-from app.routers.procurement import approve_by_value, can_update_tracker, create_replenishment, receive_replenishment, update_tracker, verify_budget
+from app.routers.procurement import approve_by_value, can_update_tracker, create_non_stock, create_replenishment, receive_replenishment, update_tracker, verify_budget
 from app.security import has_permission, hash_password
 from app.services.procurement import classify_procurement
 from app.services.tdr_pdf import terms_of_reference_to_pdf
@@ -145,6 +145,30 @@ class ProcurementWorkflowTests(unittest.TestCase):
 
         self.assertEqual(caught.exception.status_code, 400)
         self.assertIn("TdR", caught.exception.detail)
+
+    def test_non_stock_can_be_submitted_without_estimated_budget(self):
+        response = create_non_stock(
+            request=None,
+            description="Contratar manutencao sem valor conhecido",
+            job_title="Manutencao corretiva",
+            tdr_number="",
+            justification="Necessidade operacional",
+            cost_center="OPS",
+            priority="Normal",
+            item_type="Serviço",
+            estimated_budget="",
+            required_date=None,
+            technical_requirements="Diagnostico e proposta tecnica",
+            hse_requirements=None,
+            db=self.db,
+            user=self.user,
+        )
+        self.db.commit()
+
+        created_case = self.db.query(ProcurementCase).filter(ProcurementCase.description == "Contratar manutencao sem valor conhecido").one()
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(float(created_case.estimated_budget), 0)
+        self.assertEqual(created_case.status, "Pending HOD TdR Approval")
 
     def test_financial_approval_with_less_than_three_quotes_requires_justification(self):
         self.case.tor_status = "Approved"
