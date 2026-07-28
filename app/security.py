@@ -41,7 +41,7 @@ PERMISSIONS = {
     "hse_reports": "Consultar relatórios HSE/HST",
     "hse_settings": "Gerir configurações HSE/HST",
     "internal_ops_view": "Consultar operações internas",
-    "internal_ops_create": "Registar combustível, água e energia",
+    "internal_ops_create": "Registar operações internas",
     "internal_ops_edit": "Editar operações internas",
     "internal_ops_approve": "Validar operações internas",
     "internal_ops_reports": "Consultar relatórios de operações internas",

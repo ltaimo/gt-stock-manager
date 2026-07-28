@@ -6,10 +6,30 @@
 </header>
 <section class="panel">
 {% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
+{% if replenishment_signal %}<div class="alert green">{{ tm(replenishment_signal, user, request) }}</div>{% endif %}
+{% if replenishment_error %}<div class="alert red">{{ tm(replenishment_error, user, request) }}</div>{% endif %}
 {% if products_without_price %}
   <div class="alert orange">
     <strong>{{ products_without_price }}</strong>
     {{ tx("produtos ativos não têm preço unitário. Ao selecioná-los, o valor do pedido será calculado como 0 MZN e seguirá o primeiro nível da matriz de aprovações.", user) }}
+  </div>
+{% endif %}
+{% if replenishment_candidates %}
+  <div class="attention-strip">
+    <div>
+      <strong>{{ tx("Itens sem stock ou em nível crítico", user if user is defined else none) }}</strong>
+      <p class="muted">{{ tx("Se o item que precisa não puder ser requisitado, sinalize a reposição para o Gestor de Stock e responsáveis de aprovação.", user if user is defined else none) }}</p>
+    </div>
+    <div class="attention-actions">
+      {% for product in replenishment_candidates %}
+        <form method="post" action="/produtos/{{ product.id }}/solicitar-reposicao" data-confirm="{{ tx("Sinalizar necessidade de reposição para este produto?", user if user is defined else none) }}">
+          <input type="hidden" name="return_to" value="/requisicoes/nova">
+          <button class="secondary compact" title="{{ lname(product, user) }}">
+            {{ product.code }} · {{ tv(product.alert_status, user) }}
+          </button>
+        </form>
+      {% endfor %}
+    </div>
   </div>
 {% endif %}
 <form method="post" class="form-stack" spellcheck="true" data-autosave-form="stock-requisition-new" data-autosave-row="[data-requisition-item]" data-autosave-add="[data-add-row]">

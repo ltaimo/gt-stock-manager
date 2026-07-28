@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.database import SessionLocal
 from app.i18n import language_for, translate_value
-from app.models.core import Notification, ProcurementCase, Requisition, User
+from app.models.core import Notification, ProcurementCase, Product, Requisition, User
 from app.security import has_permission
 from app.services.approval_policy import users_for_approval_assignment
 
@@ -105,6 +105,10 @@ def localize_notification(text: str, user: User) -> str:
         ("Requisicao Rejeitada:", "Requisition rejected:"),
         ("Budget pendente:", "Pending budget:"),
         ("Procurement para classificar:", "Procurement pending classification:"),
+        ("Reposicao sugerida:", "Replenishment suggested:"),
+        ("sinalizou necessidade de reposicao para", "flagged replenishment need for"),
+        ("Stock atual:", "Current stock:"),
+        ("Stock minimo:", "Minimum stock:"),
         ("TdR para aprovação HOD:", "ToR pending HOD approval:"),
         ("TdR para aprovação Terminal Manager:", "ToR pending Terminal Manager approval:"),
         ("Reposição de stock para aprovação:", "Stock replenishment pending approval:"),
@@ -232,3 +236,34 @@ def notify_procurement_classification_pending(db: Session, req: Requisition) -> 
     )
     for user in recipients_with_permission(db, "procurement_manage"):
         notify_user(db, user, title, message, "Procurement", req.number)
+
+
+def recipients_for_replenishment_signal(db: Session, actor: User) -> list[User]:
+    permissions = {
+        "stock_replenishment_create",
+        "procurement_manage",
+        "procurement_tor_approve_hod",
+        "procurement_tor_approve_terminal",
+    }
+    recipients: dict[int, User] = {}
+    for permission in permissions:
+        for user in recipients_with_permission(db, permission):
+            if user.id != actor.id:
+                recipients[user.id] = user
+    return list(recipients.values())
+
+
+def notify_stock_replenishment_signal(db: Session, product: Product, actor: User) -> int:
+    current = float(product.current_stock or 0)
+    minimum = float(product.minimum_stock or 0)
+    title = f"Reposicao sugerida: {product.code}"
+    message = (
+        f"{actor.full_name} sinalizou necessidade de reposicao para {product.code} - {product.name}.\n"
+        f"Stock atual: {current:g} {product.unit}\n"
+        f"Stock minimo: {minimum:g} {product.unit}\n"
+        f"Departamento: {actor.department.name if actor.department else ''}"
+    )
+    recipients = recipients_for_replenishment_signal(db, actor)
+    for user in recipients:
+        notify_user(db, user, title, message, "Procurement", f"REPLENISH_PRODUCT:{product.id}")
+    return len(recipients)

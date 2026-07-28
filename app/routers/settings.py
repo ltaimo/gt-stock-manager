@@ -23,9 +23,11 @@ settings = get_settings()
 
 INTERNAL_OPERATION_KINDS = {
     "": "Todas as operações",
+    "general": "Operações gerais",
     "fuel": "Combustível",
     "water": "Água",
     "energy": "Energia",
+    "equipment": "Equipamentos",
 }
 
 INTERNAL_OPERATION_OPTION_TYPES = {
@@ -42,10 +44,16 @@ INTERNAL_OPERATION_OPTION_TYPES = {
         "default_kind": "fuel",
     },
     "asset": {
-        "label": "Viaturas e equipamentos",
-        "singular": "Viatura / equipamento",
-        "description": "Máquinas, viaturas, empilhadeiras e outros ativos abastecidos.",
+        "label": "Ativos operacionais",
+        "singular": "Ativo operacional",
+        "description": "Máquinas, viaturas, empilhadeiras, contadores e outros ativos usados nos registos.",
         "default_kind": "fuel",
+    },
+    "equipment_type": {
+        "label": "Tipos de equipamento",
+        "singular": "Tipo de equipamento",
+        "description": "Categorias de equipamentos para compra, manutenção, reparação ou atribuição interna.",
+        "default_kind": "equipment",
     },
     "location": {
         "label": "Locais e contadores",
@@ -77,7 +85,7 @@ SETTINGS_SECTIONS = {
     },
     "internal_ops": {
         "label": "Operações internas",
-        "description": "Listas de apoio para combustível, água, energia e consumos internos.",
+        "description": "Listas de apoio para operações gerais, combustível, água, energia e equipamentos.",
     },
     "stock_reset": {
         "label": "Reset de stock",
@@ -202,7 +210,7 @@ def add_internal_operation_option(
         raise HTTPException(400, "Escolha um tipo de configuracao valido.")
     clean_name = required_text(name, "Nome", 160)
     clean_kind = (kind or "").strip() or None
-    if clean_kind and clean_kind not in {"fuel", "water", "energy"}:
+    if clean_kind and clean_kind not in {"general", "fuel", "water", "energy", "equipment"}:
         raise HTTPException(400, "Escolha um modulo de operacao interna valido.")
     existing = db.scalar(
         select(InternalOperationOption).where(

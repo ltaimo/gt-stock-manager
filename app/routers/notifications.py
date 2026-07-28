@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.core import Notification, ProcurementCase, Requisition, User
 from app.routers.common import templates
-from app.security import current_user
+from app.security import current_user, has_permission
 from app.services.notifications import canonical_notification_module
 from app.services.transactions import atomic
 
@@ -68,6 +68,11 @@ def open_notification(notification_id: int, db: Session = Depends(get_db), user:
         if requisition:
             return RedirectResponse(f"/requisicoes/{requisition.id}", status_code=303)
     if module == "Procurement" and notification.record_id:
+        if notification.record_id.startswith("REPLENISH_PRODUCT:"):
+            product_id = notification.record_id.removeprefix("REPLENISH_PRODUCT:")
+            if has_permission(user, "stock_replenishment_create") and product_id.isdigit():
+                return RedirectResponse(f"/procurement/reposicao/nova?product_id={product_id}", status_code=303)
+            return RedirectResponse("/produtos", status_code=303)
         requisition = db.scalar(select(Requisition).where(Requisition.number == notification.record_id))
         if requisition:
             case = db.scalar(select(ProcurementCase).where(ProcurementCase.requisition_id == requisition.id))

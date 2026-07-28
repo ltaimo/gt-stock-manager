@@ -417,6 +417,26 @@ function initReplenishmentForm() {
 function initInternalOperationsForm() {
   const select = document.querySelector("[data-operation-type]");
   if (!select) return;
+  const assetRequiredTypes = new Set(["fuel_refuel", "energy_reading", "equipment_maintenance", "equipment_assignment"]);
+  const typeRequiredTypes = new Set(["fuel_purchase_storage", "fuel_refuel", "equipment_purchase", "equipment_maintenance"]);
+  const amountRequiredTypes = new Set([
+    "fuel_purchase_storage",
+    "water_purchase",
+    "energy_purchase",
+    "equipment_purchase",
+    "equipment_maintenance",
+    "general_purchase",
+    "general_service",
+  ]);
+  const paymentRequiredTypes = new Set([
+    "fuel_purchase_storage",
+    "water_purchase",
+    "energy_purchase",
+    "equipment_purchase",
+    "equipment_maintenance",
+    "general_purchase",
+    "general_service",
+  ]);
   const update = () => {
     const value = select.value;
     document.querySelectorAll("[data-visible-for]").forEach((element) => {
@@ -427,11 +447,19 @@ function initInternalOperationsForm() {
         if (field.name === "odometer_reading" || field.name === "meter_reading") {
           field.required = visible;
         }
-        if (field.name === "asset_name" && value === "fuel_refuel") {
-          field.required = visible;
+        if (field.name === "asset_name") {
+          field.required = visible && assetRequiredTypes.has(value);
+        }
+        if (field.name === "fuel_type") {
+          field.required = visible && typeRequiredTypes.has(value);
+        }
+        if (field.name === "payment_method") {
+          field.required = visible && paymentRequiredTypes.has(value);
         }
       });
     });
+    const amount = document.querySelector("[data-amount-field]");
+    if (amount) amount.required = amountRequiredTypes.has(value);
   };
   select.addEventListener("change", update);
   update();

@@ -247,7 +247,7 @@ def hse_report(request: Request, export: str = "", db: Session = Depends(get_db)
 def internal_ops_report(request: Request, export: str = "", db: Session = Depends(get_db), user: User = Depends(require_permission("internal_ops_reports"))):
     language = language_for(user, request)
     records = db.scalars(select(InternalOperationRecord).order_by(InternalOperationRecord.record_date.desc())).all()
-    headers = [translate_text(value, language) for value in ["Nº", "Data", "Tipo", "Tipo de registo", "Descrição", "Fornecedor", "Tipo de combustível", "Máquina / viatura / ativo", "Leitura do odómetro", "Leitura do contador", "Quantidade", "Valor", "Método de pagamento", "Departamento", "Estado"]]
+    headers = [translate_text(value, language) for value in ["Nº", "Data", "Tipo", "Tipo de registo", "Descrição", "Fornecedor", "Tipo/categoria", "Ativo / equipamento / contador", "Leitura do odómetro", "Leitura do contador", "Quantidade", "Valor", "Método de pagamento", "Departamento", "Estado"]]
     rows = [
         (
             record.number,

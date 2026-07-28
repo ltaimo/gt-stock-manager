@@ -180,7 +180,7 @@
   {% if not selected_internal_group %}
   <div class="choice-empty-state">
     <strong>{{ tx("Escolha uma lista de operações internas", user if user is defined else none) }}</strong>
-    <p class="muted">{{ tx("Clique em Empresas, Tipos de combustível, Viaturas, Locais ou Métodos de pagamento para abrir apenas essa configuração.", user if user is defined else none) }}</p>
+    <p class="muted">{{ tx("Clique em Empresas, Tipos de combustível, Tipos de equipamento, Ativos, Locais ou Métodos de pagamento para abrir apenas essa configuração.", user if user is defined else none) }}</p>
   </div>
   {% else %}
   {% set group = internal_option_groups[selected_internal_group] %}

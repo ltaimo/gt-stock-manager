@@ -1,4 +1,5 @@
 import re
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -19,9 +20,18 @@ from app.services.inventory import (
     warehouse_breakdown,
     warehouse_stock_map,
 )
+from app.services.notifications import notify_stock_replenishment_signal
 from app.services.transactions import atomic
 
 router = APIRouter(prefix="/produtos", tags=["produtos"])
+
+
+def local_redirect_with_message(default_path: str, return_to: str | None, key: str, message: str) -> RedirectResponse:
+    target = (return_to or "").strip()
+    if not target.startswith("/") or target.startswith("//"):
+        target = default_path
+    separator = "&" if "?" in target else "?"
+    return RedirectResponse(f"{target}{separator}{key}={quote(message)}", status_code=303)
 
 
 def next_product_code(db: Session) -> str:
@@ -94,6 +104,8 @@ def list_products(request: Request, q: str = "", status: str = "", db: Session =
             "products": products,
             "q": q,
             "status": status,
+            "replenishment_signal": request.query_params.get("replenishment_signal"),
+            "replenishment_error": request.query_params.get("replenishment_error"),
             "warehouse_breakdown": lambda product: warehouse_breakdown(db, product),
         },
     )
@@ -297,6 +309,50 @@ def adjust_stock(
             status_code=400,
         )
     return RedirectResponse(f"/produtos/{product.id}/editar?stock_adjusted=1", status_code=303)
+
+
+@router.post("/{product_id}/solicitar-reposicao")
+def signal_replenishment_need(
+    product_id: int,
+    request: Request,
+    return_to: str | None = Form(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(404)
+    default_path = f"/produtos?q={quote(product.code)}"
+    if product.status != "active":
+        return local_redirect_with_message(default_path, return_to, "replenishment_error", "O produto selecionado esta inativo.")
+    if not product.requires_stock_control:
+        return local_redirect_with_message(
+            default_path,
+            return_to,
+            "replenishment_error",
+            "Este produto nao esta marcado para monitorizacao de stock.",
+        )
+    with atomic(db):
+        recipients = notify_stock_replenishment_signal(db, product, user)
+        audit_log(
+            db,
+            user,
+            "Sinalizou necessidade de reposicao",
+            "Produtos",
+            product.id,
+            new_value={
+                "code": product.code,
+                "current_stock": float(product.current_stock or 0),
+                "minimum_stock": float(product.minimum_stock or 0),
+                "notified_users": recipients,
+            },
+            request=request,
+        )
+    if recipients:
+        message = f"Reposicao sinalizada para {product.code}. {recipients} utilizador(es) notificado(s)."
+    else:
+        message = "Reposicao sinalizada, mas nao existem destinatarios com permissao de reposicao configurada."
+    return local_redirect_with_message(default_path, return_to, "replenishment_signal", message)
 
 
 @router.post("/{product_id}/desativar")

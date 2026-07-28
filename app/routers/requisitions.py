@@ -55,11 +55,19 @@ def requisition_form_context(
     managers = manager_options(db)
     products = db.scalars(select(Product).where(Product.status == "active").order_by(Product.name)).all()
     warehouses = active_warehouses(db)
+    replenishment_candidates = [
+        product
+        for product in products
+        if product.requires_stock_control and product.alert_status != "Stock Adequado"
+    ][:12]
     return {
         "request": request,
         "user": user,
         "products": products,
         "products_without_price": sum(1 for product in products if float(product.unit_price or 0) <= 0),
+        "replenishment_candidates": replenishment_candidates,
+        "replenishment_signal": request.query_params.get("replenishment_signal"),
+        "replenishment_error": request.query_params.get("replenishment_error"),
         "warehouses": warehouses,
         "default_warehouse_id": default_warehouse(db).id,
         "stock_by_product": warehouse_stock_map(db, products),

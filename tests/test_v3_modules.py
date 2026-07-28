@@ -8,7 +8,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import Base, get_db
 from app.main import app
-from app.models.core import Department, HseRecord, InternalOperationOption, InternalOperationRecord, Role, User
+from app.models.core import Department, HseRecord, InternalOperationOption, InternalOperationRecord, Notification, Product, Role, User
 from app.security import hash_password
 
 
@@ -43,9 +43,10 @@ class V3ModuleFlowTests(unittest.TestCase):
             ),
         )
         self.viewer_role = Role(name="V3 Viewer", permissions=json.dumps(["hse_view", "internal_ops_view"]))
+        self.replenishment_role = Role(name="Reposicao Manager", permissions=json.dumps(["stock_replenishment_create"]))
         self.limited_hse_role = Role(name="Limited HSE Creator", permissions=json.dumps(["hse_view", "hse_records_create"]))
         self.limited_hse_workflow_role = Role(name="Limited HSE Workflow", permissions=json.dumps(["hse_view", "hse_workflow_manage"]))
-        self.db.add_all([self.department, self.role, self.viewer_role, self.limited_hse_role, self.limited_hse_workflow_role])
+        self.db.add_all([self.department, self.role, self.viewer_role, self.replenishment_role, self.limited_hse_role, self.limited_hse_workflow_role])
         self.db.flush()
         self.user = User(
             full_name="V3 Manager",
@@ -60,6 +61,14 @@ class V3ModuleFlowTests(unittest.TestCase):
             username="v3viewer",
             password_hash=hash_password("Test@12345"),
             role_id=self.viewer_role.id,
+            department_id=self.department.id,
+            notify_email=False,
+        )
+        self.replenishment_user = User(
+            full_name="Stock Replenishment",
+            username="replenisher",
+            password_hash=hash_password("Test@12345"),
+            role_id=self.replenishment_role.id,
             department_id=self.department.id,
             notify_email=False,
         )
@@ -79,7 +88,7 @@ class V3ModuleFlowTests(unittest.TestCase):
             department_id=self.department.id,
             notify_email=False,
         )
-        self.db.add_all([self.user, self.viewer, self.limited_hse_user, self.limited_hse_workflow_user])
+        self.db.add_all([self.user, self.viewer, self.replenishment_user, self.limited_hse_user, self.limited_hse_workflow_user])
         self.db.commit()
         app.dependency_overrides[get_db] = self.override_db
         self.client = TestClient(app)
@@ -198,6 +207,7 @@ class V3ModuleFlowTests(unittest.TestCase):
         operations = self.client.get("/operacoes-internas")
         self.assertEqual(operations.status_code, 200)
         self.assertIn("/operacoes-internas?kind=fuel#internal-ops-form", operations.text)
+        self.assertIn("/operacoes-internas?kind=equipment#internal-ops-form", operations.text)
         self.assertIn("action-hub ops-hub", operations.text)
         self.assertIn("Escolha uma", operations.text)
         self.assertNotIn('name="description" maxlength="220" required', operations.text)
@@ -210,6 +220,10 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.assertIn('value="fuel_refuel"', operations_selected.text)
         self.assertIn('name="odometer_reading"', operations_selected.text)
         self.assertIn('type="hidden" name="unit" value="L"', operations_selected.text)
+        equipment_selected = self.client.get("/operacoes-internas?kind=equipment")
+        self.assertIn('type="hidden" name="kind" value="equipment"', equipment_selected.text)
+        self.assertIn('value="equipment_purchase"', equipment_selected.text)
+        self.assertIn('list="internal-equipment-type-options"', equipment_selected.text)
 
         dashboard = self.client.get("/dashboard")
         self.assertEqual(dashboard.status_code, 200)
@@ -233,6 +247,12 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.assertEqual(created.status_code, 303)
         created = self.client.post(
             "/configuracoes/operacoes-internas/opcoes",
+            data={"option_type": "equipment_type", "name": "Ar condicionado", "kind": "equipment"},
+            follow_redirects=False,
+        )
+        self.assertEqual(created.status_code, 303)
+        created = self.client.post(
+            "/configuracoes/operacoes-internas/opcoes",
             data={"option_type": "location", "name": "Contador Bypass", "kind": "energy"},
             follow_redirects=False,
         )
@@ -246,6 +266,7 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.db.expire_all()
         payment_option = self.db.scalar(select(InternalOperationOption).where(InternalOperationOption.name == "Transferencia Bancaria"))
         self.assertIsNotNone(self.db.scalar(select(InternalOperationOption).where(InternalOperationOption.name == "Diesel 50ppm")))
+        self.assertIsNotNone(self.db.scalar(select(InternalOperationOption).where(InternalOperationOption.name == "Ar condicionado")))
         self.assertIsNotNone(payment_option)
 
         settings = self.client.get("/configuracoes")
@@ -258,6 +279,7 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.assertEqual(internal_settings.status_code, 200)
         self.assertIn("settings-subhub", internal_settings.text)
         self.assertIn("Tipos de combust", internal_settings.text)
+        self.assertIn("Tipos de equipamento", internal_settings.text)
         self.assertIn("M", internal_settings.text)
         self.assertNotIn("ops-setting-form", internal_settings.text)
 
@@ -277,6 +299,9 @@ class V3ModuleFlowTests(unittest.TestCase):
         energy_form = self.client.get("/operacoes-internas?kind=energy")
         self.assertEqual(energy_form.status_code, 200)
         self.assertIn("Contador Bypass", energy_form.text)
+        equipment_form = self.client.get("/operacoes-internas?kind=equipment")
+        self.assertEqual(equipment_form.status_code, 200)
+        self.assertIn("Ar condicionado", equipment_form.text)
 
         removed = self.client.post(
             f"/configuracoes/operacoes-internas/opcoes/{payment_option.id}/remover",
@@ -301,6 +326,7 @@ class V3ModuleFlowTests(unittest.TestCase):
                 "kind": "fuel",
                 "operation_type": "fuel_refuel",
                 "description": "Abastecimento sem odometro",
+                "fuel_type": "Diesel 50ppm",
                 "asset_name": "Empilhadeira 01",
                 "quantity": "10",
                 "amount": "900",
@@ -363,6 +389,7 @@ class V3ModuleFlowTests(unittest.TestCase):
                 "kind": "energy",
                 "operation_type": "energy_reading",
                 "description": "Leitura mensal",
+                "asset_name": "Contador Bypass",
                 "quantity": "0",
                 "amount": "0",
             },
@@ -376,6 +403,7 @@ class V3ModuleFlowTests(unittest.TestCase):
                 "kind": "energy",
                 "operation_type": "energy_reading",
                 "description": "Leitura mensal",
+                "asset_name": "Contador Bypass",
                 "meter_reading": "3456",
                 "quantity": "0",
                 "amount": "0",
@@ -388,6 +416,60 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.assertEqual(record.operation_type, "energy_reading")
         self.assertEqual(float(record.meter_reading), 3456)
         self.assertEqual(record.unit, "kWh")
+
+    def test_equipment_operations_have_specific_validation_and_default_department(self):
+        self.login()
+        missing_type = self.client.post(
+            "/operacoes-internas/registos",
+            data={
+                "kind": "equipment",
+                "operation_type": "equipment_purchase",
+                "description": "Compra de equipamento sem tipo",
+                "quantity": "1",
+                "amount": "12000",
+                "payment_method": "Transferencia Bancaria",
+            },
+        )
+        self.assertEqual(missing_type.status_code, 400)
+        self.assertIn("tipo/categoria", missing_type.text)
+
+        missing_asset = self.client.post(
+            "/operacoes-internas/registos",
+            data={
+                "kind": "equipment",
+                "operation_type": "equipment_maintenance",
+                "description": "Manutencao sem ativo",
+                "fuel_type": "Ar condicionado",
+                "amount": "1500",
+                "payment_method": "Transferencia Bancaria",
+            },
+        )
+        self.assertEqual(missing_asset.status_code, 400)
+        self.assertIn("ativo", missing_asset.text.lower())
+
+        created = self.client.post(
+            "/operacoes-internas/registos",
+            data={
+                "kind": "equipment",
+                "operation_type": "equipment_purchase",
+                "description": "Compra de ar condicionado",
+                "fuel_type": "Ar condicionado",
+                "quantity": "2",
+                "amount": "54000",
+                "payment_method": "Transferencia Bancaria",
+                "responsible_person": "Operacoes",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(created.status_code, 303)
+        self.db.expire_all()
+        record = self.db.scalar(select(InternalOperationRecord).where(InternalOperationRecord.kind == "equipment"))
+        self.assertIsNotNone(record)
+        self.assertTrue(record.number.startswith("EQUIP-"))
+        self.assertEqual(record.operation_type, "equipment_purchase")
+        self.assertEqual(record.fuel_type, "Ar condicionado")
+        self.assertEqual(record.unit, "un")
+        self.assertEqual(record.department_id, self.department.id)
 
     def test_internal_operation_purchase_and_refuel_require_real_values(self):
         self.login()
@@ -424,8 +506,10 @@ class V3ModuleFlowTests(unittest.TestCase):
             data={
                 "kind": "fuel",
                 "description": "Compra sem subtipo explicito",
+                "fuel_type": "Diesel 50ppm",
                 "quantity": "100",
                 "amount": "9000",
+                "payment_method": "Cheque",
             },
             follow_redirects=False,
         )
@@ -435,6 +519,43 @@ class V3ModuleFlowTests(unittest.TestCase):
             select(InternalOperationRecord).where(InternalOperationRecord.description == "Compra sem subtipo explicito")
         )
         self.assertEqual(record.operation_type, "fuel_purchase_storage")
+
+    def test_normal_user_can_signal_replenishment_need_and_recipient_opens_prefilled_form(self):
+        product = Product(
+            code="ZERO-001",
+            name="Produto sem stock",
+            unit="un",
+            current_stock=0,
+            minimum_stock=2,
+            requires_stock_control=True,
+            created_by_id=self.user.id,
+        )
+        self.db.add(product)
+        self.db.commit()
+
+        self.login("v3viewer")
+        response = self.client.post(
+            f"/produtos/{product.id}/solicitar-reposicao",
+            data={"return_to": "/requisicoes/nova"},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 303)
+        self.assertIn("/requisicoes/nova?replenishment_signal=", response.headers["location"])
+        self.db.expire_all()
+        notification = self.db.scalar(
+            select(Notification).where(
+                Notification.user_id == self.replenishment_user.id,
+                Notification.record_id == f"REPLENISH_PRODUCT:{product.id}",
+            )
+        )
+        self.assertIsNotNone(notification)
+        self.assertEqual(notification.module, "Procurement")
+
+        self.client.post("/logout", follow_redirects=False)
+        self.login("replenisher")
+        opened = self.client.get(f"/notificacoes/{notification.id}/abrir", follow_redirects=False)
+        self.assertEqual(opened.status_code, 303)
+        self.assertEqual(opened.headers["location"], f"/procurement/reposicao/nova?product_id={product.id}")
 
 
 if __name__ == "__main__":

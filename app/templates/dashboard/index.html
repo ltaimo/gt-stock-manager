@@ -16,6 +16,8 @@
   <a href="/produtos">{{ tx("Rever produtos", user) }}</a>
 </div>
 {% endif %}
+{% if request.query_params.get("replenishment_signal") %}<div class="alert green">{{ tm(request.query_params.get("replenishment_signal"), user, request) }}</div>{% endif %}
+{% if request.query_params.get("replenishment_error") %}<div class="alert red">{{ tm(request.query_params.get("replenishment_error"), user, request) }}</div>{% endif %}
 
 <section class="kpis dashboard-kpis">
   <div><strong>{{ total_products }}</strong><span>{{ t('total_products', user) }}</span><small>{{ active_products }} {{ tx("ativos", user) }} &middot; {{ monitored_products }} {{ tx("monitorizados", user) }}</small></div>
@@ -32,7 +34,7 @@
     <div><strong>{{ open_hse_count }}</strong><span>{{ tx("HSE/HST aberto", user if user is defined else none) }}</span><small>{{ tx("Incidentes, ações, permissões e conformidade", user if user is defined else none) }}</small></div>
   {% endif %}
   {% if can_view_internal_ops %}
-    <div><strong>{{ "%.2f"|format(internal_ops_month_amount|float) }}</strong><span>{{ tx("Operações internas do mês", user if user is defined else none) }}</span><small>{{ tx("Combustível, água e energia", user if user is defined else none) }}</small></div>
+    <div><strong>{{ "%.2f"|format(internal_ops_month_amount|float) }}</strong><span>{{ tx("Operações internas do mês", user if user is defined else none) }}</span><small>{{ tx("Gerais, combustível, água, energia e equipamentos", user if user is defined else none) }}</small></div>
   {% endif %}
   <div><strong>{{ stock_health }}%</strong><span>{{ tx("Saúde do stock", user if user is defined else none) }}</span><small>{{ tx("Stock adequado", user if user is defined else none) }}</small></div>
 </section>
@@ -61,7 +63,7 @@
     <a class="switch-card ops" href="/operacoes-internas">
       <span>{{ tx("Operações internas", user if user is defined else none) }}</span>
       <strong>{{ "%.2f"|format(internal_ops_month_amount|float) }}</strong>
-      <small>{{ tx("Combustível, água, energia e consumos", user if user is defined else none) }}</small>
+      <small>{{ tx("Gerais, combustível, água, energia e equipamentos", user if user is defined else none) }}</small>
     </a>
   {% endif %}
   <a class="switch-card reports" href="/relatorios">
@@ -103,12 +105,24 @@
       {% if can(user, 'reports') %}<a href="/relatorios/critico">{{ tx("Ver relatório", user if user is defined else none) }}</a>{% endif %}
     </div>
     <table>
-      <thead><tr><th>{{ tx("Código", user if user is defined else none) }}</th><th>{{ tx("Produto", user if user is defined else none) }}</th><th>{{ tx("Un.", user if user is defined else none) }}</th><th>{{ tx("Atual", user if user is defined else none) }}</th><th>{{ tx("Estado", user if user is defined else none) }}</th></tr></thead>
+      <thead><tr><th>{{ tx("Código", user if user is defined else none) }}</th><th>{{ tx("Produto", user if user is defined else none) }}</th><th>{{ tx("Un.", user if user is defined else none) }}</th><th>{{ tx("Atual", user if user is defined else none) }}</th><th>{{ tx("Estado", user if user is defined else none) }}</th><th>{{ tx("Ação", user if user is defined else none) }}</th></tr></thead>
       <tbody>
       {% for p in critical_products %}
-        <tr><td>{{ p.code }}</td><td>{{ lname(p, user) }}</td><td>{{ p.unit }}</td><td>{{ p.current_stock }}</td><td><span class="badge {{ p.alert_badge }}">{{ tv(p.alert_status, user) }}</span></td></tr>
+        <tr>
+          <td>{{ p.code }}</td>
+          <td>{{ lname(p, user) }}</td>
+          <td>{{ p.unit }}</td>
+          <td>{{ p.current_stock }}</td>
+          <td><span class="badge {{ p.alert_badge }}">{{ tv(p.alert_status, user) }}</span></td>
+          <td>
+            <form method="post" action="/produtos/{{ p.id }}/solicitar-reposicao" data-confirm="{{ tx("Sinalizar necessidade de reposição para este produto?", user if user is defined else none) }}">
+              <input type="hidden" name="return_to" value="/dashboard">
+              <button class="secondary compact">{{ tx("Sinalizar reposição", user if user is defined else none) }}</button>
+            </form>
+          </td>
+        </tr>
       {% else %}
-        <tr><td colspan="5"><div class="empty-state">{{ tx("Sem produtos que requerem atenção.", user if user is defined else none) }}</div></td></tr>
+        <tr><td colspan="6"><div class="empty-state">{{ tx("Sem produtos que requerem atenção.", user if user is defined else none) }}</div></td></tr>
       {% endfor %}
       </tbody>
     </table>

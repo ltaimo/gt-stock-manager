@@ -7,6 +7,8 @@
     {% if can(user, 'products_manage') %}<a class="button" href="/produtos/novo">{{ tx("Novo Produto", user if user is defined else none) }}</a>{% endif %}
   </div>
 </header>
+{% if replenishment_signal %}<div class="alert green">{{ tm(replenishment_signal, user, request) }}</div>{% endif %}
+{% if replenishment_error %}<div class="alert red">{{ tm(replenishment_error, user, request) }}</div>{% endif %}
 <form class="filters">
   <input name="q" value="{{ q }}" placeholder="{{ tx("Pesquisar código, produto ou categoria", user if user is defined else none) }}" spellcheck="true">
   <select name="status">
@@ -50,7 +52,16 @@
         <td><span class="badge {{ 'green' if p.requires_stock_control else 'grey' }}">{{ tx('Monitorizado', user) if p.requires_stock_control else tx('Pontual', user) }}</span></td>
         <td><span class="badge {{ p.alert_badge }}">{{ tv(p.alert_status, user) }}</span></td>
         <td><span class="badge grey">{{ tv(p.status, user) }}</span></td>
-        <td>{% if can(user, 'products_manage') %}<a href="/produtos/{{ p.id }}/editar">{{ tx("Editar", user if user is defined else none) }}</a>{% endif %}</td>
+        <td>
+          <div class="actions">
+            {% if p.status == 'active' and p.requires_stock_control and p.alert_status != 'Stock Adequado' %}
+            <form method="post" action="/produtos/{{ p.id }}/solicitar-reposicao" data-confirm="{{ tx("Sinalizar necessidade de reposição para este produto?", user if user is defined else none) }}">
+              <button class="secondary compact">{{ tx("Sinalizar reposição", user if user is defined else none) }}</button>
+            </form>
+            {% endif %}
+            {% if can(user, 'products_manage') %}<a href="/produtos/{{ p.id }}/editar">{{ tx("Editar", user if user is defined else none) }}</a>{% endif %}
+          </div>
+        </td>
       </tr>
     {% endfor %}
     </tbody>
