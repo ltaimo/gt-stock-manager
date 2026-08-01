@@ -284,6 +284,47 @@ class ApprovalRoutingTests(unittest.TestCase):
         ).all()
         self.assertEqual(unread, [])
 
+    def test_notifications_page_marks_user_unread_notifications_as_seen(self):
+        self.db.add_all(
+            [
+                Notification(
+                    user_id=self.terminal_user.id,
+                    title="Requisicao pendente: REQ-TEST-001",
+                    message="Primeira",
+                    module="Requisicoes",
+                    record_id=self.req.number,
+                ),
+                Notification(
+                    user_id=self.stock_user.id,
+                    title="Requisicao pendente: REQ-TEST-001",
+                    message="Stock",
+                    module="Requisicoes",
+                    record_id=self.req.number,
+                ),
+            ]
+        )
+        self.db.commit()
+
+        self.login("jmacie")
+        response = self.client.get("/notificacoes")
+
+        self.assertEqual(response.status_code, 200)
+        self.db.expire_all()
+        terminal_unread = self.db.scalar(
+            select(func.count(Notification.id)).where(
+                Notification.user_id == self.terminal_user.id,
+                Notification.is_read == False,
+            )
+        )
+        stock_unread = self.db.scalar(
+            select(func.count(Notification.id)).where(
+                Notification.user_id == self.stock_user.id,
+                Notification.is_read == False,
+            )
+        )
+        self.assertEqual(terminal_unread, 0)
+        self.assertEqual(stock_unread, 1)
+
     def test_lower_pending_notification_targets_assigned_and_superior_profiles(self):
         low_req = Requisition(
             number="REQ-TEST-LOW-NOTIFY",

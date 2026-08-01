@@ -9,7 +9,6 @@
     {% endif %}
   </div>
   <h1>{{ tx(app_name, user if user is defined else none) }}</h1>
-  <p>{{ app_subtitle }}</p>
   {% if error %}<div class="alert red">{{ tm(error, user if user is defined else none, request) }}</div>{% endif %}
   <form method="post" class="form-stack">
     <label>{{ tx("Nome de utilizador", user if user is defined else none) }}<input name="username" required autofocus></label>

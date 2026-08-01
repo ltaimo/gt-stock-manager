@@ -17,7 +17,7 @@
           {% if document_file_available(d) %}
             <a href="/documentos/{{ d.id }}/download">{{ tx("Baixar", user if user is defined else none) }}</a>
           {% else %}
-            <span class="badge grey">{{ tx("Ficheiro indisponivel", user if user is defined else none) }}</span>
+            <span class="badge grey">{{ tx("Ficheiro indisponível", user if user is defined else none) }}</span>
           {% endif %}
         </td>
       </tr>

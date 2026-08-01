@@ -38,6 +38,19 @@ def mark_notification_group_read(db: Session, notification: Notification) -> Non
 
 @router.get("")
 def list_notifications(request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    with atomic(db):
+        now = datetime.now(timezone.utc)
+        unread_notifications = db.scalars(
+            select(Notification).where(
+                Notification.user_id == user.id,
+                Notification.is_read == False,
+            )
+        ).all()
+        for notification in unread_notifications:
+            notification.module = canonical_notification_module(notification.module)
+            notification.is_read = True
+            notification.read_at = now
+
     notifications = db.scalars(
         select(Notification).where(Notification.user_id == user.id).order_by(Notification.created_at.desc()).limit(100)
     ).all()
