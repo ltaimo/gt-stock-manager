@@ -1,0 +1,17 @@
+{
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": {
+        "type": "service",
+        "service": "gt-stock-manager"
+      }
+    }
+  ],
+  "services": {
+    "gt-stock-manager": {
+      "root": ".",
+      "buildCommand": "pip install -r requirements.txt"
+    }
+  }
+}

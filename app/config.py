@@ -12,12 +12,21 @@ def env_path(name: str, default: Path) -> Path:
 
 
 def ensure_writable_dir(path: Path, fallback: Path) -> Path:
-    try:
-        path.mkdir(parents=True, exist_ok=True)
-        return path
-    except OSError:
-        fallback.mkdir(parents=True, exist_ok=True)
-        return fallback
+    candidates = [path, fallback]
+    serverless_tmp = os.getenv("GTIMS_WRITABLE_ROOT")
+    if serverless_tmp:
+        candidates.append(Path(serverless_tmp).resolve() / fallback.name)
+    else:
+        candidates.append(Path("/tmp/gtims").resolve() / fallback.name)
+
+    last_error = None
+    for candidate in candidates:
+        try:
+            candidate.mkdir(parents=True, exist_ok=True)
+            return candidate
+        except OSError as exc:
+            last_error = exc
+    raise last_error or OSError(f"Could not create writable directory for {path}")
 
 
 def resolve_database_url() -> str:

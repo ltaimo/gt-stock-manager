@@ -1,0 +1,13 @@
+.git
+.venv
+.pytest_cache
+.runtime
+__pycache__
+*.pyc
+stock_manager.db
+uploads
+outputs
+tmp
+portable
+Start GT Stock Manager.bat
+start-local.ps1

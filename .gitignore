@@ -6,3 +6,5 @@ stock_manager.db
 uploads/
 outputs/
 .env
+.env.local
+.vercel/
