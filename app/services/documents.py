@@ -5,7 +5,7 @@ from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models.core import StockDocument, StockDocumentProduct, User
+from app.models.core import StockDocument, StockDocumentFile, StockDocumentProduct, User
 
 
 ALLOWED_DOCUMENT_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".webp", ".doc", ".docx", ".xls", ".xlsx"}
@@ -47,6 +47,13 @@ async def save_stock_document(
     )
     db.add(document)
     db.flush()
+    db.add(
+        StockDocumentFile(
+            document_id=document.id,
+            content=content,
+            content_type=upload.content_type or "application/octet-stream",
+        )
+    )
     for product_id in set(product_ids):
         db.add(StockDocumentProduct(document_id=document.id, product_id=product_id))
     return document

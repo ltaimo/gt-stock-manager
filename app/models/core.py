@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from enum import Enum
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, LargeBinary, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -454,6 +454,18 @@ class StockDocument(Base):
 
     uploaded_by: Mapped[User] = relationship()
     products: Mapped[list["StockDocumentProduct"]] = relationship(back_populates="document", cascade="all, delete-orphan")
+    file_blob: Mapped["StockDocumentFile | None"] = relationship(back_populates="document", cascade="all, delete-orphan")
+
+
+class StockDocumentFile(Base):
+    __tablename__ = "stock_document_files"
+
+    document_id: Mapped[int] = mapped_column(ForeignKey("stock_documents.id"), primary_key=True)
+    content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    content_type: Mapped[str] = mapped_column(String(120), default="application/octet-stream")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    document: Mapped[StockDocument] = relationship(back_populates="file_blob")
 
 
 class StockDocumentProduct(Base):
