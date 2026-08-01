@@ -106,9 +106,12 @@ def localize_notification(text: str, user: User) -> str:
         ("Budget pendente:", "Pending budget:"),
         ("Procurement para classificar:", "Procurement pending classification:"),
         ("Reposicao sugerida:", "Replenishment suggested:"),
+        ("Reposição sugerida:", "Replenishment suggested:"),
         ("sinalizou necessidade de reposicao para", "flagged replenishment need for"),
+        ("sinalizou necessidade de reposição para", "flagged replenishment need for"),
         ("Stock atual:", "Current stock:"),
         ("Stock minimo:", "Minimum stock:"),
+        ("Stock mínimo:", "Minimum stock:"),
         ("TdR para aprovação HOD:", "ToR pending HOD approval:"),
         ("TdR para aprovação Terminal Manager:", "ToR pending Terminal Manager approval:"),
         ("Reposição de stock para aprovação:", "Stock replenishment pending approval:"),
@@ -256,11 +259,11 @@ def recipients_for_replenishment_signal(db: Session, actor: User) -> list[User]:
 def notify_stock_replenishment_signal(db: Session, product: Product, actor: User) -> int:
     current = float(product.current_stock or 0)
     minimum = float(product.minimum_stock or 0)
-    title = f"Reposicao sugerida: {product.code}"
+    title = f"Reposição sugerida: {product.code}"
     message = (
-        f"{actor.full_name} sinalizou necessidade de reposicao para {product.code} - {product.name}.\n"
+        f"{actor.full_name} sinalizou necessidade de reposição para {product.code} - {product.name}.\n"
         f"Stock atual: {current:g} {product.unit}\n"
-        f"Stock minimo: {minimum:g} {product.unit}\n"
+        f"Stock mínimo: {minimum:g} {product.unit}\n"
         f"Departamento: {actor.department.name if actor.department else ''}"
     )
     recipients = recipients_for_replenishment_signal(db, actor)

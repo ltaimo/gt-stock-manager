@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
 <header class="page-header"><h1>{{ tx("Perfis de acesso", user if user is defined else none) }}</h1><a class="button" href="/perfis/novo">{{ tx("Novo perfil", user if user is defined else none) }}</a></header>
-<p class="muted">{{ tx("Perfis definem acessos e funcoes do utilizador. Categorias de produto ficam em Configuracoes.", user if user is defined else none) }}</p>
+<p class="muted">{{ tx("Perfis definem acessos e funções do utilizador. Categorias de produto ficam em Configurações.", user if user is defined else none) }}</p>
 <div class="panel">
   <table class="responsive-table">
-    <thead><tr><th>{{ tx("Perfil / Funcao", user if user is defined else none) }}</th><th>{{ tx("Utilizadores", user if user is defined else none) }}</th><th>{{ tx("Permissoes", user if user is defined else none) }}</th><th></th></tr></thead>
+    <thead><tr><th>{{ tx("Perfil / Função", user if user is defined else none) }}</th><th>{{ tx("Utilizadores", user if user is defined else none) }}</th><th>{{ tx("Permissões", user if user is defined else none) }}</th><th></th></tr></thead>
     <tbody>
     {% for role in roles %}
       <tr>
-        <td data-label="{{ tx("Perfil / Funcao", user if user is defined else none) }}"><strong>{{ tv(role.name, user) }}</strong></td>
+        <td data-label="{{ tx("Perfil / Função", user if user is defined else none) }}"><strong>{{ tv(role.name, user) }}</strong></td>
         <td data-label="{{ tx("Utilizadores", user if user is defined else none) }}">{{ role.users|length }}</td>
-        <td data-label="{{ tx("Permissoes", user if user is defined else none) }}">{{ role_permissions(role)|length if role.name != 'SuperAdmin' else 'Todas' }}</td>
+        <td data-label="{{ tx("Permissões", user if user is defined else none) }}">{{ role_permissions(role)|length if role.name != 'SuperAdmin' else 'Todas' }}</td>
         <td data-label="{{ tx("Acao", user if user is defined else none) }}">
           <div class="actions">
             <a href="/perfis/{{ role.id }}/editar">{{ tx("Editar", user if user is defined else none) }}</a>

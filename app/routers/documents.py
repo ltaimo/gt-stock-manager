@@ -49,4 +49,4 @@ def download_document(document_id: int, db: Session = Depends(get_db), user: Use
             media_type=stored_file.content_type or "application/octet-stream",
             headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quoted_name}"},
         )
-    raise HTTPException(404, "O ficheiro deste documento nao esta disponivel no armazenamento atual.")
+    raise HTTPException(404, "O ficheiro deste documento não está disponível no armazenamento atual.")

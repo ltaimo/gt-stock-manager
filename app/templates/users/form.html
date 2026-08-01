@@ -46,7 +46,7 @@
       </label>
     </div>
     <fieldset>
-      <legend>{{ tx("Notificacoes", user if user is defined else none) }}</legend>
+      <legend>{{ tx("Notificações", user if user is defined else none) }}</legend>
       <label class="check">
         <input type="checkbox" name="notify_email" value="1" {% if not target or target.notify_email %}checked{% endif %}>
         {{ tx("Receber por email", user if user is defined else none) }}

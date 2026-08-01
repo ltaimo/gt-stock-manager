@@ -18,7 +18,7 @@ router = APIRouter()
 
 @router.get("/login")
 def login_form(request: Request):
-    error = "Sessao expirada por inatividade. Inicie sessao novamente." if request.query_params.get("timeout") == "1" else None
+    error = "Sessão expirada por inatividade. Inicie sessão novamente." if request.query_params.get("timeout") == "1" else None
     return templates.TemplateResponse(request, "auth/login.html", {"request": request, "error": error})
 
 

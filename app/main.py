@@ -46,7 +46,7 @@ async def session_timeout_guard(request: Request, call_next):
             request.session.clear()
             request.session["language"] = language
             if path.startswith("/api/") or "application/json" in request.headers.get("accept", ""):
-                return JSONResponse({"detail": "Sessao expirada por inatividade."}, status_code=401)
+                return JSONResponse({"detail": "Sessão expirada por inatividade."}, status_code=401)
             return RedirectResponse("/login?timeout=1", status_code=303)
         request.session["last_activity_at"] = now_ts
 

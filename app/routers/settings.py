@@ -205,13 +205,13 @@ def add_internal_operation_option(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("settings_manage")),
 ):
-    clean_type = required_text(option_type, "Tipo de configuracao", 40)
+    clean_type = required_text(option_type, "Tipo de configuração", 40)
     if clean_type not in INTERNAL_OPERATION_OPTION_TYPES:
-        raise HTTPException(400, "Escolha um tipo de configuracao valido.")
+        raise HTTPException(400, "Escolha um tipo de configuração válido.")
     clean_name = required_text(name, "Nome", 160)
     clean_kind = (kind or "").strip() or None
     if clean_kind and clean_kind not in {"general", "fuel", "water", "energy", "equipment"}:
-        raise HTTPException(400, "Escolha um modulo de operacao interna valido.")
+        raise HTTPException(400, "Escolha um módulo de operação interna válido.")
     existing = db.scalar(
         select(InternalOperationOption).where(
             InternalOperationOption.option_type == clean_type,
@@ -228,7 +228,7 @@ def add_internal_operation_option(
             option = InternalOperationOption(option_type=clean_type, name=clean_name, kind=clean_kind, is_active=True)
             db.add(option)
             db.flush()
-        audit_log(db, user, "Guardou configuracao de operacao interna", "Configuracoes", option.id, new_value={"type": option.option_type, "name": option.name, "kind": option.kind}, request=request)
+        audit_log(db, user, "Guardou configuração de operação interna", "Configurações", option.id, new_value={"type": option.option_type, "name": option.name, "kind": option.kind}, request=request)
     return RedirectResponse(f"/configuracoes?section=internal_ops&internal_group={clean_type}", status_code=303)
 
 
@@ -240,7 +240,7 @@ def remove_internal_operation_option(option_id: int, request: Request, db: Sessi
     with atomic(db):
         old = {"type": option.option_type, "name": option.name, "active": option.is_active}
         option.is_active = False
-        audit_log(db, user, "Desativou configuracao de operacao interna", "Configuracoes", option_id, old_value=old, request=request)
+        audit_log(db, user, "Desativou configuração de operação interna", "Configurações", option_id, old_value=old, request=request)
     return RedirectResponse(f"/configuracoes?section=internal_ops&internal_group={option.option_type}", status_code=303)
 
 
@@ -252,7 +252,7 @@ def activate_internal_operation_option(option_id: int, request: Request, db: Ses
     with atomic(db):
         old = {"type": option.option_type, "name": option.name, "active": option.is_active}
         option.is_active = True
-        audit_log(db, user, "Ativou configuracao de operacao interna", "Configuracoes", option_id, old_value=old, request=request)
+        audit_log(db, user, "Ativou configuração de operação interna", "Configurações", option_id, old_value=old, request=request)
     return RedirectResponse(f"/configuracoes?section=internal_ops&internal_group={option.option_type}", status_code=303)
 
 

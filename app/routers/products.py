@@ -330,14 +330,14 @@ def signal_replenishment_need(
             default_path,
             return_to,
             "replenishment_error",
-            "Este produto nao esta marcado para monitorizacao de stock.",
+            "Este produto não está marcado para monitorização de stock.",
         )
     with atomic(db):
         recipients = notify_stock_replenishment_signal(db, product, user)
         audit_log(
             db,
             user,
-            "Sinalizou necessidade de reposicao",
+            "Sinalizou necessidade de reposição",
             "Produtos",
             product.id,
             new_value={
@@ -349,9 +349,9 @@ def signal_replenishment_need(
             request=request,
         )
     if recipients:
-        message = f"Reposicao sinalizada para {product.code}. {recipients} utilizador(es) notificado(s)."
+        message = f"Reposição sinalizada para {product.code}. {recipients} utilizador(es) notificado(s)."
     else:
-        message = "Reposicao sinalizada, mas nao existem destinatarios com permissao de reposicao configurada."
+        message = "Reposição sinalizada, mas não existem destinatários com permissão de reposição configurada."
     return local_redirect_with_message(default_path, return_to, "replenishment_signal", message)
 
 

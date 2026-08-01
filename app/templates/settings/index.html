@@ -2,13 +2,13 @@
 {% block content %}
 <header class="page-header">
   <div>
-    <h1>{{ tx("Configuracoes", user if user is defined else none) }}</h1>
+    <h1>{{ tx("Configurações", user if user is defined else none) }}</h1>
     <p class="muted">{{ tx("Escolha uma área de configuração para abrir apenas o que precisa editar.", user if user is defined else none) }}</p>
   </div>
   <div class="actions">
     {% if can(user, 'users_manage') %}<a class="button secondary" href="/utilizadores">{{ tx("Utilizadores", user if user is defined else none) }}</a>{% endif %}
     {% if can(user, 'profiles_manage') %}<a class="button secondary" href="/perfis">{{ tx("Perfis de acesso", user if user is defined else none) }}</a>{% endif %}
-    {% if can(user, 'procurement_settings') %}<a class="button secondary" href="/configuracoes/matriz">{{ tx("Matriz de aprovacoes", user if user is defined else none) }}</a>{% endif %}
+    {% if can(user, 'procurement_settings') %}<a class="button secondary" href="/configuracoes/matriz">{{ tx("Matriz de aprovações", user if user is defined else none) }}</a>{% endif %}
   </div>
 </header>
 
@@ -42,7 +42,7 @@
   <div class="panel-heading">
     <div>
       <h2>{{ tx("Categorias de produto", user if user is defined else none) }}</h2>
-      <p class="muted">{{ tx("Usadas apenas para organizar produtos/economato. Nao sao perfis de acesso.", user if user is defined else none) }}</p>
+      <p class="muted">{{ tx("Usadas apenas para organizar produtos/economato. Não são perfis de acesso.", user if user is defined else none) }}</p>
     </div>
     <a class="button secondary" href="/configuracoes">{{ tx("Voltar às configurações", user if user is defined else none) }}</a>
   </div>
@@ -60,7 +60,7 @@
         <td data-label="{{ tx('Estado', user) }}"><span class="badge {{ 'green' if c.is_active else 'grey' }}">{{ tx('Ativa', user) if c.is_active else tx('Inativa', user) }}</span></td>
         <td data-label="{{ tx("Acao", user if user is defined else none) }}">
           {% if c.is_active %}
-          <form method="post" action="/configuracoes/categorias/{{ c.id }}/remover" data-confirm="{{ tx("Remover/desativar esta categoria? Produtos existentes serao preservados.", user if user is defined else none) }}">
+          <form method="post" action="/configuracoes/categorias/{{ c.id }}/remover" data-confirm="{{ tx("Remover/desativar esta categoria? Os produtos existentes serão preservados.", user if user is defined else none) }}">
             <button class="danger compact">{{ tx("Remover", user if user is defined else none) }}</button>
           </form>
           {% endif %}
@@ -96,7 +96,7 @@
         <td data-label="{{ tx('Estado', user) }}"><span class="badge {{ 'green' if d.is_active else 'grey' }}">{{ tx('Ativo', user) if d.is_active else tx('Inativo', user) }}</span></td>
         <td data-label="{{ tx("Acao", user if user is defined else none) }}">
           {% if d.is_active %}
-          <form method="post" action="/configuracoes/departamentos/{{ d.id }}/remover" data-confirm="{{ tx("Remover/desativar este departamento? Historico existente sera preservado.", user if user is defined else none) }}">
+          <form method="post" action="/configuracoes/departamentos/{{ d.id }}/remover" data-confirm="{{ tx("Remover/desativar este departamento? O histórico existente será preservado.", user if user is defined else none) }}">
             <button class="danger compact">{{ tx("Remover", user if user is defined else none) }}</button>
           </form>
           {% endif %}
@@ -254,17 +254,17 @@
     <div>
       <h2>{{ tx("Zona de perigo", user if user is defined else none) }}</h2>
       <p class="muted">
-        {{ tx("O reset leva o stock atual de todos os produtos a zero. O historico nao e apagado: sao criados movimentos de acerto e a acao fica registada na auditoria.", user if user is defined else none) }}
+        {{ tx("O reset leva o stock atual de todos os produtos a zero. O histórico não é apagado: são criados movimentos de acerto e a ação fica registada na auditoria.", user if user is defined else none) }}
       </p>
     </div>
     <a class="button secondary" href="/configuracoes">{{ tx("Voltar às configurações", user if user is defined else none) }}</a>
   </div>
   {% if reset_enabled %}
-  <form method="post" action="/configuracoes/stock/reset" class="form-stack" data-confirm="{{ tx("Confirmar o reset total do stock? Todos os saldos atuais serao levados a zero.", user if user is defined else none) }}">
+  <form method="post" action="/configuracoes/stock/reset" class="form-stack" data-confirm="{{ tx("Confirmar o reset total do stock? Todos os saldos atuais serão levados a zero.", user if user is defined else none) }}">
     <label>{{ tx("Confirmacao", user if user is defined else none) }}
       <input name="confirmation" placeholder="{{ tx("Escreva RESETAR STOCK", user if user is defined else none) }}" autocomplete="off" required>
     </label>
-    <label>{{ tx("Codigo de seguranca", user if user is defined else none) }}
+    <label>{{ tx("Código de segurança", user if user is defined else none) }}
       <input name="security_code" type="password" autocomplete="off" required>
     </label>
     <div class="actions">
@@ -272,7 +272,7 @@
     </div>
   </form>
   {% else %}
-    <div class="alert red">{{ tx("A acao esta desativada porque o codigo de seguranca nao foi configurado.", user if user is defined else none) }}</div>
+    <div class="alert red">{{ tx("A ação está desativada porque o código de segurança não foi configurado.", user if user is defined else none) }}</div>
   {% endif %}
 </section>
 {% endif %}

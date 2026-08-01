@@ -130,9 +130,9 @@ def apply_snapshot(payload: dict[str, Any]) -> dict[str, int]:
 
 def push_snapshot_to_target(target_url: str, token: str, timeout: int = 45) -> dict[str, Any]:
     if not target_url:
-        raise ValueError("SYNC_TARGET_URL nao esta configurado.")
+        raise ValueError("SYNC_TARGET_URL não está configurado.")
     if not token:
-        raise ValueError("SYNC_TOKEN nao esta configurado.")
+        raise ValueError("SYNC_TOKEN não está configurado.")
 
     snapshot = create_snapshot()
     data = json.dumps(snapshot, ensure_ascii=False).encode("utf-8")
@@ -156,9 +156,9 @@ def push_snapshot_to_target(target_url: str, token: str, timeout: int = 45) -> d
 
 def fetch_snapshot_from_target(target_url: str, token: str, timeout: int = 45) -> dict[str, Any]:
     if not target_url:
-        raise ValueError("SYNC_TARGET_URL nao esta configurado.")
+        raise ValueError("SYNC_TARGET_URL não está configurado.")
     if not token:
-        raise ValueError("SYNC_TOKEN nao esta configurado.")
+        raise ValueError("SYNC_TOKEN não está configurado.")
 
     request = urllib.request.Request(
         f"{target_url.rstrip('/')}/api/sync/snapshot",

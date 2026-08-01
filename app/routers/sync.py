@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/sync", tags=["sync"])
 def require_sync_token(x_gtims_sync_token: str = Header(default="")) -> None:
     settings = get_settings()
     if not settings.sync_token:
-        raise HTTPException(status_code=404, detail="Sincronizacao nao configurada.")
+        raise HTTPException(status_code=404, detail="Sincronização não configurada.")
     if not secrets.compare_digest(x_gtims_sync_token, settings.sync_token):
         raise HTTPException(status_code=403, detail="Token de sincronizacao invalido.")
 
@@ -29,7 +29,7 @@ async def apply_mirror_snapshot(request: Request, x_gtims_sync_token: str = Head
     settings = get_settings()
     require_sync_token(x_gtims_sync_token)
     if settings.sync_mode != "mirror":
-        raise HTTPException(status_code=409, detail="Este ambiente nao esta em modo mirror.")
+        raise HTTPException(status_code=409, detail="Este ambiente não está em modo mirror.")
     ensure_schema()
     payload = await request.json()
     try:
