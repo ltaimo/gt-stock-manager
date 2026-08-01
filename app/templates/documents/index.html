@@ -13,7 +13,13 @@
         <td>{{ d.original_filename }}</td>
         <td>{% for link in d.products %}<span class="badge grey">{{ link.product.code }}</span> {% endfor %}</td>
         <td>{{ d.uploaded_by.full_name }}</td>
-        <td><a href="/documentos/{{ d.id }}/download">{{ tx("Baixar", user if user is defined else none) }}</a></td>
+        <td>
+          {% if document_file_available(d) %}
+            <a href="/documentos/{{ d.id }}/download">{{ tx("Baixar", user if user is defined else none) }}</a>
+          {% else %}
+            <span class="badge grey">{{ tx("Ficheiro indisponivel", user if user is defined else none) }}</span>
+          {% endif %}
+        </td>
       </tr>
     {% else %}
       <tr><td colspan="7"><div class="empty-state">{{ tx("Ainda não existem documentos anexados.", user if user is defined else none) }}</div></td></tr>

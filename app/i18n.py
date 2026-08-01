@@ -531,6 +531,7 @@ PHRASES_EN: dict[str, str] = {
     "Fornecedor": "Supplier",
     "Ficheiro": "File",
     "Ficheiro de stock": "Stock file",
+    "Ficheiro indisponivel": "File unavailable",
     "Ficheiro Excel/CSV": "Excel/CSV file",
     "Filtrar": "Filter",
     "Fluxo obrigatório": "Required workflow",

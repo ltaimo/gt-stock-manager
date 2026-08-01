@@ -14,10 +14,23 @@ from app.security import require_permission
 router = APIRouter(prefix="/documentos", tags=["documentos"])
 
 
+def document_file_available(document: StockDocument) -> bool:
+    return bool(document.file_blob or Path(document.file_path).exists())
+
+
 @router.get("")
 def list_documents(request: Request, db: Session = Depends(get_db), user: User = Depends(require_permission("documents"))):
     documents = db.scalars(select(StockDocument).order_by(StockDocument.created_at.desc()).limit(300)).all()
-    return templates.TemplateResponse(request, "documents/index.html", {"request": request, "user": user, "documents": documents})
+    return templates.TemplateResponse(
+        request,
+        "documents/index.html",
+        {
+            "request": request,
+            "user": user,
+            "documents": documents,
+            "document_file_available": document_file_available,
+        },
+    )
 
 
 @router.get("/{document_id}/download")

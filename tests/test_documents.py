@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import Base
 from app.models.core import Role, StockDocument, StockDocumentFile, User
-from app.routers.documents import download_document
+from app.routers.documents import document_file_available, download_document
 from app.security import hash_password
 
 
@@ -57,6 +57,7 @@ class DocumentDownloadTests(unittest.TestCase):
 
         response = download_document(document.id, self.db, self.user)
 
+        self.assertTrue(document_file_available(document))
         self.assertEqual(response.body, b"%PDF-test")
         self.assertEqual(response.media_type, "application/pdf")
         self.assertIn("filename*=UTF-8''guia.pdf", response.headers["content-disposition"])
@@ -67,6 +68,7 @@ class DocumentDownloadTests(unittest.TestCase):
         with self.assertRaises(HTTPException) as raised:
             download_document(document.id, self.db, self.user)
 
+        self.assertFalse(document_file_available(document))
         self.assertEqual(raised.exception.status_code, 404)
 
 
