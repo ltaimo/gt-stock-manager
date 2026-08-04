@@ -99,6 +99,26 @@ class User(Base):
     department: Mapped[Department | None] = relationship()
 
 
+class AccessRequest(Base):
+    __tablename__ = "access_requests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    full_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    username_suggestion: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    email: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
+    phone: Mapped[str | None] = mapped_column(String(40))
+    note: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="Pending", index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    reviewed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decision_note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    user: Mapped[User | None] = relationship(foreign_keys=[user_id])
+    reviewed_by: Mapped[User | None] = relationship(foreign_keys=[reviewed_by_id])
+
+
 class Category(Base):
     __tablename__ = "categories"
 

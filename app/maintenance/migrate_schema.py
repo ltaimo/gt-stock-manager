@@ -185,6 +185,10 @@ def ensure_schema() -> None:
             additions.append("ALTER TABLE users ADD COLUMN notify_whatsapp BOOLEAN DEFAULT false")
         if "preferred_language" not in columns:
             additions.append("ALTER TABLE users ADD COLUMN preferred_language VARCHAR(5) DEFAULT 'pt'")
+    if "access_requests" in tables:
+        columns = {column["name"] for column in inspector.get_columns("access_requests")}
+        if "decision_note" not in columns:
+            additions.append("ALTER TABLE access_requests ADD COLUMN decision_note TEXT")
     if "approval_matrix_rules" in tables:
         columns = {column["name"] for column in inspector.get_columns("approval_matrix_rules")}
         if "approver_role_id" not in columns:
@@ -261,10 +265,34 @@ def ensure_schema() -> None:
             )
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_product_warehouse_stocks_product_id ON product_warehouse_stocks (product_id)"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_product_warehouse_stocks_warehouse_id ON product_warehouse_stocks (warehouse_id)"))
+        if "access_requests" not in tables:
+            connection.execute(
+                text(
+                    f"""
+                    CREATE TABLE access_requests (
+                        id {id_primary_key},
+                        full_name VARCHAR(160) NOT NULL,
+                        username_suggestion VARCHAR(80) NOT NULL,
+                        email VARCHAR(160) NOT NULL,
+                        phone VARCHAR(40),
+                        note TEXT,
+                        status VARCHAR(20) DEFAULT 'Pending',
+                        user_id INTEGER REFERENCES users(id),
+                        reviewed_by_id INTEGER REFERENCES users(id),
+                        reviewed_at TIMESTAMP,
+                        decision_note TEXT,
+                        created_at TIMESTAMP
+                    )
+                    """
+                )
+            )
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_access_requests_status ON access_requests (status)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_access_requests_email ON access_requests (email)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_access_requests_username_suggestion ON access_requests (username_suggestion)"))
         for statement in additions:
             connection.execute(text(statement))
         current_tables = set(inspect(connection).get_table_names())
-        for table_name in ("warehouses", "product_warehouse_stocks", "internal_operation_options"):
+        for table_name in ("warehouses", "product_warehouse_stocks", "internal_operation_options", "access_requests"):
             if table_name in current_tables:
                 _ensure_postgres_id_default(connection, table_name)
         if "warehouses" in current_tables:

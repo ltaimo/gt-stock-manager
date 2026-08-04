@@ -15,5 +15,9 @@
     <label>{{ tx("Senha", user if user is defined else none) }}<input name="password" type="password" required></label>
     <button>{{ tx("Entrar", user if user is defined else none) }}</button>
   </form>
+  <div class="login-actions">
+    <span>{{ tx("Ainda não tem acesso?", user if user is defined else none) }}</span>
+    <a href="/pedido-acesso">{{ tx("Criar novo contacto / pedir acesso", user if user is defined else none) }}</a>
+  </div>
 </section>
 {% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="login-card">
+  <div class="login-logo">
+    {% if logo_available() %}
+      <img src="/static/img/logo-gt.png" alt="Gestão de Terminais, SA">
+    {% else %}
+      <span class="brand-mark large">GT</span>
+    {% endif %}
+  </div>
+  <h1>{{ tx("Pedido de acesso", user if user is defined else none) }}</h1>
+  <p>{{ tx("Preencha os seus dados. O IT irá validar o pedido antes de criar o utilizador.", user if user is defined else none) }}</p>
+  {% if error %}<div class="alert red">{{ tm(error, user if user is defined else none, request) }}</div>{% endif %}
+  {% if success %}
+    <div class="alert green">
+      {{ tm(success, user if user is defined else none, request) }}
+      {% if username_suggestion %}<br><strong>{{ tx("Username sugerido", user if user is defined else none) }}:</strong> {{ username_suggestion }}{% endif %}
+    </div>
+  {% endif %}
+  <form method="post" class="form-stack">
+    <label>{{ tx("Nome completo", user if user is defined else none) }}
+      <input name="full_name" value="{{ values.full_name or '' }}" required maxlength="160" autocomplete="name">
+    </label>
+    <label>{{ tx("Email", user if user is defined else none) }}
+      <input name="email" type="email" value="{{ values.email or '' }}" required maxlength="160" autocomplete="email">
+    </label>
+    <label>{{ tx("Contacto", user if user is defined else none) }}
+      <input name="phone" value="{{ values.phone or '' }}" required maxlength="40" placeholder="+258..." autocomplete="tel">
+    </label>
+    <label>{{ tx("Observações", user if user is defined else none) }}
+      <textarea name="note" maxlength="500" placeholder="{{ tx("Departamento, função ou motivo do acesso", user if user is defined else none) }}">{{ values.note or '' }}</textarea>
+    </label>
+    <div class="actions">
+      <a class="button secondary" href="/login">{{ tx("Voltar ao login", user if user is defined else none) }}</a>
+      <button>{{ tx("Enviar pedido", user if user is defined else none) }}</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

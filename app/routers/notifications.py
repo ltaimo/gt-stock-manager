@@ -91,4 +91,7 @@ def open_notification(notification_id: int, db: Session = Depends(get_db), user:
             case = db.scalar(select(ProcurementCase).where(ProcurementCase.requisition_id == requisition.id))
             if case:
                 return RedirectResponse(f"/procurement/{case.id}", status_code=303)
+    if module == "Utilizadores" and notification.record_id and notification.record_id.startswith("ACCESS_REQUEST:"):
+        if has_permission(user, "users_manage"):
+            return RedirectResponse("/utilizadores#pedidos-acesso", status_code=303)
     return RedirectResponse("/notificacoes", status_code=303)

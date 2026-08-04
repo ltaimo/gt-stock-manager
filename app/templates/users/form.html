@@ -2,13 +2,21 @@
 {% block content %}
 <section class="panel narrow">
   <h1>{{ tx('Editar Utilizador', user) if target else tx('Novo Utilizador', user) }}</h1>
+  {% if access_request %}
+    <div class="alert blue">
+      <strong>{{ tx("Pedido de acesso", user if user is defined else none) }} #{{ access_request.id }}</strong><br>
+      {{ tx("Dados recebidos pelo formulário público. Confirme perfil, departamento e senha inicial antes de criar o utilizador.", user if user is defined else none) }}
+      {% if access_request.note %}<br><strong>{{ tx("Observações", user if user is defined else none) }}:</strong> {{ access_request.note }}{% endif %}
+    </div>
+  {% endif %}
   <form method="post" class="form-stack">
+    {% if access_request %}<input type="hidden" name="access_request_id" value="{{ access_request.id }}">{% endif %}
     <label>{{ tx("Nome completo", user if user is defined else none) }}
-      <input name="full_name" value="{{ target.full_name if target else '' }}" required>
+      <input name="full_name" value="{{ target.full_name if target else access_request.full_name if access_request else '' }}" required>
     </label>
     {% if not target %}
       <label>{{ tx("Utilizador", user if user is defined else none) }}
-        <input name="username" required>
+        <input name="username" value="{{ access_request.username_suggestion if access_request else '' }}" required>
       </label>
       <label>{{ tx("Senha inicial", user if user is defined else none) }}
         <input name="password" type="password" required>
@@ -16,10 +24,10 @@
     {% endif %}
     <div class="form-grid">
       <label>{{ tx("Email", user if user is defined else none) }}
-        <input name="email" type="email" value="{{ target.email if target and target.email else '' }}">
+        <input name="email" type="email" value="{{ target.email if target and target.email else access_request.email if access_request else '' }}">
       </label>
       <label>{{ tx("Telefone / WhatsApp", user if user is defined else none) }}
-        <input name="phone" value="{{ target.phone if target and target.phone else '' }}" placeholder="+258...">
+        <input name="phone" value="{{ target.phone if target and target.phone else access_request.phone if access_request else '' }}" placeholder="+258...">
       </label>
       <label>{{ tx("Perfil de acesso", user if user is defined else none) }}
         <select name="role_id">
@@ -58,6 +66,20 @@
       <p class="muted">{{ tx("Sem provedor WhatsApp configurado, as mensagens ficam guardadas no outbox para auditoria/teste.", user if user is defined else none) }}</p>
     </fieldset>
     {% if target %}
+      <fieldset>
+        <legend>{{ tx("Redefinir senha", user if user is defined else none) }}</legend>
+        <p class="muted">{{ tx("Preencha apenas se quiser trocar a senha deste utilizador.", user if user is defined else none) }}</p>
+        <label>{{ tx("Nova senha", user if user is defined else none) }}
+          <input name="password" type="password" minlength="8" autocomplete="new-password">
+        </label>
+        <label>{{ tx("Confirmar senha", user if user is defined else none) }}
+          <input name="confirm_password" type="password" minlength="8" autocomplete="new-password">
+        </label>
+        <label class="check">
+          <input type="checkbox" name="force_password_reset" value="1" checked>
+          {{ tx("Obrigar troca no próximo login", user if user is defined else none) }}
+        </label>
+      </fieldset>
       <label class="check"><input type="checkbox" name="is_active" value="true" {% if target.is_active %}checked{% endif %}> {{ tx("Ativo", user if user is defined else none) }}</label>
     {% endif %}
     <div class="actions">

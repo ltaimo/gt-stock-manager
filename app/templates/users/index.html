@@ -4,6 +4,55 @@
   <h1>{{ tx("Utilizadores", user if user is defined else none) }}</h1>
   <a class="button" href="/utilizadores/novo">{{ tx("Adicionar", user if user is defined else none) }}</a>
 </header>
+<section class="panel" id="pedidos-acesso">
+  <div class="panel-heading">
+    <div>
+      <h2>{{ tx("Pedidos de acesso", user if user is defined else none) }}</h2>
+      <p class="muted">{{ tx("Pedidos enviados pelo formulário público antes da criação do utilizador.", user if user is defined else none) }}</p>
+    </div>
+    <span class="badge {{ 'orange' if pending_access_count else 'grey' }}">{{ pending_access_count }} {{ tx("pendentes", user if user is defined else none) }}</span>
+  </div>
+  {% if access_requests %}
+  <table class="responsive-table">
+    <thead>
+      <tr>
+        <th>{{ tx("Data", user if user is defined else none) }}</th>
+        <th>{{ tx("Nome", user if user is defined else none) }}</th>
+        <th>{{ tx("Contacto", user if user is defined else none) }}</th>
+        <th>{{ tx("Username sugerido", user if user is defined else none) }}</th>
+        <th>{{ tx("Estado", user if user is defined else none) }}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for req in access_requests %}
+      <tr>
+        <td data-label="{{ tx("Data", user if user is defined else none) }}">{{ req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else '' }}</td>
+        <td data-label="{{ tx("Nome", user if user is defined else none) }}"><strong>{{ req.full_name }}</strong>{% if req.note %}<br><span class="muted">{{ req.note }}</span>{% endif %}</td>
+        <td data-label="{{ tx("Contacto", user if user is defined else none) }}">{{ req.email }}{% if req.phone %}<br>{{ req.phone }}{% endif %}</td>
+        <td data-label="{{ tx("Username sugerido", user if user is defined else none) }}">{{ req.username_suggestion }}</td>
+        <td data-label="{{ tx("Estado", user if user is defined else none) }}"><span class="badge {{ 'orange' if req.status == 'Pending' else 'green' if req.status == 'Approved' else 'red' }}">{{ tv(req.status, user) }}</span></td>
+        <td data-label="{{ tx("Ação", user if user is defined else none) }}">
+          {% if req.status == 'Pending' %}
+          <div class="actions">
+            <a class="button compact" href="/utilizadores/novo?access_request_id={{ req.id }}">{{ tx("Criar utilizador", user if user is defined else none) }}</a>
+            <form method="post" action="/utilizadores/pedidos-acesso/{{ req.id }}/rejeitar">
+              <input name="decision_note" placeholder="{{ tx("Motivo da rejeição", user if user is defined else none) }}">
+              <button class="danger compact">{{ tx("Rejeitar", user if user is defined else none) }}</button>
+            </form>
+          </div>
+          {% else %}
+            <span class="muted">{{ req.reviewed_at.strftime('%Y-%m-%d %H:%M') if req.reviewed_at else '' }}</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <div class="empty-state">{{ tx("Não existem pedidos de acesso.", user if user is defined else none) }}</div>
+  {% endif %}
+</section>
 <div class="panel">
   <table class="responsive-table">
     <thead>

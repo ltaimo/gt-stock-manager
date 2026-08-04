@@ -27,7 +27,7 @@
     {% else %}
       <span class="brand-mark">GT</span>
     {% endif %}
-    <span class="brand-copy"><strong>{{ app_short_name }}</strong><small>GT Integrated Management System</small><small>{{ app_subtitle }}</small></span>
+    <span class="brand-copy"><strong>{{ app_short_name }}</strong><small>GT Integrated Management System</small></span>
   </a>
   <nav>
     <a href="/dashboard" data-nav-prefix="/dashboard"><span class="nav-icon" aria-hidden="true">⌂</span><span>{{ t('dashboard', user) }}</span></a>
@@ -59,7 +59,7 @@
     </button>
     <div class="topbar-brand">
       <strong>{{ app_short_name }}</strong>
-      <span>{{ app_subtitle }}</span>
+      <span>{{ tx(app_name, user if user is defined else none) }}</span>
     </div>
     <div class="topbar-actions">
       <a class="notification-link" href="/notificacoes" aria-label="{{ t('notifications', user) }}: {{ unread_notifications(user.id) }} {{ tx('não lidas', user) }}">

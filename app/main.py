@@ -86,7 +86,7 @@ async def mirror_read_only_guard(request: Request, call_next):
         and request.method not in {"GET", "HEAD", "OPTIONS"}
     ):
         path = request.url.path
-        allowed_paths = {"/login", "/logout"}
+        allowed_paths = {"/login", "/logout", "/pedido-acesso"}
         if not path.startswith("/api/sync/") and path not in allowed_paths:
             return JSONResponse(
                 {
