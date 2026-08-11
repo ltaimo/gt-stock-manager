@@ -53,6 +53,24 @@ class PermissionTests(unittest.TestCase):
         configured = set().union(*DEFAULT_ROLE_PERMISSIONS.values())
         self.assertEqual(configured - set(PERMISSIONS), set())
 
+    def test_production_roles_get_v3_module_permissions(self):
+        expected = {
+            "Director do Terminal": {"hse_view", "internal_ops_view", "procurement_tor_approve_terminal"},
+            "Director de Informatica": {"users_manage", "profiles_manage", "hse_view", "internal_ops_view"},
+            "IT Supervisor": {"users_manage", "profiles_manage", "hse_view", "internal_ops_view"},
+            "IT Senior": {"users_manage", "profiles_manage", "hse_view", "internal_ops_view"},
+            "IT": {"users_manage", "settings_manage", "hse_view", "internal_ops_view"},
+            "HR Manager": {"hse_view", "hse_records_create"},
+            "Procurement Officer": {"procurement_manage", "procurement_archive"},
+            "Inspector de Seguranca": {"hse_view", "hse_records_create", "hse_workflow_manage"},
+            "Tecnico de Manutencao": {"hse_view", "internal_ops_create"},
+            "Conferente do Armazem": {"movements", "requisitions_issue"},
+        }
+
+        for role_name, permissions in expected.items():
+            with self.subTest(role_name=role_name):
+                self.assertTrue(permissions.issubset(DEFAULT_ROLE_PERMISSIONS[role_name]))
+
     def test_all_route_permission_dependencies_are_registered(self):
         used = set()
         for path in (ROOT / "app" / "routers").glob("*.py"):
