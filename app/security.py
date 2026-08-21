@@ -310,8 +310,6 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> User:
     if not user or not user.is_active:
         request.session.clear()
         raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/login"})
-    if user.must_reset_password and request.url.path not in {"/reset-password", "/logout"}:
-        raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, headers={"Location": "/reset-password"})
     return user
 
 

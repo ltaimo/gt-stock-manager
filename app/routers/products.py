@@ -1,19 +1,16 @@
 import re
-from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import RedirectResponse, Response
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy import or_, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.i18n import language_for, translate_text, translate_value
-from app.models.core import Category, Product, ProductImage, StockMovement, User
+from app.models.core import Category, Product, StockMovement, User
 from app.routers.common import templates
 from app.security import current_user, require_permission
 from app.services.audit import audit_log
-from app.services.exports import rows_to_csv, rows_to_pdf, rows_to_xlsx
 from app.services.forms import optional_float, optional_int, required_float, required_text
 from app.services.inventory import (
     StockError,
@@ -27,10 +24,6 @@ from app.services.notifications import notify_stock_replenishment_signal
 from app.services.transactions import atomic
 
 router = APIRouter(prefix="/produtos", tags=["produtos"])
-
-ALLOWED_PRODUCT_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
-ALLOWED_PRODUCT_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
-MAX_PRODUCT_IMAGE_BYTES = 2 * 1024 * 1024
 
 
 def local_redirect_with_message(default_path: str, return_to: str | None, key: str, message: str) -> RedirectResponse:
@@ -49,52 +42,6 @@ def next_product_code(db: Session) -> str:
         if match:
             max_number = max(max_number, int(match.group(1)))
     return f"PRD-{max_number + 1:05d}"
-
-
-def read_product_image(upload: UploadFile | None) -> dict | None:
-    if not upload or not upload.filename:
-        return None
-    content_type = (upload.content_type or "").split(";")[0].strip().lower()
-    suffix = Path(upload.filename).suffix.lower()
-    if content_type not in ALLOWED_PRODUCT_IMAGE_TYPES or suffix not in ALLOWED_PRODUCT_IMAGE_EXTENSIONS:
-        raise HTTPException(400, "A imagem do produto deve estar em PNG, JPG ou WebP.")
-    content = upload.file.read()
-    if not content:
-        return None
-    if len(content) > MAX_PRODUCT_IMAGE_BYTES:
-        raise HTTPException(400, "A imagem do produto não pode exceder 2 MB.")
-    safe_filename = Path(upload.filename).name.replace('"', "").replace("\r", "").replace("\n", "")[:255] or "produto"
-    return {
-        "original_filename": safe_filename,
-        "content_type": content_type,
-        "content": content,
-    }
-
-
-def product_image_url(request: Request, product: Product) -> str:
-    return str(request.url_for("product_image", product_id=product.id)) if product.image else ""
-
-
-def product_export_rows(db: Session, request: Request, products: list[Product], language: str) -> list[tuple]:
-    return [
-        (
-            product.code,
-            product.name_en or product.name if language == "en" else product.name,
-            (product.category.name_en or product.category.name) if language == "en" and product.category else product.category.name if product.category else translate_text("Sem Categoria", language),
-            product.unit,
-            product.unit_price,
-            product.current_stock,
-            product.minimum_stock,
-            product.total_entries,
-            product.total_exits,
-            translate_value(product.status, language),
-            translate_text("Sim" if product.requires_stock_control else "Não", language),
-            translate_value(product.alert_status, language),
-            warehouse_breakdown(db, product),
-            product_image_url(request, product),
-        )
-        for product in products
-    ]
 
 
 def product_categories(db: Session, product: Product | None = None) -> list[Category]:
@@ -132,15 +79,8 @@ def product_form_context(
 
 
 @router.get("")
-def list_products(
-    request: Request,
-    q: str = "",
-    status: str = "",
-    export: str = "",
-    db: Session = Depends(get_db),
-    user: User = Depends(current_user),
-):
-    stmt = select(Product).options(selectinload(Product.category), selectinload(Product.image)).outerjoin(Category)
+def list_products(request: Request, q: str = "", status: str = "", db: Session = Depends(get_db), user: User = Depends(current_user)):
+    stmt = select(Product).outerjoin(Category)
     if q:
         like = f"%{q}%"
         stmt = stmt.where(
@@ -155,47 +95,6 @@ def list_products(
     if status:
         stmt = stmt.where(Product.status == status)
     products = db.scalars(stmt.order_by(Product.name)).all()
-    language = language_for(user, request)
-    if export:
-        headers = [
-            translate_text(value, language)
-            for value in [
-                "Código",
-                "Produto",
-                "Categoria",
-                "Unidade",
-                "Preço Unit.",
-                "Stock Atual",
-                "Stock Mínimo",
-                "Entradas",
-                "Saídas",
-                "Estado",
-                "Monitorizado",
-                "Alerta",
-                "Por armazém",
-                "URL da imagem",
-            ]
-        ]
-        rows = product_export_rows(db, request, products, language)
-        if export == "csv":
-            return Response(
-                rows_to_csv(headers, rows),
-                media_type="text/csv",
-                headers={"Content-Disposition": 'attachment; filename="produtos.csv"'},
-            )
-        if export == "xlsx":
-            return Response(
-                rows_to_xlsx(headers, rows, translate_text("Produtos", language), language),
-                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                headers={"Content-Disposition": 'attachment; filename="produtos.xlsx"'},
-            )
-        if export == "pdf":
-            return Response(
-                rows_to_pdf(headers, rows, translate_text("Produtos", language), user.full_name, language),
-                media_type="application/pdf",
-                headers={"Content-Disposition": 'attachment; filename="produtos.pdf"'},
-            )
-        raise HTTPException(400, "Formato de exportação inválido.")
     return templates.TemplateResponse(
         request,
         "products/index.html",
@@ -227,7 +126,6 @@ def create_product(
     unit_price: str | None = Form("0"),
     minimum_stock: str | None = Form("0"),
     requires_stock_control: str | None = Form("1"),
-    image_file: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("products_manage")),
 ):
@@ -260,7 +158,6 @@ def create_product(
             ),
             status_code=400,
         )
-    image_data = read_product_image(image_file)
     code = next_product_code(db)
     with atomic(db):
         product = Product(
@@ -276,8 +173,6 @@ def create_product(
         )
         db.add(product)
         db.flush()
-        if image_data:
-            db.add(ProductImage(product_id=product.id, **image_data))
         audit_log(db, user, "Criou produto", "Produtos", product.id, new_value={"code": code, "name": clean_name, "unit_price": parsed_price}, request=request)
     return RedirectResponse("/produtos", status_code=303)
 
@@ -302,8 +197,6 @@ def update_product(
     minimum_stock: str | None = Form("0"),
     requires_stock_control: str | None = Form(None),
     status: str = Form("active"),
-    image_file: UploadFile | None = File(None),
-    remove_image: str | None = Form(None),
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("products_manage")),
 ):
@@ -336,9 +229,7 @@ def update_product(
         "minimum_stock": float(product.minimum_stock or 0),
         "requires_stock_control": product.requires_stock_control,
         "status": product.status,
-        "has_image": bool(product.image),
     }
-    image_data = read_product_image(image_file)
     with atomic(db):
         product.name = clean_name
         product.name_en = clean_name_en
@@ -348,18 +239,6 @@ def update_product(
         product.minimum_stock = parsed_minimum
         product.requires_stock_control = requires_stock_control == "1"
         product.status = status
-        image_changed = False
-        if remove_image == "1" and product.image:
-            db.delete(product.image)
-            image_changed = True
-        elif image_data:
-            if product.image:
-                product.image.original_filename = image_data["original_filename"]
-                product.image.content_type = image_data["content_type"]
-                product.image.content = image_data["content"]
-            else:
-                db.add(ProductImage(product_id=product.id, **image_data))
-            image_changed = True
         audit_log(
             db,
             user,
@@ -374,26 +253,10 @@ def update_product(
                 "minimum_stock": parsed_minimum,
                 "requires_stock_control": product.requires_stock_control,
                 "status": status,
-                "image_changed": image_changed,
             },
             request=request,
         )
     return RedirectResponse("/produtos", status_code=303)
-
-
-@router.get("/{product_id}/imagem", name="product_image")
-def product_image(product_id: int, db: Session = Depends(get_db)):
-    image = db.get(ProductImage, product_id)
-    if not image:
-        raise HTTPException(404)
-    return Response(
-        image.content,
-        media_type=image.content_type,
-        headers={
-            "Cache-Control": "public, max-age=3600",
-            "Content-Disposition": f'inline; filename="{image.original_filename}"',
-        },
-    )
 
 
 @router.post("/{product_id}/ajustar-stock")

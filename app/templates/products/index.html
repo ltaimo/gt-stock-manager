@@ -3,8 +3,6 @@
 <header class="page-header">
   <h1>{{ tx("Economato / Produtos", user if user is defined else none) }}</h1>
   <div class="actions">
-    <a class="button secondary" href="/produtos?q={{ q|urlencode }}&status={{ status|urlencode }}&export=csv">{{ tx("Exportar CSV", user if user is defined else none) }}</a>
-    <a class="button secondary" href="/produtos?q={{ q|urlencode }}&status={{ status|urlencode }}&export=xlsx">{{ tx("Exportar Excel", user if user is defined else none) }}</a>
     {% if can(user, 'stock_replenishment_create') %}<a class="button success" href="/procurement/reposicao/nova">{{ tx("Criar reposição", user if user is defined else none) }}</a>{% endif %}
     {% if can(user, 'products_manage') %}<a class="button" href="/produtos/novo">{{ tx("Novo Produto", user if user is defined else none) }}</a>{% endif %}
   </div>
@@ -21,10 +19,9 @@
   <button>{{ tx("Filtrar", user if user is defined else none) }}</button>
 </form>
 <div class="panel">
-  <table class="product-list-table">
+  <table>
     <thead>
       <tr>
-        <th>{{ tx("Imagem", user if user is defined else none) }}</th>
         <th>{{ tx("Código", user if user is defined else none) }}</th>
         <th>{{ tx("Produto/Marca", user if user is defined else none) }}</th>
         <th>{{ tx("Categoria", user if user is defined else none) }}</th>
@@ -43,13 +40,6 @@
     <tbody>
     {% for p in products %}
       <tr>
-        <td>
-          {% if p.image %}
-            <img class="product-thumb" src="/produtos/{{ p.id }}/imagem" alt="{{ lname(p, user) }}">
-          {% else %}
-            <span class="product-thumb placeholder" aria-hidden="true">▦</span>
-          {% endif %}
-        </td>
         <td>{{ p.code }}</td>
         <td>{{ lname(p, user) }}</td>
         <td>{{ lname(p.category, user) if p.category else tx('Sem Categoria', user) }}</td>

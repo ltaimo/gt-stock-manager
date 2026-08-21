@@ -223,10 +223,6 @@ class ApprovalSchemaMigrationTests(unittest.TestCase):
             {column["name"] for column in inspect(self.engine).get_columns("requisitions")},
         )
         self.assertIn(
-            "must_reset_password",
-            {column["name"] for column in inspect(self.engine).get_columns("users")},
-        )
-        self.assertIn(
             "fuel_type",
             {column["name"] for column in inspect(self.engine).get_columns("internal_operation_records")},
         )

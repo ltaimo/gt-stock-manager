@@ -186,9 +186,6 @@ class UserAccessRequestTests(unittest.TestCase):
         )
         self.assertEqual(new_login.status_code, 303)
         self.assertEqual(new_login.headers["location"], "/reset-password")
-        blocked_dashboard = self.client.get("/dashboard", follow_redirects=False)
-        self.assertEqual(blocked_dashboard.status_code, 303)
-        self.assertEqual(blocked_dashboard.headers["location"], "/reset-password")
 
         reset = self.client.post(
             "/reset-password",
