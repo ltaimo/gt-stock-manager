@@ -89,6 +89,12 @@ def _identity_primary_key(connection) -> str:
     return "INTEGER PRIMARY KEY"
 
 
+def _binary_column_type(connection) -> str:
+    if connection.dialect.name == "postgresql":
+        return "BYTEA"
+    return "BLOB"
+
+
 def _ensure_postgres_id_default(connection, table_name: str) -> None:
     if connection.dialect.name != "postgresql":
         return
@@ -185,6 +191,8 @@ def ensure_schema() -> None:
             additions.append("ALTER TABLE users ADD COLUMN notify_whatsapp BOOLEAN DEFAULT false")
         if "preferred_language" not in columns:
             additions.append("ALTER TABLE users ADD COLUMN preferred_language VARCHAR(5) DEFAULT 'pt'")
+        if "must_reset_password" not in columns:
+            additions.append("ALTER TABLE users ADD COLUMN must_reset_password BOOLEAN DEFAULT false")
     if "access_requests" in tables:
         columns = {column["name"] for column in inspector.get_columns("access_requests")}
         if "decision_note" not in columns:
@@ -232,6 +240,7 @@ def ensure_schema() -> None:
 
     with engine.begin() as connection:
         id_primary_key = _identity_primary_key(connection)
+        binary_column_type = _binary_column_type(connection)
         if "warehouses" not in tables:
             connection.execute(
                 text(
@@ -265,6 +274,20 @@ def ensure_schema() -> None:
             )
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_product_warehouse_stocks_product_id ON product_warehouse_stocks (product_id)"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_product_warehouse_stocks_warehouse_id ON product_warehouse_stocks (warehouse_id)"))
+        if "product_images" not in tables and "products" in tables:
+            connection.execute(
+                text(
+                    f"""
+                    CREATE TABLE product_images (
+                        product_id INTEGER PRIMARY KEY REFERENCES products(id),
+                        original_filename VARCHAR(255) NOT NULL,
+                        content_type VARCHAR(120) NOT NULL,
+                        content {binary_column_type} NOT NULL,
+                        updated_at TIMESTAMP
+                    )
+                    """
+                )
+            )
         if "access_requests" not in tables:
             connection.execute(
                 text(

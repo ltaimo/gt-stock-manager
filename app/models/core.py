@@ -154,6 +154,7 @@ class Product(Base):
     created_by: Mapped[User | None] = relationship()
     movements: Mapped[list["StockMovement"]] = relationship(back_populates="product")
     warehouse_stocks: Mapped[list["ProductWarehouseStock"]] = relationship(back_populates="product", cascade="all, delete-orphan")
+    image: Mapped["ProductImage | None"] = relationship(back_populates="product", cascade="all, delete-orphan")
 
     @property
     def alert_status(self) -> str:
@@ -184,6 +185,18 @@ class Product(Base):
             "Sem Stock": "grey",
             "Erro: Stock Negativo": "red",
         }.get(self.alert_status, "grey")
+
+
+class ProductImage(Base):
+    __tablename__ = "product_images"
+
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), primary_key=True)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    product: Mapped[Product] = relationship(back_populates="image")
 
 
 class StockMovement(Base):

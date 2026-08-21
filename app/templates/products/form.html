@@ -4,7 +4,7 @@
   <h1>{{ tx('Editar Produto', user) if product else tx('Novo Produto', user) }}</h1>
   {% if error %}<div class="alert red">{{ tm(error, user, request) }} {% if duplicate %}<a href="/produtos?q={{ duplicate.code }}">{{ tx("Ver produto existente", user if user is defined else none) }}</a> {{ tx("ou", user if user is defined else none) }} <a href="/movimentos/novo">{{ tx("adicionar stock", user if user is defined else none) }}</a>.{% endif %}</div>{% endif %}
   {% if request.query_params.get('stock_adjusted') %}<div class="alert green">{{ tx("Quantidade existente ajustada e movimento registado com sucesso.", user if user is defined else none) }}</div>{% endif %}
-  <form method="post" class="form-stack" spellcheck="true">
+  <form method="post" class="form-stack" spellcheck="true" enctype="multipart/form-data">
     {% if not product %}
       <label>{{ tx("Código gerado automaticamente", user if user is defined else none) }}<input value="{{ next_code }}" disabled></label>
     {% endif %}
@@ -25,6 +25,23 @@
       {{ tx("Monitorizar stock e sugerir reposição", user if user is defined else none) }}
     </label>
     <p class="muted">{{ tx("Desmarque para equipamentos ou compras pontuais que não devem gerar alertas quando o saldo chegar a zero.", user if user is defined else none) }}</p>
+    <label>{{ tx("Imagem do produto", user if user is defined else none) }}
+      <input type="file" name="image_file" accept="image/png,image/jpeg,image/webp">
+    </label>
+    <p class="muted">{{ tx("Use PNG, JPG ou WebP até 2 MB. Esta imagem pode ser usada no site público.", user if user is defined else none) }}</p>
+    {% if product and product.image %}
+      <div class="product-image-preview">
+        <img src="/produtos/{{ product.id }}/imagem" alt="{{ lname(product, user) }}">
+        <div>
+          <strong>{{ tx("URL público da imagem", user if user is defined else none) }}</strong>
+          <input value="{{ request.url_for('product_image', product_id=product.id) }}" readonly>
+          <label class="check">
+            <input type="checkbox" name="remove_image" value="1">
+            {{ tx("Remover imagem atual", user if user is defined else none) }}
+          </label>
+        </div>
+      </div>
+    {% endif %}
     {% if product %}<label>{{ tx("Estado", user if user is defined else none) }}<select name="status"><option value="active" {% if product.status=='active' %}selected{% endif %}>{{ tx("Ativo", user if user is defined else none) }}</option><option value="inactive" {% if product.status=='inactive' %}selected{% endif %}>{{ tx("Inativo", user if user is defined else none) }}</option></select></label>{% endif %}
     <div class="actions"><a class="button secondary" href="/produtos">{{ tx("Cancelar", user if user is defined else none) }}</a><button>{{ tx("Guardar", user if user is defined else none) }}</button></div>
   </form>
