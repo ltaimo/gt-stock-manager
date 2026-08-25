@@ -18,8 +18,9 @@ from app.services.sync import push_snapshot_to_target
 
 
 settings = get_settings()
-Base.metadata.create_all(bind=engine)
-ensure_schema()
+if settings.auto_prepare_schema:
+    Base.metadata.create_all(bind=engine)
+    ensure_schema()
 
 app = FastAPI(title=settings.app_name)
 app.add_exception_handler(RequestValidationError, validation_error_handler)

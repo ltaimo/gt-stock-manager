@@ -41,6 +41,17 @@ def resolve_database_url() -> str:
     return f"sqlite:///{BASE_DIR / 'stock_manager.db'}"
 
 
+def env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def auto_prepare_schema_enabled(environment: str) -> bool:
+    return env_bool("GTIMS_AUTO_PREPARE_SCHEMA", default=environment != "production")
+
+
 class Settings:
     app_version = os.getenv("APP_VERSION", "3.0.0")
     app_name = os.getenv("APP_NAME", "GT Integrated Management System")
@@ -72,6 +83,7 @@ class Settings:
     mirror_read_only = os.getenv("MIRROR_READ_ONLY", "true").lower() == "true"
     session_timeout_minutes = int(os.getenv("SESSION_TIMEOUT_MINUTES", "30"))
     require_requisition_unit_prices = os.getenv("REQUIRE_REQUISITION_UNIT_PRICES", "false").lower() == "true"
+    auto_prepare_schema = auto_prepare_schema_enabled(environment)
 
     @property
     def session_timeout_seconds(self) -> int:
