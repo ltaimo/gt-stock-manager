@@ -1,4 +1,5 @@
 import json
+import logging
 import smtplib
 from datetime import datetime, timezone
 from email.message import EmailMessage
@@ -14,6 +15,8 @@ from app.models.core import Notification, ProcurementCase, Product, Requisition,
 from app.security import has_permission
 from app.services.approval_policy import users_for_approval_assignment
 
+logger = logging.getLogger(__name__)
+
 def canonical_notification_module(module: str) -> str:
     clean_module = (module or "").strip()
     if clean_module.casefold().startswith("requisi"):
@@ -22,8 +25,12 @@ def canonical_notification_module(module: str) -> str:
 
 
 def unread_count(user_id: int) -> int:
-    with SessionLocal() as db:
-        return db.scalar(select(func.count(Notification.id)).where(Notification.user_id == user_id, Notification.is_read == False)) or 0
+    try:
+        with SessionLocal() as db:
+            return db.scalar(select(func.count(Notification.id)).where(Notification.user_id == user_id, Notification.is_read == False)) or 0
+    except Exception:
+        logger.exception("Falha ao contar notificações não lidas para o utilizador %s", user_id)
+        return 0
 
 
 def recipients_with_permission(db: Session, permission: str) -> list[User]:

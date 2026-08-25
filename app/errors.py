@@ -22,6 +22,9 @@ def request_user(request: Request) -> User | None:
     db = SessionLocal()
     try:
         return db.get(User, int(user_id), options=[joinedload(User.role), joinedload(User.department)])
+    except Exception:
+        logger.exception("Falha ao carregar utilizador para página de erro")
+        return None
     finally:
         db.close()
 

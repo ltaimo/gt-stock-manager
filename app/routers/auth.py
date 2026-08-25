@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import logging
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -16,6 +17,18 @@ from app.services.transactions import atomic
 from app.services.users import unique_username_from_full_name
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+
+def _record_auth_event(db: Session, user: User | None, action: str, record_id: str | int | None, request: Request) -> None:
+    try:
+        with atomic(db):
+            if user:
+                touch_last_login(user)
+            audit_log(db, user, action, "Auth", record_id, request=request)
+    except Exception:
+        logger.exception("Falha ao gravar auditoria de autenticação para %s", record_id)
+        db.rollback()
 
 
 @router.get("/login")
@@ -158,16 +171,15 @@ def login(request: Request, username: str | None = Form(None), password: str | N
     clean_password = required_text(password, "Senha")
     user = db.scalar(select(User).where(User.username == clean_username))
     if not user or not user.is_active or not verify_password(clean_password, user.password_hash):
-        with atomic(db):
-            audit_log(db, None, "Login falhou", "Auth", clean_username, request=request)
+        _record_auth_event(db, None, "Login falhou", clean_username, request)
         return templates.TemplateResponse(request, "auth/login.html", {"request": request, "error": "Credenciais inválidas."}, status_code=400)
+    must_reset_password = bool(user.must_reset_password)
+    preferred_language = user.preferred_language or "pt"
     request.session["user_id"] = user.id
-    request.session["language"] = user.preferred_language or "pt"
+    request.session["language"] = preferred_language
     request.session["last_activity_at"] = datetime.now(timezone.utc).timestamp()
-    with atomic(db):
-        touch_last_login(user)
-        audit_log(db, user, "Login", "Auth", user.id, request=request)
-    if user.must_reset_password:
+    _record_auth_event(db, user, "Login", user.id, request)
+    if must_reset_password:
         return RedirectResponse("/reset-password", status_code=303)
     return RedirectResponse("/dashboard", status_code=303)
 
