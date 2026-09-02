@@ -7,9 +7,6 @@
     <p class="muted">{{ tx("Controlo interno de operações gerais, combustível, água, energia, equipamentos e consumos operacionais.", user if user is defined else none) }}</p>
   </div>
   <div class="actions">
-    {% if can_view_internal_reports or can_create_internal_ops %}
-      <a class="button success" href="/operacoes-internas/relatorios-departamentais">{{ tx("Relatórios departamentais", user if user is defined else none) }}</a>
-    {% endif %}
     <a class="button secondary" href="/dashboard">{{ tx("Voltar ao dashboard", user if user is defined else none) }}</a>
   </div>
 </header>
@@ -37,17 +34,6 @@
   {% endfor %}
 </section>
 {% endif %}
-
-<section class="action-hub ops-hub" aria-label="{{ tx("Relatórios departamentais", user if user is defined else none) }}">
-  {% for key, item in department_report_types.items() %}
-    <a class="action-tile" href="/operacoes-internas/relatorios-departamentais?department={{ key }}#department-report-form">
-      <span class="tile-code">R{{ loop.index }}</span>
-      <span class="tile-icon" aria-hidden="true">{{ item.icon }}</span>
-      <strong>{{ tx(item.short, user if user is defined else none) }}</strong>
-      <small>{{ tx("Relatório diário com consolidação semanal e mensal", user if user is defined else none) }}</small>
-    </a>
-  {% endfor %}
-</section>
 
 {% if can_view_internal_records %}
 <section class="stats-grid">

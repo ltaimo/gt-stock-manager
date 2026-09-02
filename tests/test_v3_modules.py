@@ -2,7 +2,7 @@ import json
 import unittest
 
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, inspect, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -403,12 +403,13 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.login()
         home = self.client.get("/operacoes-internas")
         self.assertEqual(home.status_code, 200)
-        self.assertIn("/operacoes-internas/relatorios-departamentais?department=maintenance", home.text)
-        self.assertIn("/operacoes-internas/relatorios-departamentais?department=security", home.text)
-        self.assertIn("/operacoes-internas/relatorios-departamentais?department=it", home.text)
+        self.assertEqual(home.text.count("/operacoes-internas/relatorios-departamentais"), 1)
 
         form = self.client.get("/operacoes-internas/relatorios-departamentais?department=maintenance")
         self.assertEqual(form.status_code, 200)
+        self.assertIn("/operacoes-internas/relatorios-departamentais?department=maintenance", form.text)
+        self.assertIn("/operacoes-internas/relatorios-departamentais?department=security", form.text)
+        self.assertIn("/operacoes-internas/relatorios-departamentais?department=it", form.text)
         self.assertIn("Tarefas executadas", form.text)
         self.assertIn("Equipamentos e utilidades", form.text)
 
@@ -475,6 +476,18 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.assertNotIn('name="report_date"', report_area.text)
 
         consolidated = self.client.get("/relatorios/operacoes-internas/departamentos?department=security")
+        self.assertEqual(consolidated.status_code, 200)
+
+    def test_department_reports_module_recovers_missing_storage(self):
+        self.login()
+        DepartmentDailyReport.__table__.drop(self.engine)
+        self.assertNotIn("department_daily_reports", inspect(self.engine).get_table_names())
+
+        report_area = self.client.get("/operacoes-internas/relatorios-departamentais?department=maintenance")
+        self.assertEqual(report_area.status_code, 200)
+        self.assertIn("department_daily_reports", inspect(self.engine).get_table_names())
+
+        consolidated = self.client.get("/relatorios/operacoes-internas/departamentos?department=maintenance")
         self.assertEqual(consolidated.status_code, 200)
 
     def test_energy_reading_requires_meter_reading_and_uses_kwh(self):

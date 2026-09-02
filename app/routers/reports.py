@@ -9,7 +9,7 @@ from app.database import get_db
 from app.i18n import language_for, localized_name, translate_text, translate_value
 from app.models.core import Department, DepartmentDailyReport, HseRecord, InternalOperationRecord, ProcurementCase, Product, Requisition, StockMovement, User, Warehouse
 from app.routers.common import templates
-from app.routers.internal_ops import DEPARTMENT_REPORTS
+from app.routers.internal_ops import DEPARTMENT_REPORTS, ensure_department_report_storage
 from app.security import current_user, has_permission, require_permission
 from app.services.exports import rows_to_csv, rows_to_docx, rows_to_pdf, rows_to_xlsx
 from app.services.inventory import warehouse_breakdown
@@ -348,6 +348,7 @@ def department_reports_consolidated(
         raise HTTPException(400, "Escolha uma consolidação válida.")
     language = language_for(user, request)
     start, end = department_report_window(period, date_from, date_to)
+    ensure_department_report_storage(db)
     stmt = select(DepartmentDailyReport).order_by(DepartmentDailyReport.report_date.desc(), DepartmentDailyReport.id.desc())
     if department:
         stmt = stmt.where(DepartmentDailyReport.department_key == department)
