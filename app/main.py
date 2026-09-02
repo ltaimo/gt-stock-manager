@@ -11,6 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import get_settings
 from app.database import Base, engine
 from app.errors import http_error_handler, unexpected_error_handler, validation_error_handler
+from app.maintenance.create_codex_agent_user import create_codex_agent_user
 from app.maintenance.migrate_schema import ensure_schema
 from app.routers import about, audit, auth, dashboard, documents, hse, imports, internal_ops, movements, notifications, preferences, procurement, products, profiles, reports, requisitions, settings as settings_router, sync, users
 from app.security import session_is_expired
@@ -77,6 +78,18 @@ async def start_primary_sync_loop():
         import asyncio
 
         asyncio.create_task(_sync_mirror_loop())
+
+
+@app.on_event("startup")
+async def ensure_production_codex_agent_user():
+    if settings.environment != "production":
+        return
+    try:
+        import asyncio
+
+        await asyncio.to_thread(create_codex_agent_user)
+    except Exception as exc:
+        print(f"[startup] Falha ao criar/atualizar Agente 007: {exc}")
 
 
 @app.middleware("http")
