@@ -23,6 +23,9 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.SessionLocal = sessionmaker(bind=self.engine, expire_on_commit=False)
         self.db = self.SessionLocal()
         self.department = Department(name="Operacoes")
+        self.maintenance_department = Department(name="Manutenção")
+        self.it_department = Department(name="Informática")
+        self.security_department = Department(name="Segurança")
         self.role = Role(
             name="V3 Manager",
             permissions=json.dumps(
@@ -44,10 +47,29 @@ class V3ModuleFlowTests(unittest.TestCase):
         )
         self.viewer_role = Role(name="V3 Viewer", permissions=json.dumps(["hse_view", "internal_ops_view"]))
         self.ops_reports_role = Role(name="Ops Reports Only", permissions=json.dumps(["internal_ops_reports"]))
+        self.admin_role = Role(name="Admin")
+        self.maintenance_role = Role(name="CC Manutenção", permissions=json.dumps(["internal_ops_view", "internal_ops_create", "internal_ops_reports"]))
+        self.it_role = Role(name="IT", permissions=json.dumps(["internal_ops_view", "internal_ops_create", "internal_ops_reports"]))
+        self.security_role = Role(name="Segurança", permissions=json.dumps(["internal_ops_view", "internal_ops_create", "internal_ops_reports"]))
         self.replenishment_role = Role(name="Reposicao Manager", permissions=json.dumps(["stock_replenishment_create"]))
         self.limited_hse_role = Role(name="Limited HSE Creator", permissions=json.dumps(["hse_view", "hse_records_create"]))
         self.limited_hse_workflow_role = Role(name="Limited HSE Workflow", permissions=json.dumps(["hse_view", "hse_workflow_manage"]))
-        self.db.add_all([self.department, self.role, self.viewer_role, self.ops_reports_role, self.replenishment_role, self.limited_hse_role, self.limited_hse_workflow_role])
+        self.db.add_all([
+            self.department,
+            self.maintenance_department,
+            self.it_department,
+            self.security_department,
+            self.role,
+            self.viewer_role,
+            self.ops_reports_role,
+            self.admin_role,
+            self.maintenance_role,
+            self.it_role,
+            self.security_role,
+            self.replenishment_role,
+            self.limited_hse_role,
+            self.limited_hse_workflow_role,
+        ])
         self.db.flush()
         self.user = User(
             full_name="V3 Manager",
@@ -81,6 +103,38 @@ class V3ModuleFlowTests(unittest.TestCase):
             department_id=self.department.id,
             notify_email=False,
         )
+        self.admin_user = User(
+            full_name="Admin Reports",
+            username="adminreports",
+            password_hash=hash_password("Test@12345"),
+            role_id=self.admin_role.id,
+            department_id=self.department.id,
+            notify_email=False,
+        )
+        self.maintenance_user = User(
+            full_name="CC Manutenção",
+            username="ccmanutencao",
+            password_hash=hash_password("Test@12345"),
+            role_id=self.maintenance_role.id,
+            department_id=self.maintenance_department.id,
+            notify_email=False,
+        )
+        self.it_user = User(
+            full_name="IT Reports",
+            username="itreports",
+            password_hash=hash_password("Test@12345"),
+            role_id=self.it_role.id,
+            department_id=self.it_department.id,
+            notify_email=False,
+        )
+        self.security_user = User(
+            full_name="Segurança Reports",
+            username="securityreports",
+            password_hash=hash_password("Test@12345"),
+            role_id=self.security_role.id,
+            department_id=self.security_department.id,
+            notify_email=False,
+        )
         self.limited_hse_user = User(
             full_name="Limited HSE Creator",
             username="limitedhse",
@@ -97,7 +151,18 @@ class V3ModuleFlowTests(unittest.TestCase):
             department_id=self.department.id,
             notify_email=False,
         )
-        self.db.add_all([self.user, self.viewer, self.ops_reports_user, self.replenishment_user, self.limited_hse_user, self.limited_hse_workflow_user])
+        self.db.add_all([
+            self.user,
+            self.viewer,
+            self.ops_reports_user,
+            self.admin_user,
+            self.maintenance_user,
+            self.it_user,
+            self.security_user,
+            self.replenishment_user,
+            self.limited_hse_user,
+            self.limited_hse_workflow_user,
+        ])
         self.db.commit()
         app.dependency_overrides[get_db] = self.override_db
         self.client = TestClient(app)
@@ -477,6 +542,43 @@ class V3ModuleFlowTests(unittest.TestCase):
 
         consolidated = self.client.get("/relatorios/operacoes-internas/departamentos?department=security")
         self.assertEqual(consolidated.status_code, 200)
+
+    def test_department_report_access_follows_user_department_unless_admin(self):
+        self.login("adminreports")
+        admin_area = self.client.get("/operacoes-internas/relatorios-departamentais")
+        self.assertEqual(admin_area.status_code, 200)
+        self.assertIn("?department=maintenance", admin_area.text)
+        self.assertIn("?department=it", admin_area.text)
+        self.assertIn("?department=security", admin_area.text)
+
+        self.login("ccmanutencao")
+        maintenance_area = self.client.get("/operacoes-internas/relatorios-departamentais")
+        self.assertEqual(maintenance_area.status_code, 200)
+        self.assertIn('name="department_key" value="maintenance"', maintenance_area.text)
+        self.assertIn("Departamento de Manutenção", maintenance_area.text)
+        self.assertNotIn("?department=it", maintenance_area.text)
+        self.assertNotIn("?department=security", maintenance_area.text)
+
+        blocked_area = self.client.get("/operacoes-internas/relatorios-departamentais?department=security")
+        self.assertEqual(blocked_area.status_code, 403)
+        blocked_post = self.client.post(
+            "/operacoes-internas/relatorios-departamentais",
+            data={"department_key": "security", "report_date": "2026-09-02", "activities": "Tentativa fora do departamento."},
+        )
+        self.assertEqual(blocked_post.status_code, 403)
+
+        self.login("itreports")
+        it_area = self.client.get("/operacoes-internas/relatorios-departamentais")
+        self.assertEqual(it_area.status_code, 200)
+        self.assertIn('name="department_key" value="it"', it_area.text)
+        self.assertIn("Departamento de Informática", it_area.text)
+        self.assertEqual(self.client.get("/relatorios/operacoes-internas/departamentos?department=maintenance").status_code, 403)
+
+        self.login("securityreports")
+        security_area = self.client.get("/operacoes-internas/relatorios-departamentais")
+        self.assertEqual(security_area.status_code, 200)
+        self.assertIn('name="department_key" value="security"', security_area.text)
+        self.assertIn("Departamento de Proteção e Segurança", security_area.text)
 
     def test_department_reports_module_recovers_missing_storage(self):
         self.login()

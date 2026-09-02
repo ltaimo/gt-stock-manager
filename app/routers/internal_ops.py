@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import unicodedata
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -79,6 +80,12 @@ DEPARTMENT_REPORTS = {
     },
 }
 DEPARTMENT_REPORT_STATUSES = ["Draft", "Submitted", "Validated", "Cancelled"]
+DEPARTMENT_REPORT_ACCESS_MARKERS = {
+    "maintenance": {"manutencao", "maintenance"},
+    "it": {"informatica", "it"},
+    "security": {"seguranca", "security", "protecao"},
+}
+DEPARTMENT_REPORT_ADMIN_ROLES = {"SuperAdmin", "Admin"}
 QUANTITY_REQUIRED_TYPES = {
     "fuel_purchase_storage",
     "fuel_refuel",
@@ -182,6 +189,36 @@ def parse_report_date(value: str | None) -> datetime:
         return datetime.fromisoformat(cleaned).replace(tzinfo=timezone.utc)
     except ValueError as exc:
         raise HTTPException(400, "Informe uma data válida no formato AAAA-MM-DD.") from exc
+
+
+def _fold_text(value: str | None) -> str:
+    normalized = unicodedata.normalize("NFKD", str(value or ""))
+    return "".join(char for char in normalized if not unicodedata.combining(char)).casefold()
+
+
+def _contains_marker(haystack: str, marker: str) -> bool:
+    if marker == "it":
+        return any(token == "it" for token in haystack.replace("/", " ").replace("-", " ").split())
+    return marker in haystack
+
+
+def allowed_department_report_keys(user: User) -> list[str]:
+    if user.role.name in DEPARTMENT_REPORT_ADMIN_ROLES:
+        return list(DEPARTMENT_REPORTS)
+    haystacks = [_fold_text(user.role.name), _fold_text(user.department.name if user.department else "")]
+    allowed = [
+        key
+        for key, markers in DEPARTMENT_REPORT_ACCESS_MARKERS.items()
+        if any(_contains_marker(haystack, marker) for haystack in haystacks for marker in markers)
+    ]
+    if not allowed:
+        return list(DEPARTMENT_REPORTS)
+    return [key for key in DEPARTMENT_REPORTS if key in allowed]
+
+
+def require_department_report_access(user: User, department_key: str) -> None:
+    if department_key not in allowed_department_report_keys(user):
+        raise HTTPException(403, "Sem permissão para este departamento.")
 
 
 def operations_context(request: Request, db: Session, user: User, kind: str = "", error: str | None = None) -> dict:
@@ -366,21 +403,25 @@ def department_reports_context(request: Request, db: Session, user: User, depart
     ensure_department_report_storage(db)
     can_create_reports = has_permission(user, "internal_ops_create")
     can_view_reports = has_permission(user, "internal_ops_reports")
+    allowed_report_keys = allowed_department_report_keys(user)
     reports = []
     if can_view_reports:
         stmt = select(DepartmentDailyReport).order_by(DepartmentDailyReport.report_date.desc(), DepartmentDailyReport.id.desc())
         if department_key:
             stmt = stmt.where(DepartmentDailyReport.department_key == department_key)
+        else:
+            stmt = stmt.where(DepartmentDailyReport.department_key.in_(allowed_report_keys))
         reports = db.scalars(stmt.limit(250)).all()
     totals = {
         key: db.scalar(select(func.count(DepartmentDailyReport.id)).where(DepartmentDailyReport.department_key == key)) or 0
-        for key in DEPARTMENT_REPORTS
+        for key in allowed_report_keys
     }
+    report_types = {key: DEPARTMENT_REPORTS[key] for key in allowed_report_keys}
     return {
         "request": request,
         "user": user,
         "reports": reports,
-        "report_types": DEPARTMENT_REPORTS,
+        "report_types": report_types,
         "statuses": DEPARTMENT_REPORT_STATUSES,
         "selected_department": department_key,
         "totals": totals,
@@ -402,6 +443,13 @@ def department_reports_home(
         raise HTTPException(404)
     if not (has_permission(user, "internal_ops_create") or has_permission(user, "internal_ops_reports")):
         raise HTTPException(403)
+    allowed_report_keys = allowed_department_report_keys(user)
+    if not allowed_report_keys:
+        raise HTTPException(403, "Sem permissão para relatórios departamentais.")
+    if department:
+        require_department_report_access(user, department)
+    elif len(allowed_report_keys) == 1:
+        department = allowed_report_keys[0]
     return templates.TemplateResponse(
         request,
         "internal_ops/department_reports.html",
@@ -434,6 +482,7 @@ def create_department_report(
     ensure_department_report_storage(db)
     if department_key not in DEPARTMENT_REPORTS:
         raise HTTPException(400, "Escolha um departamento válido para o relatório.")
+    require_department_report_access(user, department_key)
     if status not in {"Draft", "Submitted"}:
         raise HTTPException(400, "Escolha um estado inicial válido.")
     if not any(str(value or "").strip() for value in [activities, incidents, equipment_status, readings, pending_actions, notes]):
@@ -477,6 +526,7 @@ def validate_department_report(
     report = db.get(DepartmentDailyReport, report_id)
     if not report:
         raise HTTPException(404)
+    require_department_report_access(user, report.department_key)
     if status not in DEPARTMENT_REPORT_STATUSES:
         raise HTTPException(400, "Escolha um estado válido.")
     old_status = report.status

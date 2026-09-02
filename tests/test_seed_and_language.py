@@ -22,8 +22,8 @@ from app.models.core import (
     StockMovement,
     User,
 )
-from app.seed import consolidate_fixture_duplicate_products, repair_portuguese_labels, seed_ac_tools_products
-from app.security import hash_password
+from app.seed import CODEX_AGENT_USERNAME, ensure_codex_agent_user, consolidate_fixture_duplicate_products, repair_portuguese_labels, seed_ac_tools_products
+from app.security import hash_password, verify_password
 from app.services.inventory import post_movement
 
 
@@ -81,6 +81,22 @@ class SeedAndLanguageTests(unittest.TestCase):
         self.assertIsNotNone(gree_12000)
         self.assertEqual(gree_12000.name, "Ar condicionado Gree 12000 BTU")
         self.assertEqual(float(gree_12000.current_stock), 32.0)
+
+    def test_codex_agent_user_seed_is_idempotent_admin_smoke_account(self):
+        created = ensure_codex_agent_user(self.db)
+        self.db.commit()
+        updated = ensure_codex_agent_user(self.db)
+        self.db.commit()
+
+        account = self.db.scalar(select(User).where(User.username == CODEX_AGENT_USERNAME))
+        self.assertEqual(created, "created")
+        self.assertEqual(updated, "updated")
+        self.assertIsNotNone(account)
+        self.assertEqual(account.full_name, "Agente 007")
+        self.assertEqual(account.role.name, "Admin")
+        self.assertTrue(account.is_active)
+        self.assertFalse(account.must_reset_password)
+        self.assertTrue(verify_password("123456789", account.password_hash))
 
     def test_consolidates_previous_duplicate_air_conditioners(self):
         category = Category(name="Ar Condicionado", normalized_name="ar condicionado")

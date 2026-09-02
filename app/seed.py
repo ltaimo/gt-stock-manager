@@ -18,13 +18,50 @@ from app.models.core import (
     StockMovement,
     User,
 )
-from app.security import hash_password
+from app.security import DEFAULT_ROLE_PERMISSIONS, hash_password
 from app.services.categorization import normalize_text
 from app.services.inventory import merge_product_warehouse_stock, post_movement, recalculate_product_stock
 
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
 AC_TOOLS_FIXTURE = FIXTURE_DIR / "ac_tools_products.json"
+CODEX_AGENT_USERNAME = "Agente 007"
+CODEX_AGENT_PASSWORD = "123456789"
+
+
+def _default_role_permissions(role_name: str) -> str | None:
+    permissions = DEFAULT_ROLE_PERMISSIONS.get(role_name)
+    if role_name == "SuperAdmin" or permissions is None:
+        return None
+    return json.dumps(sorted(permissions))
+
+
+def ensure_codex_agent_user(db) -> str:
+    role = db.scalar(select(Role).where(Role.name == "Admin"))
+    if not role:
+        role = Role(name="Admin", permissions=_default_role_permissions("Admin"), is_system=True)
+        db.add(role)
+        db.flush()
+    department = db.scalar(select(Department).where(Department.name == "Geral"))
+    if not department:
+        department = Department(name="Geral", is_active=True)
+        db.add(department)
+        db.flush()
+    account = db.scalar(select(User).where(User.username == CODEX_AGENT_USERNAME))
+    action = "updated" if account else "created"
+    if not account:
+        account = User(username=CODEX_AGENT_USERNAME, full_name=CODEX_AGENT_USERNAME, role_id=role.id)
+        db.add(account)
+    account.full_name = CODEX_AGENT_USERNAME
+    account.password_hash = hash_password(CODEX_AGENT_PASSWORD)
+    account.role_id = role.id
+    account.department_id = department.id
+    account.is_active = True
+    account.must_reset_password = False
+    account.notify_email = False
+    account.notify_whatsapp = False
+    account.preferred_language = "pt"
+    return action
 
 
 def repair_portuguese_labels(db) -> None:
@@ -253,11 +290,13 @@ def seed() -> None:
             db.flush()
 
         repair_portuguese_labels(db)
+        agent_action = ensure_codex_agent_user(db)
         created_tools = seed_ac_tools_products(db, superadmin)
         consolidated_tools = consolidate_fixture_duplicate_products(db)
         db.commit()
         print(
             "Configuração base concluída. "
+            f"Conta Agente 007: {agent_action}. "
             f"Novos produtos da lista AC/ferramentas: {created_tools}. "
             f"Duplicados consolidados: {consolidated_tools}."
         )
