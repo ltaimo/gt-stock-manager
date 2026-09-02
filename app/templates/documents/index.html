@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
 <header class="page-header"><h1>{{ tx("Documentos de Stock", user if user is defined else none) }}</h1><a class="button" href="/movimentos/novo">{{ tx("Novo Movimento", user if user is defined else none) }}</a></header>
+<div class="filters"><input type="search" placeholder="{{ tx("Pesquisar nesta lista", user if user is defined else none) }}" data-instant-table-search="#documents-table"></div>
 <section class="panel">
-  <table>
+  <table id="documents-table">
     <thead><tr><th>{{ tx("Data", user if user is defined else none) }}</th><th>{{ tx("Tipo", user if user is defined else none) }}</th><th>{{ tx("Nº Documento", user if user is defined else none) }}</th><th>{{ tx("Ficheiro", user if user is defined else none) }}</th><th>{{ tx("Produtos", user if user is defined else none) }}</th><th>{{ tx("Carregado por", user if user is defined else none) }}</th><th></th></tr></thead>
     <tbody>
     {% for d in documents %}

@@ -189,6 +189,11 @@ def reset_form(request: Request, user: User = Depends(current_user)):
     return templates.TemplateResponse(request, "auth/reset_password.html", {"request": request, "user": user, "error": None})
 
 
+@router.get("/conta")
+def account(request: Request, user: User = Depends(current_user)):
+    return templates.TemplateResponse(request, "auth/account.html", {"request": request, "user": user})
+
+
 @router.post("/reset-password")
 def reset_password(
     request: Request,

@@ -7,6 +7,10 @@ from app.models.core import Requisition, RequisitionStatus, User
 from app.services.inventory import StockError, post_movement, product_warehouse_quantity
 
 
+def is_stock_request(req_type: str) -> bool:
+    return "REQUISI" in (req_type or "").upper() or (req_type or "").upper() == "REQUISICAO"
+
+
 def next_requisition_number(db: Session) -> str:
     year = datetime.now(timezone.utc).year
     count = db.scalar(select(func.count(Requisition.id)).where(Requisition.number.like(f"REQ-{year}-%"))) or 0
@@ -53,7 +57,7 @@ def approve_requisition(
                 f"Indique o motivo da rejeição total ou parcial do item {item.product.code} - {item.product.name}."
             )
         available = product_warehouse_quantity(db, item.product, warehouse_id) if db else float(item.product.current_stock or 0)
-        if "REQU" in (req.req_type or "").upper() and approved > available:
+        if is_stock_request(req.req_type) and approved > available:
             raise StockError(f"Stock insuficiente para {item.product.code} - {item.product.name}.")
         item.quantity_issued = approved
         item.quantity_rejected = rejected

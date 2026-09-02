@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import get_db
-from app.models.core import Product, Requisition, RequisitionItem, RequisitionStatus, User
+from app.models.core import Product, Requisition, RequisitionItem, RequisitionStatus, Role, User
 from app.routers.common import templates
 from app.security import current_user, has_permission, require_permission
 from app.services.audit import audit_log
@@ -17,7 +17,7 @@ from app.services.inventory import StockError, active_warehouses, default_wareho
 from app.services.notifications import notify_requisition_decision, notify_requisition_pending
 from app.services.procurement import approval_label, classify_procurement
 from app.services.requisition_pdf import requisition_to_pdf
-from app.services.requisitions import approve_requisition, issue_requisition, next_requisition_number
+from app.services.requisitions import approve_requisition, is_stock_request, issue_requisition, next_requisition_number
 from app.services.transactions import atomic
 
 router = APIRouter(prefix="/requisicoes", tags=["requisicoes"])
@@ -78,10 +78,6 @@ def requisition_form_context(
     }
 
 
-def is_stock_request(req_type: str) -> bool:
-    return "REQUISI" in (req_type or "").upper() or (req_type or "").upper() == "REQUISICAO"
-
-
 def validate_requisition_items(
     db: Session,
     req_type: str,
@@ -130,7 +126,14 @@ def requisition_value(validated_items: list[tuple[int, Product, float]]) -> floa
     return round(sum(float(product.unit_price or 0) * quantity for _idx, product, quantity in validated_items), 2)
 
 
-def approval_assignment_for_value(db: Session, total_value: float) -> tuple[str, int | None]:
+def stock_manager_role(db: Session) -> Role | None:
+    return db.scalar(select(Role).where(Role.name == "Gestor de Estoque"))
+
+
+def approval_assignment_for_value(db: Session, total_value: float, req_type: str) -> tuple[str, int | None]:
+    if is_stock_request(req_type):
+        role = stock_manager_role(db)
+        return "Gestor de Estoque", role.id if role else None
     rule = classify_procurement(db, total_value)
     if not rule:
         return "Chefe do Terminal", None
@@ -138,6 +141,8 @@ def approval_assignment_for_value(db: Session, total_value: float) -> tuple[str,
 
 
 def can_review_requisition(db: Session, req: Requisition, user: User) -> bool:
+    if is_stock_request(req.req_type):
+        return user.role.name in {"SuperAdmin", "Gestor de Estoque"}
     return can_user_approve_assignment(
         db,
         user,
@@ -223,7 +228,7 @@ def create_requisition(
         )
         with atomic(db):
             total_value = requisition_value(validated_items)
-            approval_label_value, approver_role_id = approval_assignment_for_value(db, total_value)
+            approval_label_value, approver_role_id = approval_assignment_for_value(db, total_value, req_type)
             req = Requisition(
                 number=next_requisition_number(db),
                 requesting_user_id=user.id,
@@ -290,7 +295,7 @@ def submit_requisition(req_id: int, request: Request, db: Session = Depends(get_
         )
         with atomic(db):
             total_value = requisition_value(validated_items)
-            approval_label_value, approver_role_id = approval_assignment_for_value(db, total_value)
+            approval_label_value, approver_role_id = approval_assignment_for_value(db, total_value, req.req_type)
             req.estimated_value = total_value
             req.authorization_person = approval_label_value
             req.approver_role_id = approver_role_id
@@ -339,7 +344,7 @@ def review_requisition(
     approved_quantity: list[str] = Form([]),
     review_observation: list[str] = Form([]),
     db: Session = Depends(get_db),
-    user: User = Depends(require_permission("requisitions_review")),
+    user: User = Depends(current_user),
 ):
     req = db.get(Requisition, req_id)
     if not req:

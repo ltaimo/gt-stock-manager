@@ -116,6 +116,51 @@ function initLanguageForm() {
   });
 }
 
+function normalizedSearchText(value) {
+  return String(value || "")
+    .toLocaleLowerCase(document.documentElement.lang || "pt")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function initInstantTableSearch() {
+  document.querySelectorAll("[data-instant-table-search]").forEach((input) => {
+    const table = document.querySelector(input.dataset.instantTableSearch);
+    if (!table) return;
+    const rows = Array.from(table.querySelectorAll("tbody tr"));
+    const update = () => {
+      const query = normalizedSearchText(input.value);
+      rows.forEach((row) => {
+        if (row.querySelector(".empty-state")) return;
+        row.hidden = Boolean(query) && !normalizedSearchText(row.textContent).includes(query);
+      });
+    };
+    input.addEventListener("input", update);
+    update();
+  });
+}
+
+function initAutoSubmitFilters() {
+  document.querySelectorAll("form[data-auto-submit-filter]").forEach((form) => {
+    let timer;
+    const submit = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        if (typeof form.requestSubmit === "function") {
+          form.requestSubmit();
+        } else {
+          form.submit();
+        }
+      }, Number(form.dataset.autoSubmitDelay || 450));
+    };
+    form.querySelectorAll("input, select").forEach((field) => {
+      if (!field.name || field.dataset.instantTableSearch) return;
+      const eventName = field.tagName === "SELECT" || field.type === "date" ? "change" : "input";
+      field.addEventListener(eventName, submit);
+    });
+  });
+}
+
 document.addEventListener("submit", (event) => {
   const message = event.target.dataset.confirm;
   if (message && !window.confirm(message)) event.preventDefault();
@@ -694,6 +739,8 @@ window.addEventListener("load", () => {
   initNavigation();
   initResponsiveTables();
   initLanguageForm();
+  initInstantTableSearch();
+  initAutoSubmitFilters();
   initDashboardCharts();
   initRequisitionForm();
   initRequisitionReview();

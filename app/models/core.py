@@ -346,6 +346,13 @@ class ProcurementCase(Base):
     technical_report_status: Mapped[str] = mapped_column(String(60), default="Pending")
     financial_evaluation_status: Mapped[str] = mapped_column(String(60), default="Pending")
     bid_analysis_status: Mapped[str] = mapped_column(String(60), default="Pending")
+    procurement_recommendation: Mapped[str | None] = mapped_column(Text)
+    bid_selected_supplier: Mapped[str | None] = mapped_column(String(180))
+    bid_selected_amount: Mapped[float | None] = mapped_column(Numeric(14, 2))
+    terminal_bid_status: Mapped[str] = mapped_column(String(60), default="Pending")
+    terminal_bid_approved_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    terminal_bid_approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    terminal_bid_comments: Mapped[str | None] = mapped_column(Text)
     hse_documents_status: Mapped[str] = mapped_column(String(60), default="Not Required")
     selected_supplier: Mapped[str | None] = mapped_column(String(180))
     po_number: Mapped[str | None] = mapped_column(String(80))
@@ -361,10 +368,32 @@ class ProcurementCase(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     requisition: Mapped[Requisition] = relationship(back_populates="procurement_case")
+    attachments: Mapped[list["ProcurementAttachment"]] = relationship(back_populates="case", cascade="all, delete-orphan")
     budget_verified_by: Mapped[User | None] = relationship(foreign_keys=[budget_verified_by_id])
     procurement_officer: Mapped[User | None] = relationship(foreign_keys=[procurement_officer_id])
     hod_approved_by: Mapped[User | None] = relationship(foreign_keys=[hod_approved_by_id])
     terminal_manager_approved_by: Mapped[User | None] = relationship(foreign_keys=[terminal_manager_approved_by_id])
+    terminal_bid_approved_by: Mapped[User | None] = relationship(foreign_keys=[terminal_bid_approved_by_id])
+
+
+class ProcurementAttachment(Base):
+    __tablename__ = "procurement_attachments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    case_id: Mapped[int] = mapped_column(ForeignKey("procurement_cases.id"), nullable=False, index=True)
+    document_type: Mapped[str] = mapped_column(String(40), default="Quotation")
+    supplier_name: Mapped[str | None] = mapped_column(String(180))
+    amount: Mapped[float | None] = mapped_column(Numeric(14, 2))
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    stored_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    file_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    content_type: Mapped[str] = mapped_column(String(120), default="application/octet-stream")
+    uploaded_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    case: Mapped[ProcurementCase] = relationship(back_populates="attachments")
+    uploaded_by: Mapped[User] = relationship()
 
 
 class HseRecord(Base):
@@ -427,6 +456,37 @@ class InternalOperationRecord(Base):
     notes: Mapped[str | None] = mapped_column(Text)
 
     department: Mapped[Department | None] = relationship()
+    created_by: Mapped[User] = relationship(foreign_keys=[created_by_id])
+    approved_by: Mapped[User | None] = relationship(foreign_keys=[approved_by_id])
+
+
+class DepartmentDailyReport(Base):
+    __tablename__ = "department_daily_reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    number: Mapped[str] = mapped_column(String(40), unique=True, nullable=False, index=True)
+    department_key: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    report_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
+    period_start: Mapped[str | None] = mapped_column(String(40))
+    period_end: Mapped[str | None] = mapped_column(String(40))
+    shift: Mapped[str | None] = mapped_column(String(80))
+    prepared_by: Mapped[str | None] = mapped_column(String(160))
+    supervisor: Mapped[str | None] = mapped_column(String(160))
+    location: Mapped[str | None] = mapped_column(String(160))
+    team: Mapped[str | None] = mapped_column(Text)
+    activities: Mapped[str | None] = mapped_column(Text)
+    incidents: Mapped[str | None] = mapped_column(Text)
+    equipment_status: Mapped[str | None] = mapped_column(Text)
+    readings: Mapped[str | None] = mapped_column(Text)
+    pending_actions: Mapped[str | None] = mapped_column(Text)
+    notes: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(40), default="Draft", index=True)
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    approved_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
     created_by: Mapped[User] = relationship(foreign_keys=[created_by_id])
     approved_by: Mapped[User | None] = relationship(foreign_keys=[approved_by_id])
 

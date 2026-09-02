@@ -12,8 +12,9 @@
     </div>
     <span class="badge {{ 'orange' if pending_access_count else 'grey' }}">{{ pending_access_count }} {{ tx("pendentes", user if user is defined else none) }}</span>
   </div>
+  <div class="filters"><input type="search" placeholder="{{ tx("Pesquisar nesta lista", user if user is defined else none) }}" data-instant-table-search="#access-requests-table"></div>
   {% if access_requests %}
-  <table class="responsive-table">
+  <table class="responsive-table" id="access-requests-table">
     <thead>
       <tr>
         <th>{{ tx("Data", user if user is defined else none) }}</th>
@@ -54,7 +55,11 @@
   {% endif %}
 </section>
 <div class="panel">
-  <table class="responsive-table">
+  <div class="panel-heading">
+    <h2>{{ tx("Utilizadores", user if user is defined else none) }}</h2>
+    <input type="search" placeholder="{{ tx("Pesquisar nesta lista", user if user is defined else none) }}" data-instant-table-search="#users-table">
+  </div>
+  <table class="responsive-table" id="users-table">
     <thead>
       <tr>
         <th>{{ tx("ID", user if user is defined else none) }}</th>

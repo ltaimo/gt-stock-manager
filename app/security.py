@@ -75,6 +75,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         "requisitions_all",
         "stock_requisitions_create",
         "stock_replenishment_create",
+        "requisitions_review",
         "requisitions_issue",
         "procurement_receive",
         "reports",

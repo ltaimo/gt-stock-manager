@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
 <header class="page-header"><h1>{{ tx("Movimentos", user if user is defined else none) }}</h1><a class="button" href="/movimentos/novo">{{ tx("Novo Movimento", user if user is defined else none) }}</a></header>
+<div class="filters"><input type="search" placeholder="{{ tx("Pesquisar nesta lista", user if user is defined else none) }}" data-instant-table-search="#movements-table"></div>
 <div class="panel">{% include "movements/_table.html" %}</div>
 {% endblock %}

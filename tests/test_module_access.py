@@ -20,7 +20,6 @@ PROTECTED_GET_ROUTES = {
     "/procurement/nova": "non_stock_requisitions_create",
     "/procurement/reposicao/nova": "stock_replenishment_create",
     "/hse": "hse_view",
-    "/operacoes-internas": "internal_ops_view",
     "/relatorios": "reports",
     "/utilizadores": "users_manage",
     "/perfis": "profiles_manage",
@@ -109,6 +108,12 @@ class ModuleAccessTests(unittest.TestCase):
             if response.status_code != 403:
                 failures[path] = response.status_code
         self.assertEqual(failures, {})
+
+    def test_all_authenticated_users_can_enter_internal_operations_lobby(self):
+        self.login("bloqueado")
+        response = self.client.get("/operacoes-internas", follow_redirects=False)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Sem módulos disponíveis", response.text)
 
 
 if __name__ == "__main__":

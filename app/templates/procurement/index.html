@@ -9,8 +9,9 @@
   </div>
 </header>
 
+<div class="filters"><input type="search" placeholder="{{ tx("Pesquisar nesta lista", user if user is defined else none) }}" data-instant-table-search="#procurement-table"></div>
 <section class="panel">
-  <table class="responsive-table">
+  <table class="responsive-table" id="procurement-table">
     <thead>
       <tr>
         <th>{{ tx("N.", user if user is defined else none) }}</th>

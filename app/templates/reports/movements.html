@@ -7,7 +7,7 @@
     <a class="button secondary" href="?action={{ action }}&product_id={{ product_id or '' }}&warehouse_id={{ warehouse_id or '' }}&department_id={{ department_id or '' }}&user_id={{ user_id or '' }}&date_from={{ date_from }}&date_to={{ date_to }}&export=pdf">PDF</a>
   </div>
 </header>
-<form class="filters">
+<form class="filters" data-auto-submit-filter>
   <input type="date" name="date_from" value="{{ date_from }}">
   <input type="date" name="date_to" value="{{ date_to }}">
   <select name="action">
@@ -20,6 +20,7 @@
   <select name="warehouse_id"><option value="">{{ tx("Armazém", user if user is defined else none) }}</option>{% for warehouse in warehouses %}<option value="{{ warehouse.id }}" {% if warehouse_id==warehouse.id %}selected{% endif %}>{{ warehouse.name }}</option>{% endfor %}</select>
   <select name="department_id"><option value="">{{ tx("Departamento", user if user is defined else none) }}</option>{% for d in departments %}<option value="{{ d.id }}" {% if department_id==d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select>
   <select name="user_id"><option value="">{{ tx("Utilizador", user if user is defined else none) }}</option>{% for u in users %}<option value="{{ u.id }}" {% if user_id==u.id %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}</select>
+  <input type="search" placeholder="{{ tx("Pesquisar nesta lista", user if user is defined else none) }}" data-instant-table-search="#report-table">
   <button>{{ tx("Filtrar", user if user is defined else none) }}</button>
 </form>
 {% include "reports/table.html" %}

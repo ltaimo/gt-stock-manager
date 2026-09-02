@@ -6,9 +6,9 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.core import Department, InternalOperationOption, InternalOperationRecord, User
+from app.models.core import Department, DepartmentDailyReport, InternalOperationOption, InternalOperationRecord, User
 from app.routers.common import templates
-from app.security import has_permission, require_permission
+from app.security import current_user, has_permission, require_permission
 from app.services.audit import audit_log
 from app.services.forms import optional_float, optional_int, required_float, required_text
 from app.services.transactions import atomic
@@ -46,6 +46,39 @@ OPERATION_TYPES = {
 }
 PAYMENT_METHODS = ["Cheque", "Transferência", "Numerário", "Outro"]
 OPERATION_STATUSES = ["Registered", "Validated", "Cancelled"]
+DEPARTMENT_REPORTS = {
+    "maintenance": {
+        "label": "Departamento de Manutenção",
+        "short": "Manutenção",
+        "icon": "MN",
+        "description": "Atividades, inspeções, equipamentos críticos, paragens, emergências e pendências.",
+        "activity_label": "Tarefas executadas / atividades",
+        "incident_label": "Paragens, emergências ou assuntos de manutenção",
+        "equipment_label": "Equipamentos e utilidades críticas",
+        "readings_label": "Leituras / medições",
+    },
+    "it": {
+        "label": "Departamento de Informática",
+        "short": "Informática",
+        "icon": "IT",
+        "description": "Suporte diário, sistemas, equipamentos, acessos, incidentes técnicos e pendências.",
+        "activity_label": "Atividades dos ITs / suporte executado",
+        "incident_label": "Incidentes técnicos / falhas de sistemas",
+        "equipment_label": "Equipamentos, redes e sistemas verificados",
+        "readings_label": "Indicadores técnicos / tickets / disponibilidade",
+    },
+    "security": {
+        "label": "Departamento de Proteção e Segurança",
+        "short": "Segurança",
+        "icon": "SG",
+        "description": "Ocorrências, apreensões, efetivo, postos, patrulhas, iluminação e leituras.",
+        "activity_label": "Distribuição de postos / patrulhas / atividades",
+        "incident_label": "Incidentes, apreensões e outras ocorrências",
+        "equipment_label": "Iluminação, segurança física e meios operacionais",
+        "readings_label": "Leituras / rondas / presenças",
+    },
+}
+DEPARTMENT_REPORT_STATUSES = ["Draft", "Submitted", "Validated", "Cancelled"]
 QUANTITY_REQUIRED_TYPES = {
     "fuel_purchase_storage",
     "fuel_refuel",
@@ -83,6 +116,13 @@ def next_operation_number(db: Session, kind: str) -> str:
     return f"{prefix}-{year}-{count + 1:04d}"
 
 
+def next_department_report_number(db: Session, department_key: str) -> str:
+    prefix = {"maintenance": "MAN", "it": "IT", "security": "SEC"}.get(department_key, "OPS")
+    year = datetime.now(timezone.utc).year
+    count = db.scalar(select(func.count(DepartmentDailyReport.id)).where(DepartmentDailyReport.number.like(f"{prefix}-DR-{year}-%"))) or 0
+    return f"{prefix}-DR-{year}-{count + 1:04d}"
+
+
 def parse_record_date(value: str | None) -> datetime:
     cleaned = str(value or "").strip()
     if not cleaned:
@@ -93,18 +133,34 @@ def parse_record_date(value: str | None) -> datetime:
         raise HTTPException(400, "Informe uma data válida no formato AAAA-MM-DD.") from exc
 
 
+def parse_report_date(value: str | None) -> datetime:
+    cleaned = str(value or "").strip()
+    if not cleaned:
+        raise HTTPException(400, "Informe a data do relatório.")
+    try:
+        return datetime.fromisoformat(cleaned).replace(tzinfo=timezone.utc)
+    except ValueError as exc:
+        raise HTTPException(400, "Informe uma data válida no formato AAAA-MM-DD.") from exc
+
+
 def operations_context(request: Request, db: Session, user: User, kind: str = "", error: str | None = None) -> dict:
-    stmt = select(InternalOperationRecord).order_by(InternalOperationRecord.record_date.desc(), InternalOperationRecord.id.desc())
-    if kind:
-        stmt = stmt.where(InternalOperationRecord.kind == kind)
-    records = db.scalars(stmt.limit(250)).all()
-    totals = {
-        item_kind: {
-            "count": db.scalar(select(func.count(InternalOperationRecord.id)).where(InternalOperationRecord.kind == item_kind)) or 0,
-            "amount": db.scalar(select(func.coalesce(func.sum(InternalOperationRecord.amount), 0)).where(InternalOperationRecord.kind == item_kind)) or 0,
-        }
-        for item_kind in OPERATION_KINDS
-    }
+    can_view_internal_records = has_permission(user, "internal_ops_view")
+    can_view_internal_reports = has_permission(user, "internal_ops_reports")
+    records = []
+    if can_view_internal_records:
+        stmt = select(InternalOperationRecord).order_by(InternalOperationRecord.record_date.desc(), InternalOperationRecord.id.desc())
+        if kind:
+            stmt = stmt.where(InternalOperationRecord.kind == kind)
+        records = db.scalars(stmt.limit(250)).all()
+    totals = {}
+    for item_kind in OPERATION_KINDS:
+        if can_view_internal_records:
+            totals[item_kind] = {
+                "count": db.scalar(select(func.count(InternalOperationRecord.id)).where(InternalOperationRecord.kind == item_kind)) or 0,
+                "amount": db.scalar(select(func.coalesce(func.sum(InternalOperationRecord.amount), 0)).where(InternalOperationRecord.kind == item_kind)) or 0,
+            }
+        else:
+            totals[item_kind] = {"count": 0, "amount": 0}
     option_rows = db.scalars(
         select(InternalOperationOption)
         .where(InternalOperationOption.is_active == True)
@@ -128,10 +184,13 @@ def operations_context(request: Request, db: Session, user: User, kind: str = ""
         "payment_methods": payment_method_options,
         "payment_types": PAYMENT_TYPES,
         "statuses": OPERATION_STATUSES,
+        "department_report_types": DEPARTMENT_REPORTS,
         "totals": totals,
         "operation_options": operation_options,
         "selected_kind": kind,
         "departments": db.scalars(select(Department).where(Department.is_active == True).order_by(Department.name)).all(),
+        "can_view_internal_records": can_view_internal_records,
+        "can_view_internal_reports": can_view_internal_reports,
         "can_create_internal_ops": has_permission(user, "internal_ops_create"),
         "can_approve_internal_ops": has_permission(user, "internal_ops_approve"),
         "error": error,
@@ -143,7 +202,7 @@ def operations_home(
     request: Request,
     kind: str = "",
     db: Session = Depends(get_db),
-    user: User = Depends(require_permission("internal_ops_view")),
+    user: User = Depends(current_user),
 ):
     if kind and kind not in OPERATION_KINDS:
         raise HTTPException(404)
@@ -260,3 +319,127 @@ def validate_operation_record(
             record.approved_at = datetime.now(timezone.utc)
         audit_log(db, user, "Validou operação interna", "Operações Internas", record.number, old_value={"status": old_status}, new_value={"status": status}, request=request)
     return RedirectResponse(f"/operacoes-internas?kind={record.kind}", status_code=303)
+
+
+def department_reports_context(request: Request, db: Session, user: User, department_key: str = "", error: str | None = None) -> dict:
+    can_create_reports = has_permission(user, "internal_ops_create")
+    can_view_reports = has_permission(user, "internal_ops_reports")
+    reports = []
+    if can_view_reports:
+        stmt = select(DepartmentDailyReport).order_by(DepartmentDailyReport.report_date.desc(), DepartmentDailyReport.id.desc())
+        if department_key:
+            stmt = stmt.where(DepartmentDailyReport.department_key == department_key)
+        reports = db.scalars(stmt.limit(250)).all()
+    totals = {
+        key: db.scalar(select(func.count(DepartmentDailyReport.id)).where(DepartmentDailyReport.department_key == key)) or 0
+        for key in DEPARTMENT_REPORTS
+    }
+    return {
+        "request": request,
+        "user": user,
+        "reports": reports,
+        "report_types": DEPARTMENT_REPORTS,
+        "statuses": DEPARTMENT_REPORT_STATUSES,
+        "selected_department": department_key,
+        "totals": totals,
+        "can_create_internal_ops": can_create_reports,
+        "can_approve_internal_ops": has_permission(user, "internal_ops_approve"),
+        "can_view_internal_reports": can_view_reports,
+        "error": error,
+    }
+
+
+@router.get("/relatorios-departamentais")
+def department_reports_home(
+    request: Request,
+    department: str = "",
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    if department and department not in DEPARTMENT_REPORTS:
+        raise HTTPException(404)
+    if not (has_permission(user, "internal_ops_create") or has_permission(user, "internal_ops_reports")):
+        raise HTTPException(403)
+    return templates.TemplateResponse(
+        request,
+        "internal_ops/department_reports.html",
+        department_reports_context(request, db, user, department),
+    )
+
+
+@router.post("/relatorios-departamentais")
+def create_department_report(
+    request: Request,
+    department_key: str = Form(...),
+    report_date: str = Form(...),
+    period_start: str | None = Form(None),
+    period_end: str | None = Form(None),
+    shift: str | None = Form(None),
+    prepared_by: str | None = Form(None),
+    supervisor: str | None = Form(None),
+    location: str | None = Form(None),
+    team: str | None = Form(None),
+    activities: str | None = Form(None),
+    incidents: str | None = Form(None),
+    equipment_status: str | None = Form(None),
+    readings: str | None = Form(None),
+    pending_actions: str | None = Form(None),
+    notes: str | None = Form(None),
+    status: str = Form("Submitted"),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("internal_ops_create")),
+):
+    if department_key not in DEPARTMENT_REPORTS:
+        raise HTTPException(400, "Escolha um departamento válido para o relatório.")
+    if status not in {"Draft", "Submitted"}:
+        raise HTTPException(400, "Escolha um estado inicial válido.")
+    if not any(str(value or "").strip() for value in [activities, incidents, equipment_status, readings, pending_actions, notes]):
+        raise HTTPException(400, "Preencha pelo menos uma secção operacional do relatório.")
+    with atomic(db):
+        report = DepartmentDailyReport(
+            number=next_department_report_number(db, department_key),
+            department_key=department_key,
+            report_date=parse_report_date(report_date),
+            period_start=(period_start or "").strip() or None,
+            period_end=(period_end or "").strip() or None,
+            shift=(shift or "").strip() or None,
+            prepared_by=(prepared_by or "").strip() or user.full_name,
+            supervisor=(supervisor or "").strip() or None,
+            location=(location or "").strip() or None,
+            team=(team or "").strip() or None,
+            activities=(activities or "").strip() or None,
+            incidents=(incidents or "").strip() or None,
+            equipment_status=(equipment_status or "").strip() or None,
+            readings=(readings or "").strip() or None,
+            pending_actions=(pending_actions or "").strip() or None,
+            notes=(notes or "").strip() or None,
+            status=status,
+            created_by_id=user.id,
+        )
+        db.add(report)
+        db.flush()
+        audit_log(db, user, "Criou relatório diário departamental", "Operações Internas", report.number, new_value={"department": department_key, "status": status}, request=request)
+    return RedirectResponse(f"/operacoes-internas/relatorios-departamentais?department={department_key}", status_code=303)
+
+
+@router.post("/relatorios-departamentais/{report_id}/validar")
+def validate_department_report(
+    report_id: int,
+    request: Request,
+    status: str = Form("Validated"),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("internal_ops_approve")),
+):
+    report = db.get(DepartmentDailyReport, report_id)
+    if not report:
+        raise HTTPException(404)
+    if status not in DEPARTMENT_REPORT_STATUSES:
+        raise HTTPException(400, "Escolha um estado válido.")
+    old_status = report.status
+    with atomic(db):
+        report.status = status
+        if status == "Validated":
+            report.approved_by_id = user.id
+            report.approved_at = datetime.now(timezone.utc)
+        audit_log(db, user, "Validou relatório diário departamental", "Operações Internas", report.number, old_value={"status": old_status}, new_value={"status": status}, request=request)
+    return RedirectResponse(f"/operacoes-internas/relatorios-departamentais?department={report.department_key}", status_code=303)

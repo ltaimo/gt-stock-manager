@@ -75,7 +75,7 @@ class ApprovalRoutingTests(unittest.TestCase):
             authorization_person=self.terminal_role.name,
             approver_role_id=self.terminal_role.id,
             estimated_value=7500,
-            req_type="REQUISICAO",
+            req_type="OUTRO",
             status="Submitted",
         )
         self.db.add(self.req)
@@ -157,7 +157,7 @@ class ApprovalRoutingTests(unittest.TestCase):
             authorization_person=self.stock_role.name,
             approver_role_id=self.stock_role.id,
             estimated_value=1000,
-            req_type="REQUISICAO",
+            req_type="OUTRO",
             status="Submitted",
         )
         self.db.add(low_req)
@@ -165,6 +165,24 @@ class ApprovalRoutingTests(unittest.TestCase):
 
         self.assertTrue(can_review_requisition(self.db, low_req, self.stock_user))
         self.assertTrue(can_review_requisition(self.db, low_req, self.terminal_user))
+
+    def test_stock_requisition_is_reviewed_only_by_stock_manager(self):
+        stock_req = Requisition(
+            number="REQ-TEST-SR",
+            requesting_user_id=self.req.requesting_user_id,
+            department_id=self.req.department_id,
+            authorization_person=self.terminal_role.name,
+            approver_role_id=self.terminal_role.id,
+            estimated_value=7500,
+            req_type="REQUISICAO",
+            status="Submitted",
+        )
+        self.db.add(stock_req)
+        self.db.commit()
+
+        self.assertTrue(can_review_requisition(self.db, stock_req, self.stock_user))
+        self.assertFalse(can_review_requisition(self.db, stock_req, self.terminal_user))
+        self.assertTrue(can_review_requisition(self.db, stock_req, self.superadmin))
 
     def test_amount_only_approval_uses_matrix_hierarchy(self):
         self.assertTrue(
@@ -333,7 +351,7 @@ class ApprovalRoutingTests(unittest.TestCase):
             authorization_person=self.stock_role.name,
             approver_role_id=self.stock_role.id,
             estimated_value=1000,
-            req_type="REQUISICAO",
+            req_type="OUTRO",
             status="Submitted",
         )
         self.db.add(low_req)
@@ -374,7 +392,7 @@ class ApprovalRoutingTests(unittest.TestCase):
             authorization_person=self.stock_role.name,
             approver_role_id=self.stock_role.id,
             estimated_value=1000,
-            req_type="REQUISICAO",
+            req_type="OUTRO",
             status="Submitted",
         )
         self.db.add(stock_request)

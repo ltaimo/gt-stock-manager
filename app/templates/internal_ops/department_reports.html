@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header module-hero ops-hero">
+  <div>
+    <span class="eyebrow">{{ tx("Operações internas", user if user is defined else none) }}</span>
+    <h1>{{ tx("Relatórios departamentais", user if user is defined else none) }}</h1>
+    <p class="muted">{{ tx("Relatórios diários de Manutenção, Informática e Segurança, consolidados para consulta semanal e mensal.", user if user is defined else none) }}</p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/operacoes-internas">{{ tx("Operações internas", user if user is defined else none) }}</a>
+    <a class="button secondary" href="/relatorios/operacoes-internas/departamentos">{{ tx("Ver consolidação", user if user is defined else none) }}</a>
+  </div>
+</header>
+
+<section class="action-hub ops-hub" aria-label="{{ tx("Departamentos com relatório diário", user if user is defined else none) }}">
+  {% for key, item in report_types.items() %}
+    <a class="action-tile {% if selected_department == key %}active{% endif %}" href="/operacoes-internas/relatorios-departamentais?department={{ key }}#department-report-form">
+      <span class="tile-code">{{ "%02d"|format(loop.index) }}</span>
+      <span class="tile-icon" aria-hidden="true">{{ item.icon }}</span>
+      <strong>{{ tx(item.short, user if user is defined else none) }}</strong>
+      <small>{{ totals[key] }} {{ tx("relatórios registados", user if user is defined else none) }}</small>
+    </a>
+  {% endfor %}
+</section>
+
+<section class="panel" id="department-report-form">
+  {% if not selected_department %}
+    <div class="choice-empty-state">
+      <strong>{{ tx("Escolha um departamento", user if user is defined else none) }}</strong>
+      <p class="muted">{{ tx("Clique em Manutenção, Informática ou Segurança para abrir os campos do relatório diário.", user if user is defined else none) }}</p>
+    </div>
+  {% else %}
+    {% set selected = report_types[selected_department] %}
+    <div class="panel-heading">
+      <div>
+        <h2>{{ tx(selected.label, user if user is defined else none) }}</h2>
+        <p class="muted">{{ tx(selected.description, user if user is defined else none) }}</p>
+      </div>
+    </div>
+    {% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
+    {% if can_create_internal_ops %}
+      <form method="post" action="/operacoes-internas/relatorios-departamentais" class="form-stack">
+        <input type="hidden" name="department_key" value="{{ selected_department }}">
+        <div class="form-grid">
+          <label>{{ tx("Data do relatório", user if user is defined else none) }}<input type="date" name="report_date" required></label>
+          <label>{{ tx("Turno / período", user if user is defined else none) }}<input name="shift" maxlength="80" placeholder="07h00-17h00 / 17h00-07h00"></label>
+          <label>{{ tx("Início do período", user if user is defined else none) }}<input name="period_start" maxlength="40" placeholder="07h00"></label>
+          <label>{{ tx("Fim do período", user if user is defined else none) }}<input name="period_end" maxlength="40" placeholder="17h00"></label>
+          <label>{{ tx("Preparado por", user if user is defined else none) }}<input name="prepared_by" maxlength="160" value="{{ user.full_name }}"></label>
+          <label>{{ tx("Supervisor / chefe de turno", user if user is defined else none) }}<input name="supervisor" maxlength="160"></label>
+          <label>{{ tx("Local / área", user if user is defined else none) }}<input name="location" maxlength="160"></label>
+          <label>{{ tx("Estado inicial", user if user is defined else none) }}
+            <select name="status">
+              <option value="Submitted">{{ tx("Submetido", user if user is defined else none) }}</option>
+              <option value="Draft">{{ tx("Rascunho", user if user is defined else none) }}</option>
+            </select>
+          </label>
+        </div>
+        <label>{{ tx("Equipa / staff em serviço", user if user is defined else none) }}<textarea name="team"></textarea></label>
+        <label>{{ tx(selected.activity_label, user if user is defined else none) }}<textarea name="activities"></textarea></label>
+        <label>{{ tx(selected.incident_label, user if user is defined else none) }}<textarea name="incidents"></textarea></label>
+        <label>{{ tx(selected.equipment_label, user if user is defined else none) }}<textarea name="equipment_status"></textarea></label>
+        <label>{{ tx(selected.readings_label, user if user is defined else none) }}<textarea name="readings"></textarea></label>
+        <label>{{ tx("Pendências / ações para acompanhamento", user if user is defined else none) }}<textarea name="pending_actions"></textarea></label>
+        <label>{{ tx("Notas adicionais", user if user is defined else none) }}<textarea name="notes"></textarea></label>
+        <div class="actions"><button class="success">{{ tx("Guardar relatório diário", user if user is defined else none) }}</button></div>
+      </form>
+    {% endif %}
+  {% endif %}
+</section>
+
+<section class="panel">
+  <div class="panel-heading">
+    <h2>{{ tx("Relatórios recentes", user if user is defined else none) }}</h2>
+    <input type="search" placeholder="{{ tx("Pesquisar nesta lista", user if user is defined else none) }}" data-instant-table-search="#department-reports-table">
+  </div>
+  <table id="department-reports-table">
+    <thead>
+      <tr>
+        <th>{{ tx("Nº", user if user is defined else none) }}</th>
+        <th>{{ tx("Data", user if user is defined else none) }}</th>
+        <th>{{ tx("Departamento", user if user is defined else none) }}</th>
+        <th>{{ tx("Preparado por", user if user is defined else none) }}</th>
+        <th>{{ tx("Resumo", user if user is defined else none) }}</th>
+        <th>{{ tx("Estado", user if user is defined else none) }}</th>
+        <th>{{ tx("Validação", user if user is defined else none) }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for report in reports %}
+        <tr>
+          <td>{{ report.number }}</td>
+          <td>{{ report.report_date.strftime('%Y-%m-%d') }}</td>
+          <td>{{ tx(report_types[report.department_key].short, user if user is defined else none) }}</td>
+          <td>{{ report.prepared_by or report.created_by.full_name }}</td>
+          <td><strong>{{ report.activities or report.incidents or report.equipment_status or "-" }}</strong><br><small class="muted">{{ report.pending_actions or report.notes or "" }}</small></td>
+          <td><span class="badge {{ 'green' if report.status == 'Validated' else 'grey' if report.status == 'Cancelled' else 'orange' }}">{{ tv(report.status, user) }}</span></td>
+          <td>
+            {% if can_approve_internal_ops and report.status != 'Validated' %}
+              <form method="post" action="/operacoes-internas/relatorios-departamentais/{{ report.id }}/validar" class="inline-form">
+                <select name="status">{% for status in statuses %}<option value="{{ status }}" {% if report.status == status %}selected{% endif %}>{{ tv(status, user) }}</option>{% endfor %}</select>
+                <button class="secondary compact">{{ tx("Atualizar", user if user is defined else none) }}</button>
+              </form>
+            {% else %}
+              {{ report.approved_by.full_name if report.approved_by else "-" }}
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7" class="empty-state">{{ tx("Ainda não existem relatórios para os filtros selecionados.", user if user is defined else none) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

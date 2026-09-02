@@ -40,7 +40,7 @@
       <a href="/procurement" data-nav-prefix="/procurement"><span class="nav-icon" aria-hidden="true">◇</span><span>{{ t('procurement', user) }}</span></a>
     {% endif %}
     {% if can(user, 'hse_view') %}<a href="/hse" data-nav-prefix="/hse"><span class="nav-icon" aria-hidden="true">✚</span><span>{{ t('hse', user) }}</span></a>{% endif %}
-    {% if can(user, 'internal_ops_view') %}<a href="/operacoes-internas" data-nav-prefix="/operacoes-internas"><span class="nav-icon" aria-hidden="true">⚙</span><span>{{ t('internal_ops', user) }}</span></a>{% endif %}
+    <a href="/operacoes-internas" data-nav-prefix="/operacoes-internas"><span class="nav-icon" aria-hidden="true">⚙</span><span>{{ t('internal_ops', user) }}</span></a>
     {% if can(user, 'reports') or can(user, 'hse_reports') or can(user, 'internal_ops_reports') %}<a href="/relatorios" data-nav-prefix="/relatorios"><span class="nav-icon" aria-hidden="true">▥</span><span>{{ t('reports', user) }}</span></a>{% endif %}
     {% if can(user, 'users_manage') %}<a href="/utilizadores" data-nav-prefix="/utilizadores"><span class="nav-icon" aria-hidden="true">◉</span><span>{{ t('users', user) }}</span></a>{% endif %}
     {% if can(user, 'profiles_manage') %}<a href="/perfis" data-nav-prefix="/perfis"><span class="nav-icon" aria-hidden="true">◈</span><span>{{ t('profiles', user) }}</span></a>{% endif %}
@@ -73,7 +73,14 @@
         </select>
         <button type="submit" class="compact secondary">{{ t('apply_language', user) }}</button>
       </form>
-      <div class="user-chip">{{ user.full_name }} &middot; {{ tv(user.role.name, user) }}</div>
+      <details class="user-menu">
+        <summary class="user-chip">{{ user.full_name }} &middot; {{ tv(user.role.name, user) }}</summary>
+        <div class="user-menu-panel">
+          <a href="/conta">{{ tx("Minha conta", user if user is defined else none) }}</a>
+          <a href="/reset-password">{{ tx("Alterar senha", user if user is defined else none) }}</a>
+          <form method="post" action="/logout"><button class="link-button">{{ tx("Sair", user if user is defined else none) }}</button></form>
+        </div>
+      </details>
     </div>
   </header>
   <main class="content">

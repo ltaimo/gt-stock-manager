@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header">
+  <h1>{{ title }}</h1>
+  <div>
+    <a class="button secondary" href="?export=xlsx">Excel</a>
+    <a class="button secondary" href="?export=pdf">PDF</a>
+  </div>
+</header>
+<section class="panel">
+  <p class="muted">{{ tx("Use este relatório para identificar gargalos: cada linha mostra a fase atual, há quantos dias está aberta, quem deve agir e qual é o próximo passo esperado.", user if user is defined else none) }}</p>
+  <div class="filters"><input type="search" placeholder="{{ tx("Pesquisar nesta lista", user if user is defined else none) }}" data-instant-table-search="#procurement-pending-table"></div>
+  <table class="responsive-table" id="procurement-pending-table">
+    <thead><tr>{% for h in headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>{% for value in row %}<td data-label="{{ headers[loop.index0] }}">{{ value }}</td>{% endfor %}</tr>
+      {% else %}
+        <tr><td colspan="{{ headers|length }}"><div class="empty-state">{{ tx("Sem processos de procurement pendentes.", user if user is defined else none) }}</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

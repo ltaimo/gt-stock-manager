@@ -34,7 +34,7 @@ def repair_portuguese_labels(db) -> None:
     replacements = {
         Department: {
             legacy_mojibake(value): value
-            for value in ["Operações", "Administração", "Manutenção", "Faturação", "Armazém"]
+            for value in ["Operações", "Administração", "Informática", "Manutenção", "Segurança", "Faturação", "Armazém"]
         },
         Category: {
             legacy_mojibake(value): value
@@ -194,7 +194,9 @@ def seed() -> None:
             "Geral",
             "Operações",
             "Administração",
+            "Informática",
             "Manutenção",
+            "Segurança",
             "Economato",
             "Faturação",
             "Armazém",

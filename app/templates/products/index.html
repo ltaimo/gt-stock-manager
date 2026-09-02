@@ -9,8 +9,8 @@
 </header>
 {% if replenishment_signal %}<div class="alert green">{{ tm(replenishment_signal, user, request) }}</div>{% endif %}
 {% if replenishment_error %}<div class="alert red">{{ tm(replenishment_error, user, request) }}</div>{% endif %}
-<form class="filters">
-  <input name="q" value="{{ q }}" placeholder="{{ tx("Pesquisar código, produto ou categoria", user if user is defined else none) }}" spellcheck="true">
+<form class="filters" data-auto-submit-filter>
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ tx("Pesquisar código, produto ou categoria", user if user is defined else none) }}" spellcheck="true" data-instant-table-search="#products-table">
   <select name="status">
     <option value="">{{ tx("Todos", user if user is defined else none) }}</option>
     <option value="active" {% if status=='active' %}selected{% endif %}>{{ tx("Ativo", user if user is defined else none) }}</option>
@@ -19,7 +19,7 @@
   <button>{{ tx("Filtrar", user if user is defined else none) }}</button>
 </form>
 <div class="panel">
-  <table>
+  <table id="products-table">
     <thead>
       <tr>
         <th>{{ tx("Código", user if user is defined else none) }}</th>

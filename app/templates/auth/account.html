@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <h1>{{ tx("Minha conta", user if user is defined else none) }}</h1>
+    <p class="muted">{{ tx("Dados do utilizador autenticado e ações rápidas da conta.", user if user is defined else none) }}</p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/reset-password">{{ tx("Alterar senha", user if user is defined else none) }}</a>
+    <form method="post" action="/logout"><button class="danger">{{ tx("Sair", user if user is defined else none) }}</button></form>
+  </div>
+</header>
+
+<section class="panel account-panel">
+  <div class="account-avatar" aria-hidden="true">{{ (user.full_name or user.username)[:1] }}</div>
+  <div class="account-details">
+    <h2>{{ user.full_name }}</h2>
+    <dl>
+      <div><dt>{{ tx("Utilizador", user if user is defined else none) }}</dt><dd>{{ user.username }}</dd></div>
+      <div><dt>{{ tx("Email", user if user is defined else none) }}</dt><dd>{{ user.email or "-" }}</dd></div>
+      <div><dt>{{ tx("Contacto", user if user is defined else none) }}</dt><dd>{{ user.phone or "-" }}</dd></div>
+      <div><dt>{{ tx("Perfil", user if user is defined else none) }}</dt><dd>{{ tv(user.role.name, user) }}</dd></div>
+      <div><dt>{{ tx("Departamento", user if user is defined else none) }}</dt><dd>{{ user.department.name if user.department else "-" }}</dd></div>
+      <div><dt>{{ tx("Idioma", user if user is defined else none) }}</dt><dd>{{ current_language(user) | upper }}</dd></div>
+    </dl>
+  </div>
+</section>
+{% endblock %}

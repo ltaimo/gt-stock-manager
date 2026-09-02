@@ -14,6 +14,7 @@ from app.security import grant_permissions, require_permission
 from app.services.audit import audit_log
 from app.services.categorization import normalize_text
 from app.services.forms import optional_float, optional_int, required_float, required_text
+from app.services.schema_health import collect_schema_health
 from app.services.stock_reset import reset_all_stock
 from app.services.transactions import atomic
 
@@ -91,6 +92,10 @@ SETTINGS_SECTIONS = {
         "label": "Reset de stock",
         "description": "Área controlada para levar saldos de stock a zero com código de segurança.",
     },
+    "system_health": {
+        "label": "Saúde do sistema",
+        "description": "Verificação de schema, matriz e perfis críticos para produção.",
+    },
 }
 
 
@@ -148,6 +153,7 @@ def settings_home(
             "reset_message": request.query_params.get("reset_message"),
             "reset_error": request.query_params.get("reset_error"),
             "reset_enabled": bool(settings.reset_stock_security_code),
+            "schema_health": collect_schema_health(db) if clean_section == "system_health" else None,
         },
     )
 

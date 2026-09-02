@@ -11,7 +11,9 @@ DEFAULT_DEPARTMENTS = [
     "Geral",
     "Operações",
     "Administração",
+    "Informática",
     "Manutenção",
+    "Segurança",
     "Economato",
     "Faturação",
     "Armazém",
@@ -125,6 +127,12 @@ def _ensure_postgres_id_default(connection, table_name: str) -> None:
     connection.execute(text(f"ALTER TABLE {table_name} ALTER COLUMN id SET DEFAULT nextval('{sequence_name}')"))
 
 
+def _schema_statement(connection, statement: str) -> str:
+    if connection.dialect.name == "postgresql" and " ADD COLUMN " in statement:
+        return statement.replace(" ADD COLUMN ", " ADD COLUMN IF NOT EXISTS ", 1)
+    return statement
+
+
 def ensure_schema() -> None:
     inspector = inspect(engine)
     additions = []
@@ -207,6 +215,13 @@ def ensure_schema() -> None:
             "terminal_manager_approved_by_id": "ALTER TABLE procurement_cases ADD COLUMN terminal_manager_approved_by_id INTEGER REFERENCES users(id)",
             "terminal_manager_approved_at": "ALTER TABLE procurement_cases ADD COLUMN terminal_manager_approved_at TIMESTAMP",
             "technical_report_status": "ALTER TABLE procurement_cases ADD COLUMN technical_report_status VARCHAR(60) DEFAULT 'Pending'",
+            "procurement_recommendation": "ALTER TABLE procurement_cases ADD COLUMN procurement_recommendation TEXT",
+            "bid_selected_supplier": "ALTER TABLE procurement_cases ADD COLUMN bid_selected_supplier VARCHAR(180)",
+            "bid_selected_amount": "ALTER TABLE procurement_cases ADD COLUMN bid_selected_amount NUMERIC(14, 2)",
+            "terminal_bid_status": "ALTER TABLE procurement_cases ADD COLUMN terminal_bid_status VARCHAR(60) DEFAULT 'Pending'",
+            "terminal_bid_approved_by_id": "ALTER TABLE procurement_cases ADD COLUMN terminal_bid_approved_by_id INTEGER REFERENCES users(id)",
+            "terminal_bid_approved_at": "ALTER TABLE procurement_cases ADD COLUMN terminal_bid_approved_at TIMESTAMP",
+            "terminal_bid_comments": "ALTER TABLE procurement_cases ADD COLUMN terminal_bid_comments TEXT",
             "hse_documents_status": "ALTER TABLE procurement_cases ADD COLUMN hse_documents_status VARCHAR(60) DEFAULT 'Not Required'",
             "execution_status": "ALTER TABLE procurement_cases ADD COLUMN execution_status VARCHAR(60) DEFAULT 'Not Started'",
             "receipt_note": "ALTER TABLE procurement_cases ADD COLUMN receipt_note TEXT",
@@ -289,10 +304,69 @@ def ensure_schema() -> None:
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_access_requests_status ON access_requests (status)"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_access_requests_email ON access_requests (email)"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_access_requests_username_suggestion ON access_requests (username_suggestion)"))
+        if "procurement_attachments" not in tables:
+            binary_type = "BYTEA" if connection.dialect.name == "postgresql" else "BLOB"
+            connection.execute(
+                text(
+                    f"""
+                    CREATE TABLE procurement_attachments (
+                        id {id_primary_key},
+                        case_id INTEGER NOT NULL REFERENCES procurement_cases(id),
+                        document_type VARCHAR(40) DEFAULT 'Quotation',
+                        supplier_name VARCHAR(180),
+                        amount NUMERIC(14, 2),
+                        original_filename VARCHAR(255) NOT NULL,
+                        stored_filename VARCHAR(255) NOT NULL,
+                        file_path VARCHAR(500) NOT NULL,
+                        content {binary_type} NOT NULL,
+                        content_type VARCHAR(120) DEFAULT 'application/octet-stream',
+                        uploaded_by_id INTEGER NOT NULL REFERENCES users(id),
+                        created_at TIMESTAMP
+                    )
+                    """
+                )
+            )
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_procurement_attachments_case_id ON procurement_attachments (case_id)"))
+        if "department_daily_reports" not in tables:
+            connection.execute(
+                text(
+                    f"""
+                    CREATE TABLE department_daily_reports (
+                        id {id_primary_key},
+                        number VARCHAR(40) UNIQUE NOT NULL,
+                        department_key VARCHAR(30) NOT NULL,
+                        report_date TIMESTAMP,
+                        period_start VARCHAR(40),
+                        period_end VARCHAR(40),
+                        shift VARCHAR(80),
+                        prepared_by VARCHAR(160),
+                        supervisor VARCHAR(160),
+                        location VARCHAR(160),
+                        team TEXT,
+                        activities TEXT,
+                        incidents TEXT,
+                        equipment_status TEXT,
+                        readings TEXT,
+                        pending_actions TEXT,
+                        notes TEXT,
+                        status VARCHAR(40) DEFAULT 'Draft',
+                        created_by_id INTEGER NOT NULL REFERENCES users(id),
+                        approved_by_id INTEGER REFERENCES users(id),
+                        approved_at TIMESTAMP,
+                        created_at TIMESTAMP,
+                        updated_at TIMESTAMP
+                    )
+                    """
+                )
+            )
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_department_daily_reports_number ON department_daily_reports (number)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_department_daily_reports_department_key ON department_daily_reports (department_key)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_department_daily_reports_report_date ON department_daily_reports (report_date)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_department_daily_reports_status ON department_daily_reports (status)"))
         for statement in additions:
-            connection.execute(text(statement))
+            connection.execute(text(_schema_statement(connection, statement)))
         current_tables = set(inspect(connection).get_table_names())
-        for table_name in ("warehouses", "product_warehouse_stocks", "internal_operation_options", "access_requests"):
+        for table_name in ("warehouses", "product_warehouse_stocks", "internal_operation_options", "access_requests", "department_daily_reports"):
             if table_name in current_tables:
                 _ensure_postgres_id_default(connection, table_name)
         if "warehouses" in current_tables:
@@ -504,6 +578,85 @@ def ensure_schema() -> None:
                     """
                 )
             )
+            procurement_columns = {column["name"] for column in inspect(connection).get_columns("procurement_cases")}
+            if "requisitions" in tables and "approval_route" in procurement_columns:
+                can_repair_technical_evaluation = {
+                    "technical_evaluation_required",
+                    "technical_evaluation_status",
+                    "technical_report_status",
+                }.issubset(procurement_columns)
+                if connection.dialect.name == "postgresql":
+                    connection.execute(
+                        text(
+                            """
+                            UPDATE procurement_cases
+                            SET approval_route = 'Director do Terminal'
+                            FROM requisitions
+                            WHERE requisitions.id = procurement_cases.requisition_id
+                              AND requisitions.req_type = 'NS'
+                              AND lower(coalesce(procurement_cases.approval_route, '')) IN (
+                                  'gestor de estoque',
+                                  'gestor de stock',
+                                  'supervisor',
+                                  'chefe do terminal',
+                                  'terminal manager',
+                                  'chefe do terminal / terminal manager'
+                              )
+                            """
+                        )
+                    )
+                    if can_repair_technical_evaluation:
+                        connection.execute(
+                            text(
+                                """
+                                UPDATE procurement_cases
+                                SET technical_evaluation_required = true,
+                                    technical_evaluation_status = 'Pending',
+                                    technical_report_status = 'Pending'
+                                FROM requisitions
+                                WHERE requisitions.id = procurement_cases.requisition_id
+                                  AND requisitions.req_type = 'NS'
+                                  AND lower(coalesce(procurement_cases.technical_evaluation_status, '')) IN ('', 'not required', 'não requerido', 'nao requerido')
+                                  AND procurement_cases.status NOT IN ('Closed', 'Cancelled')
+                                """
+                            )
+                        )
+                else:
+                    connection.execute(
+                        text(
+                            """
+                            UPDATE procurement_cases
+                            SET approval_route = 'Director do Terminal'
+                            WHERE requisition_id IN (
+                                SELECT id FROM requisitions WHERE req_type = 'NS'
+                            )
+                              AND lower(coalesce(approval_route, '')) IN (
+                                  'gestor de estoque',
+                                  'gestor de stock',
+                                  'supervisor',
+                                  'chefe do terminal',
+                                  'terminal manager',
+                                  'chefe do terminal / terminal manager'
+                              )
+                            """
+                        )
+                    )
+                    if can_repair_technical_evaluation:
+                        connection.execute(
+                            text(
+                                """
+                                UPDATE procurement_cases
+                                SET technical_evaluation_required = 1,
+                                    technical_evaluation_status = 'Pending',
+                                    technical_report_status = 'Pending'
+                                WHERE requisition_id IN (
+                                    SELECT id FROM requisitions WHERE req_type = 'NS'
+                                )
+                                  AND lower(coalesce(technical_evaluation_status, '')) IN ('', 'not required', 'não requerido', 'nao requerido')
+                                  AND status NOT IN ('Closed', 'Cancelled')
+                                """
+                            )
+                        )
         if "approval_matrix_rules" in inspector.get_table_names():
             count = connection.execute(text("SELECT count(*) FROM approval_matrix_rules")).scalar() or 0
             if count == 0:

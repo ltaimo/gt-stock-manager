@@ -8,7 +8,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import Base, get_db
 from app.main import app
-from app.models.core import Department, HseRecord, InternalOperationOption, InternalOperationRecord, Notification, Product, Role, User
+from app.models.core import Department, DepartmentDailyReport, HseRecord, InternalOperationOption, InternalOperationRecord, Notification, Product, Role, User
 from app.security import hash_password
 
 
@@ -43,10 +43,11 @@ class V3ModuleFlowTests(unittest.TestCase):
             ),
         )
         self.viewer_role = Role(name="V3 Viewer", permissions=json.dumps(["hse_view", "internal_ops_view"]))
+        self.ops_reports_role = Role(name="Ops Reports Only", permissions=json.dumps(["internal_ops_reports"]))
         self.replenishment_role = Role(name="Reposicao Manager", permissions=json.dumps(["stock_replenishment_create"]))
         self.limited_hse_role = Role(name="Limited HSE Creator", permissions=json.dumps(["hse_view", "hse_records_create"]))
         self.limited_hse_workflow_role = Role(name="Limited HSE Workflow", permissions=json.dumps(["hse_view", "hse_workflow_manage"]))
-        self.db.add_all([self.department, self.role, self.viewer_role, self.replenishment_role, self.limited_hse_role, self.limited_hse_workflow_role])
+        self.db.add_all([self.department, self.role, self.viewer_role, self.ops_reports_role, self.replenishment_role, self.limited_hse_role, self.limited_hse_workflow_role])
         self.db.flush()
         self.user = User(
             full_name="V3 Manager",
@@ -72,6 +73,14 @@ class V3ModuleFlowTests(unittest.TestCase):
             department_id=self.department.id,
             notify_email=False,
         )
+        self.ops_reports_user = User(
+            full_name="Ops Reports",
+            username="opsreports",
+            password_hash=hash_password("Test@12345"),
+            role_id=self.ops_reports_role.id,
+            department_id=self.department.id,
+            notify_email=False,
+        )
         self.limited_hse_user = User(
             full_name="Limited HSE Creator",
             username="limitedhse",
@@ -88,7 +97,7 @@ class V3ModuleFlowTests(unittest.TestCase):
             department_id=self.department.id,
             notify_email=False,
         )
-        self.db.add_all([self.user, self.viewer, self.replenishment_user, self.limited_hse_user, self.limited_hse_workflow_user])
+        self.db.add_all([self.user, self.viewer, self.ops_reports_user, self.replenishment_user, self.limited_hse_user, self.limited_hse_workflow_user])
         self.db.commit()
         app.dependency_overrides[get_db] = self.override_db
         self.client = TestClient(app)
@@ -195,6 +204,12 @@ class V3ModuleFlowTests(unittest.TestCase):
 
     def test_v3_module_hubs_render_on_entry_pages_and_dashboard(self):
         self.login()
+        dashboard = self.client.get("/dashboard")
+        self.assertEqual(dashboard.status_code, 200)
+        self.assertIn("/conta", dashboard.text)
+        self.assertIn("/reset-password", dashboard.text)
+        self.assertIn("user-menu", dashboard.text)
+
         hse = self.client.get("/hse")
         self.assertEqual(hse.status_code, 200)
         self.assertIn("/hse?module=incidents#hse-form", hse.text)
@@ -225,11 +240,14 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.assertIn('value="equipment_purchase"', equipment_selected.text)
         self.assertIn('list="internal-equipment-type-options"', equipment_selected.text)
 
-        dashboard = self.client.get("/dashboard")
-        self.assertEqual(dashboard.status_code, 200)
         self.assertIn("module-switchboard", dashboard.text)
         self.assertIn("/hse", dashboard.text)
         self.assertIn("/operacoes-internas", dashboard.text)
+
+        account = self.client.get("/conta")
+        self.assertEqual(account.status_code, 200)
+        self.assertIn("V3 Manager", account.text)
+        self.assertIn("v3manager", account.text)
 
     def test_internal_operation_options_are_configured_and_used_in_fuel_form(self):
         self.login()
@@ -380,6 +398,84 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.assertEqual(report.status_code, 200)
         self.assertIn("Abastecimento viatura operacional", report.text)
         self.assertIn("125000", report.text)
+
+    def test_department_daily_report_create_validate_and_exports(self):
+        self.login()
+        home = self.client.get("/operacoes-internas")
+        self.assertEqual(home.status_code, 200)
+        self.assertIn("/operacoes-internas/relatorios-departamentais?department=maintenance", home.text)
+        self.assertIn("/operacoes-internas/relatorios-departamentais?department=security", home.text)
+        self.assertIn("/operacoes-internas/relatorios-departamentais?department=it", home.text)
+
+        form = self.client.get("/operacoes-internas/relatorios-departamentais?department=maintenance")
+        self.assertEqual(form.status_code, 200)
+        self.assertIn("Tarefas executadas", form.text)
+        self.assertIn("Equipamentos e utilidades", form.text)
+
+        created = self.client.post(
+            "/operacoes-internas/relatorios-departamentais",
+            data={
+                "department_key": "maintenance",
+                "report_date": "2026-08-31",
+                "shift": "07h00-17h00",
+                "prepared_by": "Joao Manuel",
+                "supervisor": "Chefe de Manutencao",
+                "team": "Angelo Macandza; Pedro Nharo",
+                "activities": "Controle de fluxo de agua e reparacao de torneiras.",
+                "incidents": "Bomba de incendio em curto circuito.",
+                "equipment_status": "Gerador New Way verificado.",
+                "readings": "Furo 1 operacional.",
+                "pending_actions": "Maquina de soldar urgente.",
+                "status": "Submitted",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(created.status_code, 303)
+        self.db.expire_all()
+        record = self.db.scalar(select(DepartmentDailyReport).where(DepartmentDailyReport.department_key == "maintenance"))
+        self.assertIsNotNone(record)
+        self.assertTrue(record.number.startswith("MAN-DR-"))
+        self.assertEqual(record.status, "Submitted")
+
+        validated = self.client.post(
+            f"/operacoes-internas/relatorios-departamentais/{record.id}/validar",
+            data={"status": "Validated"},
+            follow_redirects=False,
+        )
+        self.assertEqual(validated.status_code, 303)
+        self.db.expire_all()
+        record = self.db.get(DepartmentDailyReport, record.id)
+        self.assertEqual(record.status, "Validated")
+        self.assertEqual(record.approved_by_id, self.user.id)
+
+        report = self.client.get("/relatorios/operacoes-internas/departamentos?department=maintenance&date_from=2026-08-31&date_to=2026-08-31")
+        self.assertEqual(report.status_code, 200)
+        self.assertIn("Controle de fluxo", report.text)
+        self.assertIn("Maquina de soldar", report.text)
+
+        pdf = self.client.get("/relatorios/operacoes-internas/departamentos?department=maintenance&date_from=2026-08-31&date_to=2026-08-31&export=pdf")
+        self.assertEqual(pdf.status_code, 200)
+        self.assertEqual(pdf.headers["content-type"], "application/pdf")
+        self.assertTrue(pdf.content.startswith(b"%PDF"))
+
+        docx = self.client.get("/relatorios/operacoes-internas/departamentos?department=maintenance&date_from=2026-08-31&date_to=2026-08-31&export=docx")
+        self.assertEqual(docx.status_code, 200)
+        self.assertEqual(docx.headers["content-type"], "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        self.assertTrue(docx.content.startswith(b"PK"))
+
+    def test_report_only_profile_enters_internal_operations_reports_area(self):
+        self.login("opsreports")
+        lobby = self.client.get("/operacoes-internas")
+        self.assertEqual(lobby.status_code, 200)
+        self.assertIn("Este perfil tem acesso apenas aos relatórios.", lobby.text)
+        self.assertIn("/operacoes-internas/relatorios-departamentais", lobby.text)
+
+        report_area = self.client.get("/operacoes-internas/relatorios-departamentais?department=security")
+        self.assertEqual(report_area.status_code, 200)
+        self.assertNotIn('name="report_date"', report_area.text)
+
+        consolidated = self.client.get("/relatorios/operacoes-internas/departamentos?department=security")
+        self.assertEqual(consolidated.status_code, 200)
 
     def test_energy_reading_requires_meter_reading_and_uses_kwh(self):
         self.login()

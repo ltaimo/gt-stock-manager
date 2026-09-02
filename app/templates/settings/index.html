@@ -17,10 +17,10 @@
 
 <section class="action-hub settings-hub" aria-label="{{ tx("Áreas de configuração", user if user is defined else none) }}">
   {% for key, section in settings_sections.items() %}
-    {% if key != 'stock_reset' or can(user, 'stock_reset') %}
+    {% if (key != 'stock_reset' or can(user, 'stock_reset')) and (key != 'system_health' or can(user, 'settings_manage')) %}
     <a class="action-tile {% if selected_section == key %}active{% endif %}" href="/configuracoes?section={{ key }}">
       <span class="tile-code">{{ "%02d"|format(loop.index) }}</span>
-      <span class="tile-icon" aria-hidden="true">{{ "▦" if key == "categories" else "☷" if key == "departments" else "▣" if key == "warehouses" else "⚙" if key == "internal_ops" else "!" }}</span>
+      <span class="tile-icon" aria-hidden="true">{{ "▦" if key == "categories" else "☷" if key == "departments" else "▣" if key == "warehouses" else "⚙" if key == "internal_ops" else "✓" if key == "system_health" else "!" }}</span>
       <strong>{{ tx(section.label, user if user is defined else none) }}</strong>
       <small>{{ tx(section.description, user if user is defined else none) }}</small>
     </a>
@@ -32,7 +32,7 @@
 <section class="panel">
   <div class="choice-empty-state">
     <strong>{{ tx("Escolha uma configuração", user if user is defined else none) }}</strong>
-    <p class="muted">{{ tx("A página fica limpa por padrão. Clique num botão acima para abrir categorias, departamentos, armazéns, operações internas ou reset de stock.", user if user is defined else none) }}</p>
+    <p class="muted">{{ tx("A página fica limpa por padrão. Clique num botão acima para abrir categorias, departamentos, armazéns, operações internas, saúde do sistema ou reset de stock.", user if user is defined else none) }}</p>
   </div>
 </section>
 {% endif %}
@@ -273,6 +273,45 @@
   </form>
   {% else %}
     <div class="alert red">{{ tx("A ação está desativada porque o código de segurança não foi configurado.", user if user is defined else none) }}</div>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if selected_section == "system_health" %}
+<section class="panel">
+  <div class="panel-heading">
+    <div>
+      <h2>{{ tx("Saúde do sistema", user if user is defined else none) }}</h2>
+      <p class="muted">{{ tx("Verifica se a base de dados tem as colunas críticas, matriz ativa e perfis aprovadores com utilizadores ativos.", user if user is defined else none) }}</p>
+    </div>
+    <a class="button secondary" href="/configuracoes">{{ tx("Voltar às configurações", user if user is defined else none) }}</a>
+  </div>
+  <div class="alert {{ 'green' if schema_health.status == 'ok' else 'orange' if schema_health.status == 'warning' else 'red' }}">
+    <strong>{{ tx("Estado geral", user if user is defined else none) }}:</strong>
+    {{ tx("OK", user) if schema_health.status == 'ok' else tx("Aviso", user) if schema_health.status == 'warning' else tx("Crítico", user) }}
+  </div>
+  <div class="kpi-grid">
+    <div><strong>{{ schema_health.active_matrix_rules }}</strong><span>{{ tx("regras ativas na matriz", user if user is defined else none) }}</span></div>
+    <div><strong>{{ schema_health.open_procurement_cases }}</strong><span>{{ tx("processos abertos", user if user is defined else none) }}</span></div>
+    <div><strong>{{ schema_health.matrix_rules_without_role }}</strong><span>{{ tx("regras sem perfil ligado", user if user is defined else none) }}</span></div>
+  </div>
+  {% if schema_health.missing_tables %}
+  <h3>{{ tx("Tabelas em falta", user if user is defined else none) }}</h3>
+  <ul>{% for table in schema_health.missing_tables %}<li>{{ table }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if schema_health.critical_missing_columns %}
+  <h3>{{ tx("Colunas críticas em falta", user if user is defined else none) }}</h3>
+  <table class="responsive-table">
+    <thead><tr><th>{{ tx("Tabela", user) }}</th><th>{{ tx("Coluna", user) }}</th></tr></thead>
+    <tbody>{% for item in schema_health.critical_missing_columns %}<tr><td>{{ item.table }}</td><td>{{ item.column }}</td></tr>{% endfor %}</tbody>
+  </table>
+  {% endif %}
+  {% if schema_health.matrix_roles_without_active_users %}
+  <h3>{{ tx("Perfis aprovadores sem utilizadores ativos", user if user is defined else none) }}</h3>
+  <ul>{% for role in schema_health.matrix_roles_without_active_users %}<li>{{ role }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if not schema_health.missing_tables and not schema_health.critical_missing_columns and not schema_health.matrix_roles_without_active_users and schema_health.matrix_rules_without_role == 0 %}
+  <div class="empty-state">{{ tx("Nenhum problema crítico encontrado nos controlos de produção.", user if user is defined else none) }}</div>
   {% endif %}
 </section>
 {% endif %}

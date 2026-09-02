@@ -4,14 +4,15 @@
   <h1>{{ tx("Relatório de Requisições SR", user if user is defined else none) }}</h1>
   <div><a class="button secondary" href="?status={{ status }}&department_id={{ department_id or '' }}&requester_id={{ requester_id or '' }}&export=xlsx">Excel</a><a class="button secondary" href="?status={{ status }}&department_id={{ department_id or '' }}&requester_id={{ requester_id or '' }}&export=pdf">PDF</a></div>
 </header>
-<form class="filters">
+<form class="filters" data-auto-submit-filter>
   <select name="status"><option value="">{{ tx("Todos estados", user if user is defined else none) }}</option>{% for s in ['Draft','Submitted','Approved','Rejected','Issued','Cancelled'] %}<option value="{{ s }}" {% if status==s %}selected{% endif %}>{{ tv(s, user) }}</option>{% endfor %}</select>
   <select name="department_id"><option value="">{{ tx("Departamento", user if user is defined else none) }}</option>{% for d in departments %}<option value="{{ d.id }}" {% if department_id==d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select>
   <select name="requester_id"><option value="">{{ tx("Requisitante", user if user is defined else none) }}</option>{% for u in users %}<option value="{{ u.id }}" {% if requester_id==u.id %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}</select>
+  <input type="search" placeholder="{{ tx("Pesquisar nesta lista", user if user is defined else none) }}" data-instant-table-search="#report-requisitions-table">
   <button>{{ tx("Filtrar", user if user is defined else none) }}</button>
 </form>
 <div class="panel">
-  <table>
+  <table id="report-requisitions-table">
     <thead><tr><th>{{ tx("Nº", user if user is defined else none) }}</th><th>{{ tx("Data", user if user is defined else none) }}</th><th>{{ tx("Estado", user if user is defined else none) }}</th><th>{{ tx("Departamento", user if user is defined else none) }}</th><th>{{ tx("Requisitante", user if user is defined else none) }}</th><th>{{ tx("Valor", user if user is defined else none) }}</th><th>{{ tx("Aprovador", user if user is defined else none) }}</th></tr></thead>
     <tbody>
       {% for r in requisitions %}

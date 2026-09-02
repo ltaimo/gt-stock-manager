@@ -6,8 +6,10 @@
   {% if can(user, 'reports') %}<a href="/relatorios/movimentos">{{ tx("Movimentos", user if user is defined else none) }}<small>{{ tx("Entradas, saídas, devoluções e acertos", user if user is defined else none) }}</small></a>{% endif %}
   {% if can(user, 'reports') %}<a href="/relatorios/requisicoes">{{ tx("Requisições SR", user if user is defined else none) }}<small>{{ tx("Pedidos internos e respetivas aprovações", user if user is defined else none) }}</small></a>{% endif %}
   {% if can(user, 'reports') %}<a href="/relatorios/procurement">{{ tx("Procurement e reposições", user if user is defined else none) }}<small>{{ tx("Compras, PO, receções e estados do processo", user if user is defined else none) }}</small></a>{% endif %}
+  {% if can(user, 'reports') %}<a href="/relatorios/procurement-pendencias">{{ tx("Pendências de Procurement", user if user is defined else none) }}<small>{{ tx("Processos abertos por fase, responsável e próximo passo", user if user is defined else none) }}</small></a>{% endif %}
   {% if can(user, 'hse_reports') %}<a href="/relatorios/hse">{{ tx("HSE / HST", user if user is defined else none) }}<small>{{ tx("Incidentes, permissões, ações corretivas e conformidade", user if user is defined else none) }}</small></a>{% endif %}
   {% if can(user, 'internal_ops_reports') %}<a href="/relatorios/operacoes-internas">{{ tx("Operações internas", user if user is defined else none) }}<small>{{ tx("Combustível, água, energia e consumos internos", user if user is defined else none) }}</small></a>{% endif %}
+  {% if can(user, 'internal_ops_reports') %}<a href="/relatorios/operacoes-internas/departamentos">{{ tx("Relatórios departamentais", user if user is defined else none) }}<small>{{ tx("Manutenção, Informática e Segurança: diário, semanal e mensal", user if user is defined else none) }}</small></a>{% endif %}
   {% if can(user, 'reports') %}<a href="/relatorios/critico">{{ tx("Stock que Requer Atenção", user if user is defined else none) }}<small>{{ tx("Apenas itens ativos e monitorizados", user if user is defined else none) }}</small></a>{% endif %}
 </section>
 {% endblock %}

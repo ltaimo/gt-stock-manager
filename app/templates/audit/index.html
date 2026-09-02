@@ -1,13 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
 <header class="page-header"><h1>{{ tx("Auditoria", user if user is defined else none) }}</h1></header>
-<form class="filters">
+<form class="filters" data-auto-submit-filter>
   <input name="module" value="{{ module }}" placeholder="{{ tx("Módulo", user if user is defined else none) }}">
   <input name="action" value="{{ action }}" placeholder="{{ tx("Acção", user if user is defined else none) }}">
+  <input type="search" placeholder="{{ tx("Pesquisar nesta lista", user if user is defined else none) }}" data-instant-table-search="#audit-table">
   <button>{{ tx("Filtrar", user if user is defined else none) }}</button>
 </form>
 <div class="panel">
-  <table>
+  <table id="audit-table">
     <thead><tr><th>{{ tx("Data", user if user is defined else none) }}</th><th>{{ tx("Utilizador", user if user is defined else none) }}</th><th>{{ tx("Acção", user if user is defined else none) }}</th><th>{{ tx("Módulo", user if user is defined else none) }}</th><th>{{ tx("Registo", user if user is defined else none) }}</th><th>{{ tx("Anterior", user if user is defined else none) }}</th><th>{{ tx("Novo", user if user is defined else none) }}</th><th>{{ tx("IP/Dispositivo", user if user is defined else none) }}</th></tr></thead>
     <tbody>
     {% for log in logs %}

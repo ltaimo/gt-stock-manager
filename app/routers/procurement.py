@@ -1,13 +1,17 @@
+import uuid
 from datetime import datetime, timezone
+from pathlib import Path
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.database import get_db
 from app.i18n import language_for
-from app.models.core import MovementAction, ProcurementCase, Product, Requisition, RequisitionItem, RequisitionStatus, User, Warehouse
+from app.models.core import MovementAction, ProcurementAttachment, ProcurementCase, Product, Requisition, RequisitionItem, RequisitionStatus, User, Warehouse
 from app.routers.common import templates
 from app.security import current_user, has_permission, require_permission
 from app.services.audit import audit_log
@@ -22,10 +26,12 @@ from app.services.notifications import (
 )
 from app.services.notifications import send_email
 from app.services.procurement import (
+    classify_non_stock_approval,
     classify_procurement,
     days_open,
     next_non_stock_number,
     next_replenishment_number,
+    non_stock_approval_label,
     suggested_replenishment_quantity,
 )
 from app.services.procurement import approval_label
@@ -34,6 +40,8 @@ from app.services.tdr_pdf import terms_of_reference_to_pdf
 from app.services.transactions import atomic
 
 router = APIRouter(prefix="/procurement", tags=["procurement"])
+ALLOWED_PROCUREMENT_ATTACHMENT_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".webp", ".doc", ".docx", ".xls", ".xlsx"}
+MAX_PROCUREMENT_ATTACHMENT_SIZE = 10 * 1024 * 1024
 
 PROCUREMENT_WORKFLOW_PERMISSIONS = {
     "procurement_manage",
@@ -70,19 +78,97 @@ def can_update_tracker(user: User) -> bool:
     return has_permission(user, "procurement_manage")
 
 
+def can_submit_bid(user: User, case: ProcurementCase) -> bool:
+    return has_permission(user, "procurement_manage") and case.status in {
+        "Pending Procurement Classification",
+        "RFQ/RFP/Tender Running",
+        "Returned - Bid Correction",
+    }
+
+
+def can_technically_evaluate(user: User, case: ProcurementCase) -> bool:
+    return case.requisition.requesting_user_id == user.id and case.status == "Technical Evaluation"
+
+
+def can_register_po(user: User, case: ProcurementCase) -> bool:
+    return has_permission(user, "procurement_manage") and case.status == "Approved for PO" and case.approval_status == "Approved"
+
+
+def can_confirm_delivery(user: User, case: ProcurementCase) -> bool:
+    return has_permission(user, "procurement_receive") and case.status in {"PO Issued", "Mobilization / Delivery", "Receiving"}
+
+
+def can_archive_case(user: User, case: ProcurementCase) -> bool:
+    return has_permission(user, "procurement_archive") and case.status == "Ready for Archive"
+
+
+async def save_procurement_attachment(
+    db: Session,
+    *,
+    case: ProcurementCase,
+    upload: UploadFile,
+    uploaded_by: User,
+    document_type: str = "Quotation",
+) -> ProcurementAttachment | None:
+    if not upload or not upload.filename:
+        return None
+    suffix = Path(upload.filename).suffix.lower()
+    if suffix not in ALLOWED_PROCUREMENT_ATTACHMENT_EXTENSIONS:
+        raise HTTPException(400, f"Tipo de ficheiro não permitido: {upload.filename}.")
+    content = await upload.read()
+    if not content:
+        raise HTTPException(400, f"O ficheiro {upload.filename} está vazio.")
+    if len(content) > MAX_PROCUREMENT_ATTACHMENT_SIZE:
+        raise HTTPException(400, f"O ficheiro {upload.filename} excede 10 MB.")
+    settings = get_settings()
+    stored_filename = f"{uuid.uuid4()}{suffix}"
+    destination = settings.documents_dir / stored_filename
+    destination.write_bytes(content)
+    attachment = ProcurementAttachment(
+        case_id=case.id,
+        document_type=document_type,
+        original_filename=upload.filename,
+        stored_filename=stored_filename,
+        file_path=str(destination),
+        content=content,
+        content_type=upload.content_type or "application/octet-stream",
+        uploaded_by_id=uploaded_by.id,
+    )
+    db.add(attachment)
+    return attachment
+
+
 def can_approve_by_matrix(db: Session, case: ProcurementCase, user: User) -> bool:
-    amount = case.po_value if case.po_value is not None else case.estimated_budget
-    rule = classify_procurement(db, amount)
+    if user.role.name == "Gestor de Estoque":
+        return False
+    amount = case.bid_selected_amount if case.bid_selected_amount is not None else case.po_value if case.po_value is not None else case.estimated_budget
+    is_non_stock = case.requisition.req_type == "NS"
+    rule = classify_non_stock_approval(db, amount) if is_non_stock else classify_procurement(db, amount)
     if not rule:
         return False
+    label = non_stock_approval_label(rule) if is_non_stock else rule.final_approval
+    role_id = rule.approver_role_id if approval_label(rule) == label else None
     return can_user_approve_assignment(
         db,
         user,
         "procurement_value_approve",
-        rule.approver_role_id,
-        rule.final_approval,
+        role_id,
+        label,
         amount=float(amount or 0),
     )
+
+
+def approval_amount(case: ProcurementCase) -> float:
+    return float(case.bid_selected_amount if case.bid_selected_amount is not None else case.po_value if case.po_value is not None else case.estimated_budget or 0)
+
+
+def apply_value_route(db: Session, case: ProcurementCase, amount: float) -> None:
+    is_non_stock = case.requisition.req_type == "NS"
+    rule = classify_non_stock_approval(db, amount) if is_non_stock else classify_procurement(db, amount)
+    if not rule:
+        raise HTTPException(400, "Não existe uma regra ativa na matriz para este valor.")
+    case.modality = rule.modality
+    case.approval_route = non_stock_approval_label(rule) if is_non_stock else approval_label(rule)
 
 
 def case_or_404(db: Session, case_id: int, user: User) -> ProcurementCase:
@@ -163,6 +249,9 @@ def create_non_stock(
             required_date=parse_date(required_date),
             tor_status="Pending HOD Approval",
             status="Pending HOD TdR Approval",
+            technical_evaluation_required=True,
+            technical_evaluation_status="Pending",
+            technical_report_status="Pending",
             hse_documents_status="Pending" if (hse_requirements or "").strip() else "Not Required",
         )
         db.add(case)
@@ -354,6 +443,11 @@ def detail(case_id: int, request: Request, db: Session = Depends(get_db), user: 
             "days_open": days_open,
             "error": None,
             "can_update_tracker": can_update_tracker(user),
+            "can_submit_bid": can_submit_bid(user, case),
+            "can_technically_evaluate": can_technically_evaluate(user, case),
+            "can_register_po": can_register_po(user, case),
+            "can_confirm_delivery": can_confirm_delivery(user, case),
+            "can_archive_case": can_archive_case(user, case),
             "can_approve_by_matrix": can_approve_by_matrix(db, case, user),
         },
     )
@@ -457,6 +551,9 @@ def verify_budget(
         if decision == "confirm":
             case.status = "Pending Procurement Classification"
             case.requisition.status = RequisitionStatus.submitted.value
+            case.technical_evaluation_required = True
+            case.technical_evaluation_status = "Pending"
+            case.technical_report_status = "Pending"
             notify_procurement_classification_pending(db, case.requisition)
         else:
             case.status = "Returned - No Budget"
@@ -475,19 +572,18 @@ def classify_case(
     user: User = Depends(require_permission("procurement_manage")),
 ):
     case = case_or_404(db, case_id, user)
-    officer_id = optional_int(procurement_officer_id, "Procurement officer")
-    officer = db.get(User, officer_id) if officer_id else None
-    rule = classify_procurement(db, case.estimated_budget)
+    rule = classify_non_stock_approval(db, case.estimated_budget)
     if not rule:
         raise HTTPException(400, "Não existe uma regra ativa na matriz para este valor.")
     with atomic(db):
-        case.procurement_officer_id = officer.id if officer else None
+        case.procurement_officer_id = user.id
         case.modality = rule.modality
-        case.approval_route = approval_label(rule)
+        case.approval_route = non_stock_approval_label(rule)
         case.approval_status = "Pending"
-        case.technical_evaluation_required = technical_evaluation_required == "1"
-        case.technical_evaluation_status = "Pending" if case.technical_evaluation_required else "Not Required"
-        case.status = "Pending Approval"
+        case.technical_evaluation_required = True
+        case.technical_evaluation_status = "Pending"
+        case.technical_report_status = "Pending"
+        case.status = "RFQ/RFP/Tender Running"
         audit_log(db, user, "Classificou procurement", "Procurement", case.requisition.number, new_value={"modality": case.modality, "approval": case.approval_route}, request=request)
     return RedirectResponse(f"/procurement/{case.id}", status_code=303)
 
@@ -514,7 +610,7 @@ def approve_by_value(
 
     with atomic(db):
         case.approval_status = "Approved" if decision == "approve" else "Returned"
-        case.status = "RFQ/RFP/Tender Running" if decision == "approve" else "Returned - Approval"
+        case.status = "Approved for PO" if decision == "approve" else "Returned - Approval"
         case.comments = clean_comments or case.comments
         notify_procurement_requester(
             db,
@@ -536,6 +632,333 @@ def approve_by_value(
             request=request,
         )
     return RedirectResponse(f"/procurement/{case.id}", status_code=303)
+
+
+@router.post("/{case_id}/bid/submeter")
+async def submit_bid(
+    case_id: int,
+    request: Request,
+    rfq_rfp_tender_number: str | None = Form(None),
+    suppliers_invited: str | None = Form(None),
+    selected_supplier: str | None = Form(None),
+    bid_selected_amount: str | None = Form(None),
+    procurement_recommendation: str | None = Form(None),
+    comments: str | None = Form(None),
+    quotations: list[UploadFile] = File([]),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("procurement_manage")),
+):
+    case = case_or_404(db, case_id, user)
+    if not can_submit_bid(user, case):
+        raise HTTPException(400, "Este processo não está pronto para submissão do Bid pelo Procurement.")
+    rule = classify_non_stock_approval(db, case.estimated_budget)
+    if not rule:
+        raise HTTPException(400, "Não existe uma regra ativa na matriz para este valor.")
+    clean_supplier = required_text(selected_supplier, "Fornecedor recomendado", 180)
+    amount = optional_float(bid_selected_amount, "Valor da cotação recomendada")
+    if amount is None or amount <= 0:
+        raise HTTPException(400, "Indique o valor da cotação recomendada.")
+    recommendation = required_text(procurement_recommendation, "Recomendação do Procurement", 2000)
+    invited = int(optional_int(suppliers_invited, "Fornecedores convidados") or 0)
+    clean_rfq = required_text(rfq_rfp_tender_number, "Número RFQ/RFP/Tender", 80)
+    valid_uploads = [upload for upload in quotations if upload and upload.filename]
+    if not valid_uploads and not case.attachments:
+        raise HTTPException(400, "Faça upload de pelo menos uma cotação antes de submeter o Bid.")
+    existing_attachment_count = len(case.attachments)
+
+    with atomic(db):
+        case.procurement_officer_id = user.id
+        case.modality = rule.modality
+        case.approval_route = non_stock_approval_label(rule)
+        case.approval_status = "Pending"
+        for upload in valid_uploads:
+            await save_procurement_attachment(db, case=case, upload=upload, uploaded_by=user, document_type="Quotation")
+        case.rfq_rfp_tender_number = clean_rfq
+        case.suppliers_invited = invited
+        case.quotations_received = existing_attachment_count + len(valid_uploads)
+        case.selected_supplier = clean_supplier
+        case.bid_selected_supplier = clean_supplier
+        case.bid_selected_amount = amount
+        case.procurement_recommendation = recommendation
+        case.comments = (comments or "").strip() or case.comments
+        case.bid_analysis_status = "Completed"
+        case.financial_evaluation_status = "Approved"
+        case.technical_evaluation_required = True
+        case.technical_evaluation_status = "Pending"
+        case.technical_report_status = "Pending"
+        case.terminal_bid_status = "Pending"
+        apply_value_route(db, case, amount)
+        case.status = "Technical Evaluation"
+        notify_procurement_requester(
+            db,
+            case,
+            f"Bid para avaliação técnica: {case.requisition.number}",
+            f"O Procurement submeteu o Bid do processo {case.requisition.number}. Analise tecnicamente as cotações e justifique a decisão.",
+        )
+        audit_log(
+            db,
+            user,
+            "Submeteu Bid e cotações",
+            "Procurement",
+            case.requisition.number,
+            new_value={
+                "supplier": clean_supplier,
+                "amount": amount,
+                "attachments": len(valid_uploads),
+                "approval_route": case.approval_route,
+            },
+            request=request,
+        )
+    return RedirectResponse(f"/procurement/{case.id}", status_code=303)
+
+
+@router.post("/{case_id}/avaliacao-tecnica")
+def technical_evaluation_decision(
+    case_id: int,
+    request: Request,
+    decision: str = Form(...),
+    comments: str | None = Form(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    case = case_or_404(db, case_id, user)
+    if not can_technically_evaluate(user, case):
+        raise HTTPException(403, "A avaliação técnica deve ser feita pelo requisitante/especialista que criou o TdR.")
+    if decision not in {"approve", "return"}:
+        raise HTTPException(400, "Escolha uma decisão válida.")
+    clean_comments = required_text(comments, "Justificativa da avaliação técnica", 2000)
+
+    with atomic(db):
+        case.comments = clean_comments
+        if decision == "approve":
+            case.technical_evaluation_status = "Approved"
+            case.technical_report_status = "Approved"
+            case.status = "Pending Terminal Director Bid Approval"
+            notify_procurement_permission(
+                db,
+                case,
+                "procurement_tor_approve_terminal",
+                f"Bid para aprovação do Director do Terminal: {case.requisition.number}",
+                f"A avaliação técnica do processo {case.requisition.number} foi aprovada pelo requisitante/especialista.",
+            )
+        else:
+            case.technical_evaluation_status = "Returned"
+            case.technical_report_status = "Returned"
+            case.bid_analysis_status = "Returned"
+            case.status = "Returned - Bid Correction"
+            notify_procurement_permission(
+                db,
+                case,
+                "procurement_manage",
+                f"Bid devolvido pela avaliação técnica: {case.requisition.number}",
+                f"O requisitante/especialista devolveu o Bid do processo {case.requisition.number}: {clean_comments}",
+            )
+        audit_log(
+            db,
+            user,
+            "Aprovou avaliação técnica do Bid" if decision == "approve" else "Devolveu Bid na avaliação técnica",
+            "Procurement",
+            case.requisition.number,
+            new_value={"status": case.status, "technical_evaluation_status": case.technical_evaluation_status},
+            request=request,
+        )
+    return RedirectResponse(f"/procurement/{case.id}", status_code=303)
+
+
+@router.post("/{case_id}/bid/terminal")
+def approve_bid_terminal(
+    case_id: int,
+    request: Request,
+    decision: str = Form(...),
+    approved_supplier: str | None = Form(None),
+    approved_amount: str | None = Form(None),
+    comments: str | None = Form(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("procurement_tor_approve_terminal")),
+):
+    case = case_or_404(db, case_id, user)
+    if case.status != "Pending Terminal Director Bid Approval":
+        raise HTTPException(400, "Este processo não está pendente de aprovação do Bid pelo Director do Terminal.")
+    if case.technical_evaluation_status != "Approved":
+        raise HTTPException(400, "A avaliação técnica deve estar aprovada antes do Director do Terminal.")
+    if decision not in {"approve", "return"}:
+        raise HTTPException(400, "Escolha uma decisão válida.")
+    clean_comments = (comments or "").strip()
+    clean_supplier = (approved_supplier or case.bid_selected_supplier or case.selected_supplier or "").strip()
+    amount = optional_float(approved_amount, "Valor aprovado", default=case.bid_selected_amount)
+    if decision == "approve":
+        if not clean_supplier:
+            raise HTTPException(400, "Indique o fornecedor aprovado.")
+        if amount is None or amount <= 0:
+            raise HTTPException(400, "Indique o valor aprovado do Bid.")
+        if clean_supplier != (case.bid_selected_supplier or case.selected_supplier or "").strip() and not clean_comments:
+            raise HTTPException(400, "Justifique a escolha de um fornecedor diferente do recomendado.")
+    elif not clean_comments:
+        raise HTTPException(400, "Indique o motivo para devolver o Bid ao Procurement.")
+
+    with atomic(db):
+        case.terminal_bid_comments = clean_comments or case.terminal_bid_comments
+        if decision == "return":
+            case.terminal_bid_status = "Returned"
+            case.status = "Returned - Bid Correction"
+            notify_procurement_permission(
+                db,
+                case,
+                "procurement_manage",
+                f"Bid devolvido: {case.requisition.number}",
+                f"O Director do Terminal devolveu o Bid do processo {case.requisition.number} ao Procurement.",
+            )
+        else:
+            case.terminal_bid_status = "Approved"
+            case.terminal_bid_approved_by_id = user.id
+            case.terminal_bid_approved_at = datetime.now(timezone.utc)
+            case.selected_supplier = clean_supplier
+            case.bid_selected_supplier = clean_supplier
+            case.bid_selected_amount = amount
+            apply_value_route(db, case, amount)
+            if can_approve_by_matrix(db, case, user):
+                case.approval_status = "Approved"
+                case.status = "Approved for PO"
+            else:
+                case.approval_status = "Pending"
+                case.status = "Pending Approval"
+        audit_log(
+            db,
+            user,
+            "Aprovou Bid como Director do Terminal" if decision == "approve" else "Devolveu Bid ao Procurement",
+            "Procurement",
+            case.requisition.number,
+            new_value={
+                "status": case.status,
+                "terminal_bid_status": case.terminal_bid_status,
+                "supplier": case.selected_supplier,
+                "amount": amount,
+                "approval_route": case.approval_route,
+            },
+            request=request,
+        )
+    return RedirectResponse(f"/procurement/{case.id}", status_code=303)
+
+
+@router.post("/{case_id}/po")
+def register_po(
+    case_id: int,
+    request: Request,
+    po_number: str | None = Form(None),
+    po_date: str | None = Form(None),
+    po_value: str | None = Form(None),
+    comments: str | None = Form(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("procurement_manage")),
+):
+    case = case_or_404(db, case_id, user)
+    if not can_register_po(user, case):
+        raise HTTPException(400, "O processo precisa estar aprovado antes de emitir a PO.")
+    clean_po = required_text(po_number, "Número da PO", 80)
+    amount = optional_float(po_value, "Valor da PO", default=case.bid_selected_amount)
+    if amount is None or amount <= 0:
+        raise HTTPException(400, "Indique o valor da PO.")
+    with atomic(db):
+        case.po_number = clean_po
+        case.po_date = parse_date(po_date) or datetime.now(timezone.utc)
+        case.po_value = amount
+        case.comments = (comments or "").strip() or case.comments
+        case.status = "PO Issued"
+        case.execution_status = "Mobilizing"
+        audit_log(
+            db,
+            user,
+            "Registou PO",
+            "Procurement",
+            case.requisition.number,
+            new_value={"po_number": clean_po, "po_value": amount},
+            request=request,
+        )
+    return RedirectResponse(f"/procurement/{case.id}", status_code=303)
+
+
+@router.post("/{case_id}/entrega")
+def confirm_delivery(
+    case_id: int,
+    request: Request,
+    receipt_note: str | None = Form(None),
+    comments: str | None = Form(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("procurement_receive")),
+):
+    case = case_or_404(db, case_id, user)
+    if case.requisition.req_type == "REPOSICAO":
+        raise HTTPException(400, "Use a secção de receção de reposição para atualizar o stock.")
+    if not can_confirm_delivery(user, case):
+        raise HTTPException(400, "Este processo não está pronto para confirmação de entrega/execução.")
+    clean_note = required_text(receipt_note, "Nota de recebimento / confirmação de entrega ou execução", 2000)
+
+    with atomic(db):
+        case.receipt_note = clean_note
+        case.comments = (comments or "").strip() or case.comments
+        case.receipt_status = "Completed"
+        case.execution_status = "Delivered"
+        case.status = "Ready for Archive"
+        audit_log(
+            db,
+            user,
+            "Confirmou entrega/execução",
+            "Procurement",
+            case.requisition.number,
+            new_value={"status": case.status, "receipt_status": case.receipt_status},
+            request=request,
+        )
+    return RedirectResponse(f"/procurement/{case.id}", status_code=303)
+
+
+@router.post("/{case_id}/arquivar")
+def archive_procurement_case(
+    case_id: int,
+    request: Request,
+    comments: str | None = Form(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("procurement_archive")),
+):
+    case = case_or_404(db, case_id, user)
+    if not can_archive_case(user, case):
+        raise HTTPException(400, "Este processo não está pronto para arquivo.")
+
+    with atomic(db):
+        case.comments = (comments or "").strip() or case.comments
+        case.archive_status = "Archived"
+        case.status = "Closed"
+        case.closure_date = datetime.now(timezone.utc)
+        if case.requisition.req_type == "NS":
+            case.requisition.status = RequisitionStatus.approved.value
+        audit_log(
+            db,
+            user,
+            "Arquivou processo de procurement",
+            "Procurement",
+            case.requisition.number,
+            new_value={"status": case.status, "archive_status": case.archive_status},
+            request=request,
+        )
+    return RedirectResponse(f"/procurement/{case.id}", status_code=303)
+
+
+@router.get("/{case_id}/anexos/{attachment_id}")
+def download_procurement_attachment(
+    case_id: int,
+    attachment_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    case = case_or_404(db, case_id, user)
+    attachment = db.get(ProcurementAttachment, attachment_id)
+    if not attachment or attachment.case_id != case.id:
+        raise HTTPException(404)
+    quoted_name = quote(attachment.original_filename)
+    return Response(
+        attachment.content,
+        media_type=attachment.content_type or "application/octet-stream",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quoted_name}"},
+    )
 
 
 @router.get("/{case_id}/formulario")
@@ -740,6 +1163,8 @@ def update_tracker(
     financial_evaluation_status: str | None = Form(None),
     bid_analysis_status: str | None = Form(None),
     selected_supplier: str | None = Form(None),
+    bid_selected_amount: str | None = Form(None),
+    procurement_recommendation: str | None = Form(None),
     po_number: str | None = Form(None),
     po_date: str | None = Form(None),
     po_value: str | None = Form(None),
@@ -768,26 +1193,40 @@ def update_tracker(
     next_execution_status = required_text(execution_status, "Execucao / entrega", 60)
     next_archive_status = required_text(archive_status, "Arquivo", 60)
     next_quotations = int(optional_int(quotations_received, "Cotacoes recebidas") or 0)
+    if not isinstance(bid_selected_amount, str):
+        bid_selected_amount = None
+    if not isinstance(procurement_recommendation, str):
+        procurement_recommendation = None
+    next_selected_supplier = (selected_supplier or "").strip() or None
+    next_bid_amount = optional_float(bid_selected_amount, "Valor selecionado do Bid", default=case.bid_selected_amount)
+    next_recommendation = (procurement_recommendation or "").strip() or None
     next_po_value = optional_float(po_value, "Valor da PO")
     next_comments = (comments or "").strip() or None
     if next_financial_status == "Approved" and next_quotations < 3 and not next_comments:
         raise HTTPException(400, "Para aprovar a avaliação financeira com menos de 3 cotações, registe a justificativa nos comentários.")
+    if next_status == "Pending Terminal Director Bid Approval":
+        if next_quotations <= 0:
+            raise HTTPException(400, "Registe pelo menos uma cotação antes de submeter o Bid ao Director do Terminal.")
+        if next_bid_status != "Completed":
+            raise HTTPException(400, "Conclua o Bid Analysis antes de submeter ao Director do Terminal.")
+        if not next_selected_supplier:
+            raise HTTPException(400, "Indique o fornecedor recomendado antes de submeter o Bid.")
+        if next_bid_amount is None or next_bid_amount <= 0:
+            raise HTTPException(400, "Indique o valor da proposta recomendada antes de submeter o Bid.")
+        if not next_recommendation:
+            raise HTTPException(400, "Registe a recomendação do Procurement antes de submeter o Bid.")
     if next_status in {"PO Issued", "Mobilization / Delivery", "Receiving", "Closed"} and not (po_number or "").strip():
         raise HTTPException(400, "Informe o número da PO antes de avançar para PO/receção/fecho.")
-    post_approval_statuses = {
-        "RFQ/RFP/Tender Running",
-        "Technical Evaluation",
-        "Financial Evaluation",
-        "Bid Analysis",
-        "Supplier Selected",
+    post_final_approval_statuses = {
+        "Approved for PO",
         "PO Issued",
         "Mobilization / Delivery",
         "Receiving",
         "Ready for Archive",
         "Closed",
     }
-    if next_status in post_approval_statuses and case.approval_status != "Approved":
-        raise HTTPException(400, "Conclua a aprovação pelo perfil definido na matriz antes de avançar o processo.")
+    if next_status in post_final_approval_statuses and case.approval_status != "Approved":
+        raise HTTPException(400, "Conclua a aprovação final antes de avançar para PO/entrega/fecho.")
     if next_status == "Closed" and next_receipt_status not in {"Received", "Completed"}:
         raise HTTPException(400, "O processo só pode fechar depois da nota de recebimento.")
     if next_status == "Closed" and next_archive_status != "Archived":
@@ -802,11 +1241,12 @@ def update_tracker(
                 400,
                 "Confirme as quantidades na secção de receção da reposição; o stock é atualizado por essa ação.",
             )
-    approval_amount = next_po_value if next_po_value is not None else case.estimated_budget
-    approval_rule = classify_procurement(db, approval_amount)
+    approval_amount = next_bid_amount if next_bid_amount is not None else next_po_value if next_po_value is not None else case.estimated_budget
+    is_non_stock = case.requisition.req_type == "NS"
+    approval_rule = classify_non_stock_approval(db, approval_amount) if is_non_stock else classify_procurement(db, approval_amount)
     if not approval_rule:
         raise HTTPException(400, "Não existe uma regra ativa na matriz para o valor atualizado do processo.")
-    updated_approval_route = approval_label(approval_rule)
+    updated_approval_route = non_stock_approval_label(approval_rule) if is_non_stock else approval_label(approval_rule)
     approval_route_changed = bool(case.approval_route and case.approval_route != updated_approval_route)
 
     with atomic(db):
@@ -820,12 +1260,17 @@ def update_tracker(
         case.financial_evaluation_status = next_financial_status
         case.bid_analysis_status = next_bid_status
         case.hse_documents_status = next_hse_status
-        case.selected_supplier = (selected_supplier or "").strip() or None
+        case.selected_supplier = next_selected_supplier
+        case.bid_selected_supplier = next_selected_supplier or case.bid_selected_supplier
+        case.bid_selected_amount = next_bid_amount
+        case.procurement_recommendation = next_recommendation or case.procurement_recommendation
         case.po_number = (po_number or "").strip() or None
         case.po_date = parse_date(po_date)
-        case.po_value = next_po_value
+        case.po_value = next_po_value if next_po_value is not None else case.po_value
         case.modality = approval_rule.modality
         case.approval_route = updated_approval_route
+        if next_status == "Pending Terminal Director Bid Approval":
+            case.terminal_bid_status = "Pending"
         if approval_route_changed and case.approval_status == "Approved":
             case.approval_status = "Pending"
             case.status = "Pending Approval"

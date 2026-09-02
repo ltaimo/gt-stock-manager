@@ -109,7 +109,7 @@
     <div class="alert orange">{{ tx("Este perfil não tem permissão para registar nesta área HSE/HST.", user if user is defined else none) }}</div>
   {% else %}
   {% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
-  <form method="get" class="filters">
+  <form method="get" class="filters" data-auto-submit-filter>
     <select name="module">
       <option value="">{{ tx("Todas as áreas", user if user is defined else none) }}</option>
       {% for module in modules %}
@@ -151,8 +151,12 @@
 </section>
 
 <section class="panel">
-  <div class="panel-heading"><h2>{{ tx("Registos recentes", user if user is defined else none) }}</h2><span class="badge blue">{{ records|length }}</span></div>
-  <table>
+  <div class="panel-heading">
+    <h2>{{ tx("Registos recentes", user if user is defined else none) }}</h2>
+    <input type="search" placeholder="{{ tx("Pesquisar nesta lista", user if user is defined else none) }}" data-instant-table-search="#hse-records-table">
+    <span class="badge blue">{{ records|length }}</span>
+  </div>
+  <table id="hse-records-table">
     <thead>
       <tr>
         <th>{{ tx("Nº", user if user is defined else none) }}</th>

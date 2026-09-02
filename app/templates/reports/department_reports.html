@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <h1>{{ title }}</h1>
+    <p class="muted">{{ tx("Consolidação diária, semanal ou mensal dos relatórios de Manutenção, Informática e Segurança.", user if user is defined else none) }}</p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/operacoes-internas/relatorios-departamentais">{{ tx("Registar diário", user if user is defined else none) }}</a>
+    <a class="button secondary" href="?department={{ department }}&period={{ period }}&date_from={{ date_from }}&date_to={{ date_to }}&export=xlsx">Excel</a>
+    <a class="button secondary" href="?department={{ department }}&period={{ period }}&date_from={{ date_from }}&date_to={{ date_to }}&export=pdf">PDF</a>
+    <a class="button secondary" href="?department={{ department }}&period={{ period }}&date_from={{ date_from }}&date_to={{ date_to }}&export=docx">Word</a>
+  </div>
+</header>
+
+<form class="panel form-stack" method="get">
+  <div class="form-grid">
+    <label>{{ tx("Departamento", user if user is defined else none) }}
+      <select name="department">
+        <option value="">{{ tx("Todos", user if user is defined else none) }}</option>
+        {% for key, item in report_types.items() %}
+          <option value="{{ key }}" {% if department == key %}selected{% endif %}>{{ tx(item.short, user if user is defined else none) }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>{{ tx("Consolidação", user if user is defined else none) }}
+      <select name="period">
+        <option value="daily" {% if period == "daily" %}selected{% endif %}>{{ tx("Diária / por intervalo", user if user is defined else none) }}</option>
+        <option value="weekly" {% if period == "weekly" %}selected{% endif %}>{{ tx("Semana atual", user if user is defined else none) }}</option>
+        <option value="monthly" {% if period == "monthly" %}selected{% endif %}>{{ tx("Mês atual", user if user is defined else none) }}</option>
+      </select>
+    </label>
+    <label>{{ tx("De", user if user is defined else none) }}<input type="date" name="date_from" value="{{ date_from }}"></label>
+    <label>{{ tx("Até", user if user is defined else none) }}<input type="date" name="date_to" value="{{ date_to }}"></label>
+  </div>
+  <div class="actions">
+    <button class="secondary">{{ tx("Aplicar filtros", user if user is defined else none) }}</button>
+    <span class="badge blue">{{ record_count }} {{ tx("registos", user if user is defined else none) }}</span>
+  </div>
+</form>
+
+<div class="filters"><input type="search" placeholder="{{ tx("Pesquisar nesta lista", user if user is defined else none) }}" data-instant-table-search="#department-report-table"></div>
+<div class="panel">
+  <table id="department-report-table">
+    <thead><tr>{% for h in headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>{% for value in row %}<td>{{ value }}</td>{% endfor %}</tr>
+      {% else %}
+        <tr><td colspan="{{ headers|length }}"><div class="empty-state">{{ tx("Sem dados para apresentar.", user if user is defined else none) }}</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

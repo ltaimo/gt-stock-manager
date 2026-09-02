@@ -6,9 +6,26 @@
     <h1>{{ tx("Operações internas", user if user is defined else none) }}</h1>
     <p class="muted">{{ tx("Controlo interno de operações gerais, combustível, água, energia, equipamentos e consumos operacionais.", user if user is defined else none) }}</p>
   </div>
-  <a class="button secondary" href="/dashboard">{{ tx("Voltar ao dashboard", user if user is defined else none) }}</a>
+  <div class="actions">
+    {% if can_view_internal_reports or can_create_internal_ops %}
+      <a class="button success" href="/operacoes-internas/relatorios-departamentais">{{ tx("Relatórios departamentais", user if user is defined else none) }}</a>
+    {% endif %}
+    <a class="button secondary" href="/dashboard">{{ tx("Voltar ao dashboard", user if user is defined else none) }}</a>
+  </div>
 </header>
 
+{% if can_view_internal_reports or can_create_internal_ops %}
+<section class="panel report-spotlight">
+  <div>
+    <span class="section-title">{{ tx("Relatórios diários", user if user is defined else none) }}</span>
+    <h2>{{ tx("Manutenção, Informática e Segurança", user if user is defined else none) }}</h2>
+    <p class="muted">{{ tx("Registo diário com consolidação semanal e mensal, visualização no sistema e exportação em PDF, Excel ou Word.", user if user is defined else none) }}</p>
+  </div>
+  <a class="button success" href="/operacoes-internas/relatorios-departamentais">{{ tx("Abrir relatórios departamentais", user if user is defined else none) }}</a>
+</section>
+{% endif %}
+
+{% if can_view_internal_records or can_create_internal_ops %}
 <section class="action-hub ops-hub" aria-label="{{ tx("Operações internas", user if user is defined else none) }}">
   {% for key, kind in kinds.items() %}
     <a class="action-tile {% if selected_kind == key %}active{% endif %}" href="/operacoes-internas?kind={{ key }}#internal-ops-form">
@@ -19,7 +36,20 @@
     </a>
   {% endfor %}
 </section>
+{% endif %}
 
+<section class="action-hub ops-hub" aria-label="{{ tx("Relatórios departamentais", user if user is defined else none) }}">
+  {% for key, item in department_report_types.items() %}
+    <a class="action-tile" href="/operacoes-internas/relatorios-departamentais?department={{ key }}#department-report-form">
+      <span class="tile-code">R{{ loop.index }}</span>
+      <span class="tile-icon" aria-hidden="true">{{ item.icon }}</span>
+      <strong>{{ tx(item.short, user if user is defined else none) }}</strong>
+      <small>{{ tx("Relatório diário com consolidação semanal e mensal", user if user is defined else none) }}</small>
+    </a>
+  {% endfor %}
+</section>
+
+{% if can_view_internal_records %}
 <section class="stats-grid">
   {% for key, kind in kinds.items() %}
     <article class="stat-card">
@@ -29,9 +59,20 @@
     </article>
   {% endfor %}
 </section>
+{% endif %}
 
 <section class="panel" id="internal-ops-form">
-  {% if not selected_kind %}
+  {% if not can_view_internal_records and not can_create_internal_ops and not can_view_internal_reports %}
+    <div class="choice-empty-state">
+      <strong>{{ tx("Sem módulos disponíveis", user if user is defined else none) }}</strong>
+      <p class="muted">{{ tx("O acesso à página está ativo, mas este perfil ainda não tem permissões para os módulos internos.", user if user is defined else none) }}</p>
+    </div>
+  {% elif not can_view_internal_records and not can_create_internal_ops and can_view_internal_reports %}
+    <div class="choice-empty-state">
+      <strong>{{ tx("Este perfil tem acesso apenas aos relatórios.", user if user is defined else none) }}</strong>
+      <p class="muted">{{ tx("Use o botão de relatórios departamentais para consultar ou exportar as consolidações.", user if user is defined else none) }}</p>
+    </div>
+  {% elif not selected_kind %}
     <div class="choice-empty-state">
       <strong>{{ tx("Escolha uma operação interna", user if user is defined else none) }}</strong>
       <p class="muted">{{ tx("Clique numa categoria acima para abrir apenas os campos desse fluxo operacional.", user if user is defined else none) }}</p>
@@ -116,9 +157,14 @@
   {% endif %}
 </section>
 
+{% if can_view_internal_records %}
 <section class="panel">
-  <div class="panel-heading"><h2>{{ tx("Registos recentes", user if user is defined else none) }}</h2><span class="badge blue">{{ records|length }}</span></div>
-  <table>
+  <div class="panel-heading">
+    <h2>{{ tx("Registos recentes", user if user is defined else none) }}</h2>
+    <input type="search" placeholder="{{ tx("Pesquisar nesta lista", user if user is defined else none) }}" data-instant-table-search="#internal-ops-table">
+    <span class="badge blue">{{ records|length }}</span>
+  </div>
+  <table id="internal-ops-table">
     <thead>
       <tr>
         <th>{{ tx("Nº", user if user is defined else none) }}</th>
@@ -158,4 +204,5 @@
     </tbody>
   </table>
 </section>
+{% endif %}
 {% endblock %}

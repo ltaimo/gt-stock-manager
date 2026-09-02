@@ -10,6 +10,7 @@ from app.models.core import HseRecord, InternalOperationRecord, ProcurementCase,
 from app.routers.common import templates
 from app.security import current_user, has_permission
 from app.services.approval_policy import can_user_approve_assignment
+from app.services.requisitions import is_stock_request
 
 router = APIRouter()
 
@@ -36,8 +37,9 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
     products = db.scalars(select(Product).order_by(Product.name)).all()
     can_view_movements = has_permission(user, "movements")
     can_view_hse = has_permission(user, "hse_view")
+    can_enter_internal_ops = True
     can_view_internal_ops = has_permission(user, "internal_ops_view")
-    can_review_requisitions = has_permission(user, "requisitions_review")
+    can_review_requisitions = has_permission(user, "requisitions_review") or user.role.name == "Gestor de Estoque"
     can_view_all_procurement = any(has_permission(user, permission) for permission in PROCUREMENT_VIEW_PERMISSIONS)
     can_view_procurement = (
         can_view_all_procurement
@@ -61,13 +63,17 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
         pending = [
             req
             for req in pending_candidates
-            if can_user_approve_assignment(
-                db,
-                user,
-                "requisitions_review",
-                req.approver_role_id,
-                req.authorization_person,
-                amount=float(req.estimated_value or 0),
+            if (
+                user.role.name in {"SuperAdmin", "Gestor de Estoque"}
+                if is_stock_request(req.req_type)
+                else can_user_approve_assignment(
+                    db,
+                    user,
+                    "requisitions_review",
+                    req.approver_role_id,
+                    req.authorization_person,
+                    amount=float(req.estimated_value or 0),
+                )
             )
         ][:8]
     procurement_stmt = (
@@ -208,6 +214,7 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
             "can_view_movements": can_view_movements,
             "can_view_procurement": can_view_procurement,
             "can_view_hse": can_view_hse,
+            "can_enter_internal_ops": can_enter_internal_ops,
             "can_view_internal_ops": can_view_internal_ops,
         },
     )

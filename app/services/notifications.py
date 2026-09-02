@@ -14,6 +14,7 @@ from app.i18n import language_for, translate_value
 from app.models.core import Notification, ProcurementCase, Product, Requisition, User
 from app.security import has_permission
 from app.services.approval_policy import users_for_approval_assignment
+from app.services.requisitions import is_stock_request
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,13 @@ def recipients_with_permission(db: Session, permission: str) -> list[User]:
 
 
 def recipients_for_requisition_approval(db: Session, req: Requisition) -> list[User]:
+    if is_stock_request(req.req_type):
+        users = db.scalars(select(User).where(User.is_active == True)).all()
+        return [
+            user
+            for user in users
+            if user.role.name in {"SuperAdmin", "Gestor de Estoque"}
+        ]
     return users_for_approval_assignment(
         db,
         "requisitions_review",
@@ -179,9 +187,15 @@ def notify_user(db: Session, user: User, title: str, message: str, module: str, 
         return
     db.add(Notification(user_id=user.id, title=title, message=message, module=module, record_id=record_id))
     if email and user.email and user.notify_email:
-        send_email(user.email, title, message)
+        try:
+            send_email(user.email, title, message)
+        except Exception:
+            logger.exception("Falha ao enviar email de notificação para o utilizador %s", user.id)
     if user.phone and user.notify_whatsapp:
-        send_whatsapp(user.phone, title, message)
+        try:
+            send_whatsapp(user.phone, title, message)
+        except Exception:
+            logger.exception("Falha ao enviar WhatsApp de notificação para o utilizador %s", user.id)
 
 
 def notify_requisition_pending(db: Session, req: Requisition) -> None:
