@@ -41,6 +41,7 @@
     {% endif %}
     {% if can(user, 'hse_view') %}<a href="/hse" data-nav-prefix="/hse"><span class="nav-icon" aria-hidden="true">✚</span><span>{{ t('hse', user) }}</span></a>{% endif %}
     <a href="/operacoes-internas" data-nav-prefix="/operacoes-internas"><span class="nav-icon" aria-hidden="true">⚙</span><span>{{ t('internal_ops', user) }}</span></a>
+    {% if can(user, 'finance_view') %}<a href="/financeiro" data-nav-prefix="/financeiro"><span class="nav-icon" aria-hidden="true">$</span><span>{{ t('finance', user) }}</span></a>{% endif %}
     {% if can(user, 'reports') or can(user, 'hse_reports') or can(user, 'internal_ops_reports') %}<a href="/relatorios" data-nav-prefix="/relatorios"><span class="nav-icon" aria-hidden="true">▥</span><span>{{ t('reports', user) }}</span></a>{% endif %}
     {% if can(user, 'users_manage') %}<a href="/utilizadores" data-nav-prefix="/utilizadores"><span class="nav-icon" aria-hidden="true">◉</span><span>{{ t('users', user) }}</span></a>{% endif %}
     {% if can(user, 'profiles_manage') %}<a href="/perfis" data-nav-prefix="/perfis"><span class="nav-icon" aria-hidden="true">◈</span><span>{{ t('profiles', user) }}</span></a>{% endif %}

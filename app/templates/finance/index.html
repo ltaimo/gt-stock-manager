@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}{{ tx("Financeiro", user if user is defined else none) }}{% endblock %}
+{% block content %}
+<header class="page-header module-hero finance-hero">
+  <div>
+    <span class="eyebrow">{{ tx("Versão 4", user if user is defined else none) }}</span>
+    <h1>{{ tx("Módulo financeiro", user if user is defined else none) }}</h1>
+    <p class="muted">{{ tx("Consolidação mensal de requisições, procurement, operações internas e relatórios financeiros diários do terminal.", user if user is defined else none) }}</p>
+  </div>
+  <div class="actions">
+    <a class="button secondary" href="/dashboard">{{ tx("Dashboard", user if user is defined else none) }}</a>
+    <a class="button secondary" href="/relatorios">{{ tx("Relatórios", user if user is defined else none) }}</a>
+  </div>
+</header>
+
+{% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
+
+<form method="get" action="/financeiro" class="panel filters">
+  <label>{{ tx("Mês de análise", user if user is defined else none) }}<input type="month" name="month" value="{{ month }}"></label>
+  <button class="secondary">{{ tx("Atualizar", user if user is defined else none) }}</button>
+</form>
+
+<section class="kpis finance-kpis">
+  <div><strong>{{ "%.2f"|format(summary.current.total_spend|float) }}</strong><span>{{ tx("Gasto operacional do mês", user if user is defined else none) }}</span><small>MZN</small></div>
+  <div><strong>{{ "%.2f"|format(summary.current.daily_revenue|float) }}</strong><span>{{ tx("Receita importada", user if user is defined else none) }}</span><small>MZN</small></div>
+  <div><strong>{{ "%.2f"|format(summary.usage_ratio|float) }}%</strong><span>{{ tx("Uso sobre receita", user if user is defined else none) }}</span><small>{{ tx("Gastos / receita importada", user if user is defined else none) }}</small></div>
+  <div><strong>{{ summary.current.trucks_in }}</strong><span>{{ tx("Camiões entrados", user if user is defined else none) }}</span><small>{{ summary.current.trucks_out }} {{ tx("saídos", user if user is defined else none) }}</small></div>
+</section>
+
+<section class="grid-two">
+  <div class="panel">
+    <div class="panel-heading">
+      <h2>{{ tx("Composição dos gastos", user if user is defined else none) }}</h2>
+      <span class="badge blue">{{ month }}</span>
+    </div>
+    <table>
+      <thead>
+        <tr><th>{{ tx("Fonte", user if user is defined else none) }}</th><th>{{ tx("Valor", user if user is defined else none) }}</th><th>{{ tx("Variação mensal", user if user is defined else none) }}</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>{{ tx("Stock requisitions aprovadas", user if user is defined else none) }}</td><td>{{ "%.2f"|format(summary.current.stock_requisitions|float) }} MZN</td><td>{{ "%.2f"|format(summary.percent_change.stock_requisitions|float) }}%</td></tr>
+        <tr><td>{{ tx("Non-stock / Procurement / PO", user if user is defined else none) }}</td><td>{{ "%.2f"|format(summary.current.procurement|float) }} MZN</td><td>{{ "%.2f"|format(summary.percent_change.procurement|float) }}%</td></tr>
+        <tr><td>{{ tx("Operações internas", user if user is defined else none) }}</td><td>{{ "%.2f"|format(summary.current.internal_ops|float) }} MZN</td><td>{{ "%.2f"|format(summary.percent_change.internal_ops|float) }}%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <div class="panel-heading">
+      <h2>{{ tx("Importar relatório diário", user if user is defined else none) }}</h2>
+      <span class="badge orange">Word / PDF</span>
+    </div>
+    <form method="post" action="/financeiro/importacoes" enctype="multipart/form-data" class="form-stack">
+      <label>{{ tx("Data do relatório", user if user is defined else none) }}<input type="date" name="report_date" required></label>
+      <label>{{ tx("Documento financeiro diário", user if user is defined else none) }}<input type="file" name="document" accept=".docx,.pdf" required></label>
+      <label>{{ tx("Notas", user if user is defined else none) }}<textarea name="notes"></textarea></label>
+      <div class="actions"><button class="success">{{ tx("Importar e consolidar", user if user is defined else none) }}</button></div>
+    </form>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-heading">
+    <h2>{{ tx("Relatórios financeiros diários importados", user if user is defined else none) }}</h2>
+    <span class="badge grey">{{ summary.current.imports_count }}</span>
+  </div>
+  <table class="responsive-table">
+    <thead>
+      <tr>
+        <th>{{ tx("Data", user if user is defined else none) }}</th>
+        <th>{{ tx("Documento", user if user is defined else none) }}</th>
+        <th>{{ tx("Camiões", user if user is defined else none) }}</th>
+        <th>{{ tx("Receita", user if user is defined else none) }}</th>
+        <th>{{ tx("Carregado por", user if user is defined else none) }}</th>
+        <th>{{ tx("Notas", user if user is defined else none) }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in summary.daily_imports %}
+        <tr>
+          <td data-label="{{ tx("Data", user if user is defined else none) }}">{{ item.report_date.strftime('%Y-%m-%d') }}</td>
+          <td data-label="{{ tx("Documento", user if user is defined else none) }}">{{ item.original_filename }}</td>
+          <td data-label="{{ tx("Camiões", user if user is defined else none) }}">{{ item.trucks_in }} / {{ item.trucks_out }}</td>
+          <td data-label="{{ tx("Receita", user if user is defined else none) }}">{{ "%.2f"|format(item.revenue_amount|float) }} MZN</td>
+          <td data-label="{{ tx("Carregado por", user if user is defined else none) }}">{{ item.uploaded_by.full_name }}</td>
+          <td data-label="{{ tx("Notas", user if user is defined else none) }}">{{ item.notes or "-" }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="empty-state">{{ tx("Ainda não há relatórios financeiros diários importados para este mês.", user if user is defined else none) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

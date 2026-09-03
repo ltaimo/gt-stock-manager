@@ -13,7 +13,7 @@ from app.database import Base, engine
 from app.errors import http_error_handler, unexpected_error_handler, validation_error_handler
 from app.maintenance.create_codex_agent_user import create_codex_agent_user
 from app.maintenance.migrate_schema import ensure_schema
-from app.routers import about, audit, auth, dashboard, documents, hse, imports, internal_ops, movements, notifications, preferences, procurement, products, profiles, reports, requisitions, settings as settings_router, sync, users
+from app.routers import about, audit, auth, dashboard, documents, finance, hse, imports, internal_ops, movements, notifications, preferences, procurement, products, profiles, reports, requisitions, settings as settings_router, sync, users
 from app.security import session_is_expired
 from app.services.sync import push_snapshot_to_target
 
@@ -141,7 +141,7 @@ async def browser_security(request: Request, call_next):
 
 app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, same_site="lax", https_only=settings.secure_cookies)
 
-for router in [auth.router, dashboard.router, products.router, movements.router, requisitions.router, procurement.router, hse.router, internal_ops.router, settings_router.router, preferences.router, reports.router, users.router, profiles.router, imports.router, audit.router, notifications.router, documents.router, sync.router, about.router]:
+for router in [auth.router, dashboard.router, products.router, movements.router, requisitions.router, procurement.router, hse.router, internal_ops.router, finance.router, settings_router.router, preferences.router, reports.router, users.router, profiles.router, imports.router, audit.router, notifications.router, documents.router, sync.router, about.router]:
     app.include_router(router)
 
 

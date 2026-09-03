@@ -491,6 +491,27 @@ class DepartmentDailyReport(Base):
     approved_by: Mapped[User | None] = relationship(foreign_keys=[approved_by_id])
 
 
+class FinancialDailyImport(Base):
+    __tablename__ = "financial_daily_imports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    report_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
+    period_month: Mapped[str] = mapped_column(String(7), nullable=False, index=True)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(120), default="application/octet-stream")
+    content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    extracted_text: Mapped[str | None] = mapped_column(Text)
+    extracted_metrics: Mapped[str | None] = mapped_column(Text)
+    trucks_in: Mapped[int] = mapped_column(Integer, default=0)
+    trucks_out: Mapped[int] = mapped_column(Integer, default=0)
+    revenue_amount: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
+    notes: Mapped[str | None] = mapped_column(Text)
+    uploaded_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    uploaded_by: Mapped[User] = relationship()
+
+
 class InternalOperationOption(Base):
     __tablename__ = "internal_operation_options"
     __table_args__ = (UniqueConstraint("option_type", "name"),)

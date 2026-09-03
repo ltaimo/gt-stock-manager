@@ -363,10 +363,35 @@ def ensure_schema() -> None:
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_department_daily_reports_department_key ON department_daily_reports (department_key)"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_department_daily_reports_report_date ON department_daily_reports (report_date)"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_department_daily_reports_status ON department_daily_reports (status)"))
+        if "financial_daily_imports" not in tables:
+            connection.execute(
+                text(
+                    f"""
+                    CREATE TABLE financial_daily_imports (
+                        id {_identity_primary_key(connection)},
+                        report_date TIMESTAMP,
+                        period_month VARCHAR(7) NOT NULL,
+                        original_filename VARCHAR(255) NOT NULL,
+                        content_type VARCHAR(120),
+                        content BYTEA NOT NULL,
+                        extracted_text TEXT,
+                        extracted_metrics TEXT,
+                        trucks_in INTEGER DEFAULT 0,
+                        trucks_out INTEGER DEFAULT 0,
+                        revenue_amount NUMERIC(14, 2) DEFAULT 0,
+                        notes TEXT,
+                        uploaded_by_id INTEGER NOT NULL REFERENCES users(id),
+                        created_at TIMESTAMP
+                    )
+                    """
+                )
+            )
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_financial_daily_imports_report_date ON financial_daily_imports (report_date)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_financial_daily_imports_period_month ON financial_daily_imports (period_month)"))
         for statement in additions:
             connection.execute(text(_schema_statement(connection, statement)))
         current_tables = set(inspect(connection).get_table_names())
-        for table_name in ("warehouses", "product_warehouse_stocks", "internal_operation_options", "access_requests", "department_daily_reports"):
+        for table_name in ("warehouses", "product_warehouse_stocks", "internal_operation_options", "access_requests", "department_daily_reports", "financial_daily_imports"):
             if table_name in current_tables:
                 _ensure_postgres_id_default(connection, table_name)
         if "warehouses" in current_tables:

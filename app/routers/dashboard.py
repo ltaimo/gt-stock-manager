@@ -10,6 +10,7 @@ from app.models.core import HseRecord, InternalOperationRecord, ProcurementCase,
 from app.routers.common import templates
 from app.security import current_user, has_permission
 from app.services.approval_policy import can_user_approve_assignment
+from app.services.finance import monthly_finance_summary
 from app.services.requisitions import is_stock_request
 
 router = APIRouter()
@@ -37,6 +38,7 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
     products = db.scalars(select(Product).order_by(Product.name)).all()
     can_view_movements = has_permission(user, "movements")
     can_view_hse = has_permission(user, "hse_view")
+    can_view_finance = has_permission(user, "finance_view")
     can_enter_internal_ops = True
     can_view_internal_ops = has_permission(user, "internal_ops_view")
     can_review_requisitions = has_permission(user, "requisitions_review") or user.role.name == "Gestor de Estoque"
@@ -101,6 +103,7 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
         if can_view_internal_ops
         else 0
     )
+    finance_month_amount = monthly_finance_summary(db)["current"]["total_spend"] if can_view_finance else 0
 
     active_products = [p for p in products if p.status == "active"]
     products_without_price = [p for p in active_products if float(p.unit_price or 0) <= 0]
@@ -198,6 +201,7 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
             "procurement_pending_count": len(procurement_pending),
             "open_hse_count": open_hse_count,
             "internal_ops_month_amount": internal_ops_month_amount,
+            "finance_month_amount": finance_month_amount,
             "entries_month": entries_month,
             "exits_month": exits_month,
             "projected_entries": projected_entries,
@@ -214,6 +218,7 @@ def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depe
             "can_view_movements": can_view_movements,
             "can_view_procurement": can_view_procurement,
             "can_view_hse": can_view_hse,
+            "can_view_finance": can_view_finance,
             "can_enter_internal_ops": can_enter_internal_ops,
             "can_view_internal_ops": can_view_internal_ops,
         },
