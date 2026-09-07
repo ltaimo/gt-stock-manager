@@ -20,7 +20,7 @@ PROTECTED_GET_ROUTES = {
     "/procurement/nova": "non_stock_requisitions_create",
     "/procurement/reposicao/nova": "stock_replenishment_create",
     "/hse": "hse_view",
-    "/relatorios": "reports",
+    "/financeiro": "finance_view",
     "/utilizadores": "users_manage",
     "/perfis": "profiles_manage",
     "/importar": "imports",
@@ -108,6 +108,40 @@ class ModuleAccessTests(unittest.TestCase):
             if response.status_code != 403:
                 failures[path] = response.status_code
         self.assertEqual(failures, {})
+
+    def test_main_menu_shows_modules_without_granting_actions(self):
+        self.login("bloqueado")
+        response = self.client.get("/dashboard", follow_redirects=False)
+        self.assertEqual(response.status_code, 200)
+        for href in [
+            "/movimentos",
+            "/documentos",
+            "/requisicoes/nova",
+            "/procurement",
+            "/hse",
+            "/operacoes-internas",
+            "/operacoes-internas/relatorios-departamentais",
+            "/financeiro",
+            "/relatorios",
+            "/utilizadores",
+            "/perfis",
+            "/importar",
+            "/auditoria",
+            "/configuracoes",
+        ]:
+            self.assertIn(f'href="{href}"', response.text)
+        self.assertEqual(self.client.get("/financeiro", follow_redirects=False).status_code, 403)
+
+        reports = self.client.get("/operacoes-internas/relatorios-departamentais", follow_redirects=False)
+        self.assertEqual(reports.status_code, 200)
+        self.assertIn("O seu perfil não possui permissão para executar esta operação.", reports.text)
+
+    def test_reports_hub_is_visible_but_child_reports_remain_protected(self):
+        self.login("bloqueado")
+        response = self.client.get("/relatorios", follow_redirects=False)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("/relatorios/stock", response.text)
+        self.assertEqual(self.client.get("/relatorios/stock", follow_redirects=False).status_code, 403)
 
     def test_all_authenticated_users_can_enter_internal_operations_lobby(self):
         self.login("bloqueado")

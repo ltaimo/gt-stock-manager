@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from app.config import auto_prepare_schema_enabled, resolve_database_url
+from app.config import auto_prepare_schema_enabled, get_settings, resolve_database_url
 
 
 class ConfigTests(unittest.TestCase):
@@ -21,6 +21,12 @@ class ConfigTests(unittest.TestCase):
     def test_schema_prepare_can_be_enabled_explicitly(self):
         with patch.dict("os.environ", {"GTIMS_AUTO_PREPARE_SCHEMA": "true"}, clear=True):
             self.assertTrue(auto_prepare_schema_enabled("production"))
+
+    def test_default_application_version_is_4_0_0(self):
+        get_settings.cache_clear()
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertEqual(get_settings().app_version, "4.0.0")
+        get_settings.cache_clear()
 
 
 if __name__ == "__main__":

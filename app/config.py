@@ -53,7 +53,7 @@ def auto_prepare_schema_enabled(environment: str) -> bool:
 
 
 class Settings:
-    app_version = os.getenv("APP_VERSION", "3.0.0")
+    app_version = os.getenv("APP_VERSION", "4.0.0")
     app_name = os.getenv("APP_NAME", "GT Integrated Management System")
     app_subtitle = os.getenv("APP_SUBTITLE", "Gestão de Terminais, SA")
     app_short_name = os.getenv("APP_SHORT_NAME", "GTIMS")

@@ -115,3 +115,15 @@ output.rejected-quantity{font-weight:800;color:var(--red)}
 .account-panel{display:flex;align-items:flex-start;gap:18px}.account-avatar{display:grid;place-items:center;width:72px;height:72px;border-radius:18px;background:var(--gold);color:#282a2d;font-size:30px;font-weight:900;text-transform:uppercase}.account-details{min-width:0;flex:1}.account-details dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:14px 0 0}.account-details dl div{border:1px solid var(--line);border-radius:8px;background:#fafafa;padding:12px}.account-details dt{color:var(--muted);font-size:12px;font-weight:800;text-transform:uppercase}.account-details dd{margin:5px 0 0;font-weight:700}
 @media (max-width:900px){.report-spotlight,.account-panel{display:grid}.report-spotlight .button{width:100%;text-align:center;white-space:normal}.account-details dl{grid-template-columns:minmax(0,1fr)}}
 .finance-hero{background:linear-gradient(135deg,#fff 0%,#f2f8f4 62%,#e8f2ec 100%)}.finance-hero::after{background:var(--green)}.switch-card.finance::before,.switch-card.finance::after{background:var(--green)}
+.login-version{margin:-6px 0 18px;text-align:center;color:var(--muted);font-size:13px;font-weight:800}
+.daily-prep-panel{border-color:#bed4ef;background:linear-gradient(135deg,#fff 0%,#f6faff 100%)}
+.prep-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:14px}
+.prep-card{display:grid;gap:10px;border:1px solid var(--line);border-radius:8px;background:white;padding:14px}
+.prep-card>div{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.clipboard-source{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none}
+.clipboard-preview{width:min(760px,92vw);border:1px solid var(--line);border-radius:8px;padding:0;box-shadow:0 24px 70px rgba(31,35,40,.24)}
+.clipboard-preview::backdrop{background:rgba(20,22,25,.52)}
+.clipboard-preview form{padding:18px}
+.clipboard-preview textarea{min-height:360px;font-family:Consolas,Menlo,monospace;line-height:1.45;white-space:pre-wrap}
+.report-filters{flex-wrap:wrap;align-items:end}
+.report-filters label{min-width:150px}

@@ -1,5 +1,6 @@
 import json
 import unittest
+from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, inspect, select
@@ -51,6 +52,10 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.maintenance_role = Role(name="CC Manutenção", permissions=json.dumps(["internal_ops_view", "internal_ops_create", "internal_ops_reports"]))
         self.it_role = Role(name="IT", permissions=json.dumps(["internal_ops_view", "internal_ops_create", "internal_ops_reports"]))
         self.security_role = Role(name="Segurança", permissions=json.dumps(["internal_ops_view", "internal_ops_create", "internal_ops_reports"]))
+        self.ops_manager_role = Role(
+            name="Gestor Operacional",
+            permissions=json.dumps(["internal_ops_view", "internal_ops_create", "internal_ops_reports", "internal_ops_reports_view_all", "internal_ops_reports_copy"]),
+        )
         self.replenishment_role = Role(name="Reposicao Manager", permissions=json.dumps(["stock_replenishment_create"]))
         self.limited_hse_role = Role(name="Limited HSE Creator", permissions=json.dumps(["hse_view", "hse_records_create"]))
         self.limited_hse_workflow_role = Role(name="Limited HSE Workflow", permissions=json.dumps(["hse_view", "hse_workflow_manage"]))
@@ -66,6 +71,7 @@ class V3ModuleFlowTests(unittest.TestCase):
             self.maintenance_role,
             self.it_role,
             self.security_role,
+            self.ops_manager_role,
             self.replenishment_role,
             self.limited_hse_role,
             self.limited_hse_workflow_role,
@@ -135,6 +141,14 @@ class V3ModuleFlowTests(unittest.TestCase):
             department_id=self.security_department.id,
             notify_email=False,
         )
+        self.ops_manager_user = User(
+            full_name="Gestor Operacional",
+            username="gestorops",
+            password_hash=hash_password("Test@12345"),
+            role_id=self.ops_manager_role.id,
+            department_id=self.department.id,
+            notify_email=False,
+        )
         self.limited_hse_user = User(
             full_name="Limited HSE Creator",
             username="limitedhse",
@@ -159,6 +173,7 @@ class V3ModuleFlowTests(unittest.TestCase):
             self.maintenance_user,
             self.it_user,
             self.security_user,
+            self.ops_manager_user,
             self.replenishment_user,
             self.limited_hse_user,
             self.limited_hse_workflow_user,
@@ -465,10 +480,10 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.assertIn("125000", report.text)
 
     def test_department_daily_report_create_validate_and_exports(self):
-        self.login()
+        self.login("adminreports")
         home = self.client.get("/operacoes-internas")
         self.assertEqual(home.status_code, 200)
-        self.assertEqual(home.text.count("/operacoes-internas/relatorios-departamentais"), 1)
+        self.assertIn("/operacoes-internas/relatorios-departamentais", home.text)
 
         form = self.client.get("/operacoes-internas/relatorios-departamentais?department=maintenance")
         self.assertEqual(form.status_code, 200)
@@ -512,7 +527,7 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.db.expire_all()
         record = self.db.get(DepartmentDailyReport, record.id)
         self.assertEqual(record.status, "Validated")
-        self.assertEqual(record.approved_by_id, self.user.id)
+        self.assertEqual(record.approved_by_id, self.admin_user.id)
 
         report = self.client.get("/relatorios/operacoes-internas/departamentos?department=maintenance&date_from=2026-08-31&date_to=2026-08-31")
         self.assertEqual(report.status_code, 200)
@@ -604,6 +619,78 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.assertEqual(security_area.status_code, 200)
         self.assertIn('name="department_key" value="security"', security_area.text)
         self.assertIn("Departamento de Proteção e Segurança", security_area.text)
+
+    def test_operational_manager_views_and_copies_without_cross_department_create(self):
+        for department_key, activities in [
+            ("security", "Patrulha diurna concluida.\nBypass: 0.00 kw"),
+            ("maintenance", "Controle de fluxo de agua."),
+            ("it", "Sistema IT: Operacional"),
+        ]:
+            self.db.add(
+                DepartmentDailyReport(
+                    number=f"{department_key.upper()}-DR-2026-999",
+                    department_key=department_key,
+                    report_date=datetime(2026, 9, 2, tzinfo=timezone.utc),
+                    shift="07h00-17h00",
+                    prepared_by="Responsavel",
+                    activities=activities,
+                    incidents="0 ocorrencias" if department_key == "security" else None,
+                    equipment_status="Equipamento verificado",
+                    readings="Bypass: 0.00 kw",
+                    status="Submitted",
+                    created_by_id=self.admin_user.id,
+                )
+            )
+        self.db.commit()
+
+        self.ops_manager_role.permissions = json.dumps(["internal_ops_create"])
+        self.db.commit()
+        self.login("gestorops")
+        page = self.client.get("/operacoes-internas/relatorios-departamentais?prepare_date=2026-09-02")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("Preparar Relatório Diário", page.text)
+        self.assertIn("Copiar Todos", page.text)
+        self.assertIn("SECURITY-DR-2026-999", page.text)
+        self.assertIn("MAINTENANCE-DR-2026-999", page.text)
+        self.assertIn("IT-DR-2026-999", page.text)
+        self.assertNotIn('name="report_date"', page.text)
+
+        security = self.db.scalar(select(DepartmentDailyReport).where(DepartmentDailyReport.department_key == "security"))
+        copied = self.client.get(f"/operacoes-internas/relatorios-departamentais/{security.id}/texto")
+        self.assertEqual(copied.status_code, 200)
+        self.assertEqual(copied.headers["content-type"], "text/plain; charset=utf-8")
+        self.assertIn("DEPARTAMENTO DE PROTECAO E SEGURANCA", copied.text)
+        self.assertIn("Bypass: 0.00 kw", copied.text)
+        self.assertNotIn("created_by_id", copied.text)
+
+        blocked_create = self.client.post(
+            "/operacoes-internas/relatorios-departamentais",
+            data={"department_key": "security", "report_date": "2026-09-02", "activities": "Tentativa gestor operacional."},
+        )
+        self.assertEqual(blocked_create.status_code, 403)
+
+    def test_department_users_create_only_their_own_department_reports(self):
+        scenarios = [
+            ("securityreports", "security"),
+            ("ccmanutencao", "maintenance"),
+            ("itreports", "it"),
+        ]
+        for username, department_key in scenarios:
+            with self.subTest(username=username, department_key=department_key):
+                self.login(username)
+                created = self.client.post(
+                    "/operacoes-internas/relatorios-departamentais",
+                    data={"department_key": department_key, "report_date": "2026-09-04", "activities": f"Relatorio {department_key}."},
+                    follow_redirects=False,
+                )
+                self.assertEqual(created.status_code, 303)
+
+        self.login("securityreports")
+        blocked = self.client.post(
+            "/operacoes-internas/relatorios-departamentais",
+            data={"department_key": "maintenance", "report_date": "2026-09-04", "activities": "Tentativa cruzada."},
+        )
+        self.assertEqual(blocked.status_code, 403)
 
     def test_department_reports_module_recovers_missing_storage(self):
         self.login()

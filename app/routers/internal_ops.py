@@ -1,8 +1,8 @@
-from datetime import datetime, timezone
+from datetime import datetime, time, timezone
 import unicodedata
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
@@ -11,6 +11,7 @@ from app.models.core import Department, DepartmentDailyReport, InternalOperation
 from app.routers.common import templates
 from app.security import current_user, has_permission, require_permission
 from app.services.audit import audit_log
+from app.services.department_reports import format_department_report_for_daily, format_reports_for_daily_bundle
 from app.services.forms import optional_float, optional_int, required_float, required_text
 from app.services.transactions import atomic
 
@@ -86,6 +87,7 @@ DEPARTMENT_REPORT_ACCESS_MARKERS = {
     "security": {"seguranca", "security", "protecao"},
 }
 DEPARTMENT_REPORT_ADMIN_ROLES = {"SuperAdmin", "Admin"}
+DEPARTMENT_REPORT_OPERATIONS_ROLES = {"Gestor Operacional", "Operações"}
 QUANTITY_REQUIRED_TYPES = {
     "fuel_purchase_storage",
     "fuel_refuel",
@@ -191,6 +193,26 @@ def parse_report_date(value: str | None) -> datetime:
         raise HTTPException(400, "Informe uma data válida no formato AAAA-MM-DD.") from exc
 
 
+def optional_date_start(value: str | None) -> datetime | None:
+    cleaned = str(value or "").strip()
+    if not cleaned:
+        return None
+    try:
+        return datetime.combine(datetime.fromisoformat(cleaned).date(), time.min).replace(tzinfo=timezone.utc)
+    except ValueError as exc:
+        raise HTTPException(400, "Informe uma data válida no formato AAAA-MM-DD.") from exc
+
+
+def optional_date_end(value: str | None) -> datetime | None:
+    cleaned = str(value or "").strip()
+    if not cleaned:
+        return None
+    try:
+        return datetime.combine(datetime.fromisoformat(cleaned).date(), time.max).replace(tzinfo=timezone.utc)
+    except ValueError as exc:
+        raise HTTPException(400, "Informe uma data válida no formato AAAA-MM-DD.") from exc
+
+
 def _fold_text(value: str | None) -> str:
     normalized = unicodedata.normalize("NFKD", str(value or ""))
     return "".join(char for char in normalized if not unicodedata.combining(char)).casefold()
@@ -202,18 +224,29 @@ def _contains_marker(haystack: str, marker: str) -> bool:
     return marker in haystack
 
 
-def allowed_department_report_keys(user: User) -> list[str]:
-    if user.role.name in DEPARTMENT_REPORT_ADMIN_ROLES:
-        return list(DEPARTMENT_REPORTS)
+def user_department_report_keys(user: User) -> list[str]:
     haystacks = [_fold_text(user.role.name), _fold_text(user.department.name if user.department else "")]
-    allowed = [
+    matched = [
         key
         for key, markers in DEPARTMENT_REPORT_ACCESS_MARKERS.items()
         if any(_contains_marker(haystack, marker) for haystack in haystacks for marker in markers)
     ]
-    if not allowed:
+    return [key for key in DEPARTMENT_REPORTS if key in matched]
+
+
+def can_view_all_department_reports(user: User) -> bool:
+    return is_department_reports_admin(user) or user.role.name in DEPARTMENT_REPORT_OPERATIONS_ROLES or has_permission(user, "internal_ops_reports_view_all")
+
+
+def allowed_department_report_keys(user: User) -> list[str]:
+    if can_view_all_department_reports(user):
         return list(DEPARTMENT_REPORTS)
-    return [key for key in DEPARTMENT_REPORTS if key in allowed]
+    own_keys = user_department_report_keys(user)
+    if own_keys:
+        return own_keys
+    if has_permission(user, "internal_ops_reports"):
+        return list(DEPARTMENT_REPORTS)
+    return []
 
 
 def require_department_report_access(user: User, department_key: str) -> None:
@@ -226,15 +259,25 @@ def is_department_reports_admin(user: User) -> bool:
 
 
 def can_view_department_reports(user: User) -> bool:
-    return is_department_reports_admin(user) or has_permission(user, "internal_ops_reports")
+    return is_department_reports_admin(user) or user.role.name in DEPARTMENT_REPORT_OPERATIONS_ROLES or has_permission(user, "internal_ops_reports")
+
+
+def can_create_department_report(user: User, department_key: str) -> bool:
+    if is_department_reports_admin(user):
+        return True
+    return has_permission(user, "internal_ops_create") and department_key in user_department_report_keys(user)
 
 
 def can_create_department_reports(user: User) -> bool:
-    return is_department_reports_admin(user) or has_permission(user, "internal_ops_create")
+    return is_department_reports_admin(user) or (has_permission(user, "internal_ops_create") and bool(user_department_report_keys(user)))
 
 
 def can_approve_department_reports(user: User) -> bool:
     return is_department_reports_admin(user) or has_permission(user, "internal_ops_approve")
+
+
+def can_copy_department_reports(user: User) -> bool:
+    return is_department_reports_admin(user) or user.role.name in DEPARTMENT_REPORT_OPERATIONS_ROLES or has_permission(user, "internal_ops_reports_copy") or has_permission(user, "internal_ops_reports")
 
 
 def operations_context(request: Request, db: Session, user: User, kind: str = "", error: str | None = None) -> dict:
@@ -415,11 +458,26 @@ def validate_operation_record(
     return RedirectResponse(f"/operacoes-internas?kind={record.kind}", status_code=303)
 
 
-def department_reports_context(request: Request, db: Session, user: User, department_key: str = "", error: str | None = None) -> dict:
+def department_reports_context(
+    request: Request,
+    db: Session,
+    user: User,
+    department_key: str = "",
+    error: str | None = None,
+    date_from: str = "",
+    date_to: str = "",
+    status: str = "",
+    responsible: str = "",
+    q: str = "",
+    prepare_date: str = "",
+) -> dict:
     ensure_department_report_storage(db)
-    can_create_reports = can_create_department_reports(user)
+    can_create_reports = bool(department_key and can_create_department_report(user, department_key))
     can_view_reports = can_view_department_reports(user)
     allowed_report_keys = allowed_department_report_keys(user)
+    visible_report_keys = allowed_report_keys if allowed_report_keys else list(DEPARTMENT_REPORTS)
+    start = optional_date_start(date_from)
+    end = optional_date_end(date_to)
     reports = []
     if can_view_reports:
         stmt = select(DepartmentDailyReport).order_by(DepartmentDailyReport.report_date.desc(), DepartmentDailyReport.id.desc())
@@ -427,12 +485,61 @@ def department_reports_context(request: Request, db: Session, user: User, depart
             stmt = stmt.where(DepartmentDailyReport.department_key == department_key)
         else:
             stmt = stmt.where(DepartmentDailyReport.department_key.in_(allowed_report_keys))
+        if start:
+            stmt = stmt.where(DepartmentDailyReport.report_date >= start)
+        if end:
+            stmt = stmt.where(DepartmentDailyReport.report_date <= end)
+        if status:
+            stmt = stmt.where(DepartmentDailyReport.status == status)
+        if responsible:
+            stmt = stmt.where(DepartmentDailyReport.prepared_by.ilike(f"%{responsible}%"))
+        if q:
+            like = f"%{q}%"
+            stmt = stmt.where(
+                DepartmentDailyReport.activities.ilike(like)
+                | DepartmentDailyReport.incidents.ilike(like)
+                | DepartmentDailyReport.equipment_status.ilike(like)
+                | DepartmentDailyReport.readings.ilike(like)
+                | DepartmentDailyReport.pending_actions.ilike(like)
+                | DepartmentDailyReport.notes.ilike(like)
+            )
         reports = db.scalars(stmt.limit(250)).all()
     totals = {
         key: db.scalar(select(func.count(DepartmentDailyReport.id)).where(DepartmentDailyReport.department_key == key)) or 0
-        for key in allowed_report_keys
+        for key in visible_report_keys
     }
-    report_types = {key: DEPARTMENT_REPORTS[key] for key in allowed_report_keys}
+    report_types = {key: DEPARTMENT_REPORTS[key] for key in visible_report_keys}
+    prepared_date = (prepare_date or date_from or datetime.now(timezone.utc).strftime("%Y-%m-%d")).strip()
+    prepare_start = optional_date_start(prepared_date)
+    prepare_end = optional_date_end(prepared_date)
+    prepared_reports = []
+    if can_view_reports and prepare_start and prepare_end:
+        prepared_reports = db.scalars(
+            select(DepartmentDailyReport)
+            .where(
+                DepartmentDailyReport.department_key.in_(allowed_report_keys),
+                DepartmentDailyReport.report_date >= prepare_start,
+                DepartmentDailyReport.report_date <= prepare_end,
+            )
+            .order_by(DepartmentDailyReport.department_key, DepartmentDailyReport.id.desc())
+        ).all()
+    prepared_by_department = {}
+    for report in prepared_reports:
+        prepared_by_department.setdefault(report.department_key, report)
+    prepare_items = []
+    for key, item in report_types.items():
+        report = prepared_by_department.get(key)
+        prepare_items.append(
+            {
+                "key": key,
+                "label": item["short"],
+                "report": report,
+                "status": report.status if report else "Pending",
+                "copy_text": format_department_report_for_daily(report) if report else "",
+            }
+        )
+    missing_labels = [item["label"] for item in prepare_items if not item["report"]]
+    bundle_text = format_reports_for_daily_bundle([item["report"] for item in prepare_items if item["report"]], missing_labels)
     return {
         "request": request,
         "user": user,
@@ -440,10 +547,17 @@ def department_reports_context(request: Request, db: Session, user: User, depart
         "report_types": report_types,
         "statuses": DEPARTMENT_REPORT_STATUSES,
         "selected_department": department_key,
+        "filters": {"date_from": date_from, "date_to": date_to, "status": status, "responsible": responsible, "q": q},
+        "today": datetime.now(timezone.utc),
         "totals": totals,
         "can_create_internal_ops": can_create_reports,
         "can_approve_internal_ops": can_approve_department_reports(user),
         "can_view_internal_reports": can_view_reports,
+        "has_department_report_data_access": bool(allowed_report_keys),
+        "can_copy_department_reports": can_copy_department_reports(user),
+        "prepare_date": prepared_date,
+        "prepare_items": prepare_items,
+        "prepare_bundle_text": bundle_text,
         "error": error,
     }
 
@@ -452,24 +566,28 @@ def department_reports_context(request: Request, db: Session, user: User, depart
 def department_reports_home(
     request: Request,
     department: str = "",
+    date_from: str = "",
+    date_to: str = "",
+    status: str = "",
+    responsible: str = "",
+    q: str = "",
+    prepare_date: str = "",
     db: Session = Depends(get_db),
     user: User = Depends(current_user),
 ):
     if department and department not in DEPARTMENT_REPORTS:
         raise HTTPException(404)
-    if not (can_create_department_reports(user) or can_view_department_reports(user)):
-        raise HTTPException(403)
     allowed_report_keys = allowed_department_report_keys(user)
-    if not allowed_report_keys:
-        raise HTTPException(403, "Sem permissão para relatórios departamentais.")
-    if department:
+    if department and allowed_report_keys:
         require_department_report_access(user, department)
+    elif department and not allowed_report_keys:
+        department = ""
     elif allowed_report_keys:
         department = allowed_report_keys[0]
     return templates.TemplateResponse(
         request,
         "internal_ops/department_reports.html",
-        department_reports_context(request, db, user, department),
+        department_reports_context(request, db, user, department, date_from=date_from, date_to=date_to, status=status, responsible=responsible, q=q, prepare_date=prepare_date),
     )
 
 
@@ -496,10 +614,10 @@ def create_department_report(
     user: User = Depends(current_user),
 ):
     ensure_department_report_storage(db)
-    if not can_create_department_reports(user):
-        raise HTTPException(403)
     if department_key not in DEPARTMENT_REPORTS:
         raise HTTPException(400, "Escolha um departamento válido para o relatório.")
+    if not can_create_department_report(user, department_key):
+        raise HTTPException(403, "O seu perfil não possui permissão para criar relatório deste departamento.")
     require_department_report_access(user, department_key)
     if status not in {"Draft", "Submitted"}:
         raise HTTPException(400, "Escolha um estado inicial válido.")
@@ -530,6 +648,22 @@ def create_department_report(
         db.flush()
         audit_log(db, user, "Criou relatório diário departamental", "Operações Internas", report.number, new_value={"department": department_key, "status": status}, request=request)
     return RedirectResponse(f"/operacoes-internas/relatorios-departamentais?department={department_key}", status_code=303)
+
+
+@router.get("/relatorios-departamentais/{report_id}/texto")
+def department_report_clipboard_text(
+    report_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    ensure_department_report_storage(db)
+    report = db.get(DepartmentDailyReport, report_id)
+    if not report:
+        raise HTTPException(404)
+    require_department_report_access(user, report.department_key)
+    if not can_copy_department_reports(user):
+        raise HTTPException(403, "O seu perfil não possui permissão para copiar relatórios departamentais.")
+    return PlainTextResponse(format_department_report_for_daily(report))
 
 
 @router.post("/relatorios-departamentais/{report_id}/validar")

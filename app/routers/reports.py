@@ -19,13 +19,11 @@ router = APIRouter(prefix="/relatorios", tags=["relatorios"])
 
 
 def can_view_reports_home(user: User) -> bool:
-    return can_view_department_reports(user) or any(has_permission(user, permission) for permission in {"reports", "hse_reports"})
+    return bool(user)
 
 
 @router.get("")
 def reports_home(request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
-    if not can_view_reports_home(user):
-        raise HTTPException(403)
     return templates.TemplateResponse(request, "reports/index.html", {"request": request, "user": user})
 
 

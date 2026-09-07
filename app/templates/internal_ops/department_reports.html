@@ -23,8 +23,51 @@
   {% endfor %}
 </section>
 
+{% if can_copy_department_reports %}
+<section class="panel daily-prep-panel">
+  <div class="panel-heading">
+    <div>
+      <h2>{{ tx("Preparar Relatório Diário", user if user is defined else none) }}</h2>
+      <p class="muted">{{ tx("Copie os blocos departamentais disponíveis para a aplicação externa do relatório diário.", user if user is defined else none) }}</p>
+    </div>
+    <form class="filters" method="get">
+      {% if selected_department %}<input type="hidden" name="department" value="{{ selected_department }}">{% endif %}
+      <label>{{ tx("Data", user if user is defined else none) }}<input type="date" name="prepare_date" value="{{ prepare_date }}"></label>
+      <button class="secondary compact">{{ tx("Aplicar", user if user is defined else none) }}</button>
+    </form>
+  </div>
+  <div class="prep-grid">
+    {% for item in prepare_items %}
+      <article class="prep-card">
+        <div>
+          <strong>{{ tx(item.label, user if user is defined else none) }}</strong>
+          <span class="badge {{ 'green' if item.report and item.report.status in ['Submitted', 'Validated'] else 'orange' }}">{{ tv(item.status, user) if item.report else tx("Pendente", user if user is defined else none) }}</span>
+        </div>
+        {% if item.report %}
+          <small class="muted">{{ item.report.number }} · {{ item.report.prepared_by or item.report.created_by.full_name }}</small>
+          <textarea id="prep-copy-{{ item.key }}" class="clipboard-source">{{ item.copy_text }}</textarea>
+          <div class="actions">
+            <button type="button" class="secondary compact" data-preview-source="#prep-copy-{{ item.key }}">{{ tx("Previsualizar", user if user is defined else none) }}</button>
+            <button type="button" class="success compact" data-copy-source="#prep-copy-{{ item.key }}">{{ tx("Copiar", user if user is defined else none) }}</button>
+          </div>
+        {% else %}
+          <small class="muted">{{ tx("Relatório ainda não submetido.", user if user is defined else none) }}</small>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </div>
+  <textarea id="prep-copy-all" class="clipboard-source">{{ prepare_bundle_text }}</textarea>
+  <div class="actions"><button type="button" class="success" data-copy-source="#prep-copy-all">{{ tx("Copiar Todos", user if user is defined else none) }}</button></div>
+</section>
+{% endif %}
+
 <section class="panel" id="department-report-form">
-  {% if not selected_department %}
+  {% if not has_department_report_data_access %}
+    <div class="choice-empty-state">
+      <strong>{{ tx("Relatórios departamentais", user if user is defined else none) }}</strong>
+      <p class="muted">{{ tx("O seu perfil não possui permissão para executar esta operação.", user if user is defined else none) }}</p>
+    </div>
+  {% elif not selected_department %}
     <div class="choice-empty-state">
       <strong>{{ tx("Escolha um departamento", user if user is defined else none) }}</strong>
       <p class="muted">{{ tx("Clique em Manutenção, Informática ou Segurança para abrir os campos do relatório diário.", user if user is defined else none) }}</p>
@@ -65,6 +108,8 @@
         <label>{{ tx("Notas adicionais", user if user is defined else none) }}<textarea name="notes"></textarea></label>
         <div class="actions"><button class="success">{{ tx("Guardar relatório diário", user if user is defined else none) }}</button></div>
       </form>
+    {% else %}
+      <div class="empty-state">{{ tx("O seu perfil pode consultar este módulo, mas não possui permissão para criar relatório deste departamento.", user if user is defined else none) }}</div>
     {% endif %}
   {% endif %}
 </section>
@@ -72,18 +117,35 @@
 <section class="panel">
   <div class="panel-heading">
     <h2>{{ tx("Relatórios recentes", user if user is defined else none) }}</h2>
-    <input type="search" placeholder="{{ tx("Pesquisar nesta lista", user if user is defined else none) }}" data-instant-table-search="#department-reports-table">
   </div>
+  <form class="filters report-filters" method="get" data-auto-submit-filter>
+    {% if selected_department %}<input type="hidden" name="department" value="{{ selected_department }}">{% endif %}
+    <label>{{ tx("De", user if user is defined else none) }}<input type="date" name="date_from" value="{{ filters.date_from }}"></label>
+    <label>{{ tx("Até", user if user is defined else none) }}<input type="date" name="date_to" value="{{ filters.date_to }}"></label>
+    <label>{{ tx("Estado", user if user is defined else none) }}
+      <select name="status">
+        <option value="">{{ tx("Todos", user if user is defined else none) }}</option>
+        {% for status in statuses %}<option value="{{ status }}" {% if filters.status == status %}selected{% endif %}>{{ tv(status, user) }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>{{ tx("Responsável", user if user is defined else none) }}<input name="responsible" value="{{ filters.responsible }}"></label>
+    <label>{{ tx("Pesquisa", user if user is defined else none) }}<input name="q" value="{{ filters.q }}" placeholder="{{ tx("Pesquisar nesta lista", user if user is defined else none) }}"></label>
+    <button class="secondary compact">{{ tx("Aplicar", user if user is defined else none) }}</button>
+    <a class="button secondary compact" href="?date_from={{ today.strftime('%Y-%m-%d') if today is defined else '' }}">{{ tx("Hoje", user if user is defined else none) }}</a>
+  </form>
   <table id="department-reports-table">
     <thead>
       <tr>
         <th>{{ tx("Nº", user if user is defined else none) }}</th>
         <th>{{ tx("Data", user if user is defined else none) }}</th>
         <th>{{ tx("Departamento", user if user is defined else none) }}</th>
+        <th>{{ tx("Turno", user if user is defined else none) }}</th>
+        <th>{{ tx("Hora de submissão", user if user is defined else none) }}</th>
+        <th>{{ tx("Autor", user if user is defined else none) }}</th>
         <th>{{ tx("Preparado por", user if user is defined else none) }}</th>
         <th>{{ tx("Resumo", user if user is defined else none) }}</th>
         <th>{{ tx("Estado", user if user is defined else none) }}</th>
-        <th>{{ tx("Validação", user if user is defined else none) }}</th>
+        <th>{{ tx("Ações disponíveis", user if user is defined else none) }}</th>
       </tr>
     </thead>
     <tbody>
@@ -92,24 +154,45 @@
           <td>{{ report.number }}</td>
           <td>{{ report.report_date.strftime('%Y-%m-%d') }}</td>
           <td>{{ tx(report_types[report.department_key].short, user if user is defined else none) }}</td>
+          <td>{% if report.shift %}{{ report.shift }}{% elif report.period_start or report.period_end %}{{ report.period_start or '' }} - {{ report.period_end or '' }}{% else %}-{% endif %}</td>
+          <td>{{ report.created_at.strftime('%Y-%m-%d %H:%M') if report.created_at else '-' }}</td>
+          <td>{{ report.created_by.full_name }}</td>
           <td>{{ report.prepared_by or report.created_by.full_name }}</td>
           <td><strong>{{ report.activities or report.incidents or report.equipment_status or "-" }}</strong><br><small class="muted">{{ report.pending_actions or report.notes or "" }}</small></td>
           <td><span class="badge {{ 'green' if report.status == 'Validated' else 'grey' if report.status == 'Cancelled' else 'orange' }}">{{ tv(report.status, user) }}</span></td>
           <td>
+            {% if can_copy_department_reports %}
+              <textarea id="report-copy-{{ report.id }}" class="clipboard-source" data-fetch-text="/operacoes-internas/relatorios-departamentais/{{ report.id }}/texto"></textarea>
+              <div class="actions">
+                <button type="button" class="secondary compact" data-preview-source="#report-copy-{{ report.id }}">{{ tx("Previsualizar", user if user is defined else none) }}</button>
+                <button type="button" class="success compact" data-copy-source="#report-copy-{{ report.id }}">{{ tx("Copiar para Relatório Diário", user if user is defined else none) }}</button>
+              </div>
+            {% endif %}
             {% if can_approve_internal_ops and report.status != 'Validated' %}
               <form method="post" action="/operacoes-internas/relatorios-departamentais/{{ report.id }}/validar" class="inline-form">
                 <select name="status">{% for status in statuses %}<option value="{{ status }}" {% if report.status == status %}selected{% endif %}>{{ tv(status, user) }}</option>{% endfor %}</select>
                 <button class="secondary compact">{{ tx("Atualizar", user if user is defined else none) }}</button>
               </form>
-            {% else %}
+            {% elif not can_copy_department_reports %}
               {{ report.approved_by.full_name if report.approved_by else "-" }}
             {% endif %}
           </td>
         </tr>
       {% else %}
-        <tr><td colspan="7" class="empty-state">{{ tx("Ainda não existem relatórios para os filtros selecionados.", user if user is defined else none) }}</td></tr>
+        <tr><td colspan="10" class="empty-state">{{ tx("Ainda não existem relatórios para os filtros selecionados.", user if user is defined else none) }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </section>
+
+<dialog class="clipboard-preview" data-clipboard-preview>
+  <form method="dialog">
+    <div class="panel-heading">
+      <h2>{{ tx("Previsualizar", user if user is defined else none) }}</h2>
+      <button class="secondary compact">{{ tx("Fechar", user if user is defined else none) }}</button>
+    </div>
+    <textarea data-preview-text></textarea>
+    <div class="actions"><button type="button" class="success" data-copy-preview>{{ tx("Copiar", user if user is defined else none) }}</button></div>
+  </form>
+</dialog>
 {% endblock %}

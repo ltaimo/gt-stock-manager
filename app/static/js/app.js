@@ -749,6 +749,83 @@ function initAutoLogout() {
   reset();
 }
 
+async function clipboardTextFromSource(selector) {
+  const source = document.querySelector(selector);
+  if (!source) return "";
+  if (source.dataset.fetchText && !source.value.trim()) {
+    const response = await fetch(source.dataset.fetchText, { credentials: "same-origin" });
+    if (!response.ok) throw new Error("clipboard text unavailable");
+    source.value = await response.text();
+  }
+  return source.value || source.textContent || "";
+}
+
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const fallback = document.createElement("textarea");
+  fallback.value = text;
+  fallback.style.position = "fixed";
+  fallback.style.opacity = "0";
+  document.body.appendChild(fallback);
+  fallback.focus();
+  fallback.select();
+  document.execCommand("copy");
+  fallback.remove();
+}
+
+function setTemporaryButtonText(button, text) {
+  if (!button || !text) return;
+  const original = button.textContent;
+  button.textContent = text;
+  window.setTimeout(() => {
+    button.textContent = original;
+  }, 1800);
+}
+
+function initDepartmentReportClipboard() {
+  const dialog = document.querySelector("[data-clipboard-preview]");
+  const previewText = dialog?.querySelector("[data-preview-text]");
+  let currentText = "";
+
+  document.querySelectorAll("[data-preview-source]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        currentText = await clipboardTextFromSource(button.dataset.previewSource);
+        if (previewText) previewText.value = currentText;
+        if (dialog?.showModal) dialog.showModal();
+      } catch (_error) {
+        setTemporaryButtonText(button, uiMessage("i18nClipboardError"));
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-copy-source]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        const text = await clipboardTextFromSource(button.dataset.copySource);
+        await copyTextToClipboard(text);
+        setTemporaryButtonText(button, uiMessage("i18nClipboardCopied"));
+      } catch (_error) {
+        setTemporaryButtonText(button, uiMessage("i18nClipboardError"));
+      }
+    });
+  });
+
+  dialog?.querySelector("[data-copy-preview]")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    try {
+      currentText = previewText?.value || currentText;
+      await copyTextToClipboard(currentText);
+      setTemporaryButtonText(button, uiMessage("i18nClipboardCopied"));
+    } catch (_error) {
+      setTemporaryButtonText(button, uiMessage("i18nClipboardError"));
+    }
+  });
+}
+
 window.addEventListener("load", () => {
   initNavigation();
   initResponsiveTables();
@@ -763,6 +840,7 @@ window.addEventListener("load", () => {
   initProductStockAdjustment();
   initReplenishmentForm();
   initInternalOperationsForm();
+  initDepartmentReportClipboard();
   initAutosaveForms();
   initAutoLogout();
 });

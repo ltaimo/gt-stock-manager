@@ -14,6 +14,8 @@
   data-i18n-no-stock="{{ tx("Este item não tem stock disponível.", user if user is defined else none) }}"
   data-i18n-exceeds-stock="{{ tx("A quantidade total pedida excede o stock disponível ({stock}).", user if user is defined else none) }}"
   data-i18n-select-replenishment="{{ tx("Selecione pelo menos um produto para reposição.", user if user is defined else none) }}"
+  data-i18n-clipboard-copied="{{ tx("Conteúdo copiado para o Relatório Diário.", user if user is defined else none) }}"
+  data-i18n-clipboard-error="{{ tx("Não foi possível copiar o conteúdo.", user if user is defined else none) }}"
 >
 {% if user %}
 <aside class="sidebar" id="app-sidebar" aria-label="{{ tx("Menu principal", user if user is defined else none) }}">
@@ -32,22 +34,21 @@
   <nav>
     <a href="/dashboard" data-nav-prefix="/dashboard"><span class="nav-icon" aria-hidden="true">⌂</span><span>{{ t('dashboard', user) }}</span></a>
     <a href="/produtos" data-nav-prefix="/produtos"><span class="nav-icon" aria-hidden="true">▦</span><span>{{ t('products', user) }}</span></a>
-    {% if can(user, 'movements') %}<a href="/movimentos" data-nav-prefix="/movimentos"><span class="nav-icon" aria-hidden="true">⇄</span><span>{{ t('movements', user) }}</span></a>{% endif %}
-    {% if can(user, 'documents') %}<a href="/documentos" data-nav-prefix="/documentos"><span class="nav-icon" aria-hidden="true">▤</span><span>{{ t('documents', user) }}</span></a>{% endif %}
-    {% if can(user, 'stock_requisitions_create') %}<a href="/requisicoes/nova" data-nav-exact="/requisicoes/nova"><span class="nav-icon" aria-hidden="true">＋</span><span>{{ t('new_sr', user) }}</span></a>{% endif %}
+    <a href="/movimentos" data-nav-prefix="/movimentos"><span class="nav-icon" aria-hidden="true">⇄</span><span>{{ t('movements', user) }}</span></a>
+    <a href="/documentos" data-nav-prefix="/documentos"><span class="nav-icon" aria-hidden="true">▤</span><span>{{ t('documents', user) }}</span></a>
+    <a href="/requisicoes/nova" data-nav-exact="/requisicoes/nova"><span class="nav-icon" aria-hidden="true">＋</span><span>{{ t('new_sr', user) }}</span></a>
     <a href="/requisicoes" data-nav-prefix="/requisicoes"><span class="nav-icon" aria-hidden="true">✓</span><span>{{ t('sr_requests', user) }}</span></a>
-    {% if can(user, 'non_stock_requisitions_create') or can(user, 'stock_replenishment_create') or can(user, 'procurement_manage') or can(user, 'budget_verify') %}
-      <a href="/procurement" data-nav-prefix="/procurement"><span class="nav-icon" aria-hidden="true">◇</span><span>{{ t('procurement', user) }}</span></a>
-    {% endif %}
-    {% if can(user, 'hse_view') %}<a href="/hse" data-nav-prefix="/hse"><span class="nav-icon" aria-hidden="true">✚</span><span>{{ t('hse', user) }}</span></a>{% endif %}
+    <a href="/procurement" data-nav-prefix="/procurement"><span class="nav-icon" aria-hidden="true">◇</span><span>{{ t('procurement', user) }}</span></a>
+    <a href="/hse" data-nav-prefix="/hse"><span class="nav-icon" aria-hidden="true">✚</span><span>{{ t('hse', user) }}</span></a>
     <a href="/operacoes-internas" data-nav-prefix="/operacoes-internas"><span class="nav-icon" aria-hidden="true">⚙</span><span>{{ t('internal_ops', user) }}</span></a>
-    {% if can(user, 'finance_view') %}<a href="/financeiro" data-nav-prefix="/financeiro"><span class="nav-icon" aria-hidden="true">$</span><span>{{ t('finance', user) }}</span></a>{% endif %}
-    {% if can(user, 'reports') or can(user, 'hse_reports') or can(user, 'internal_ops_reports') %}<a href="/relatorios" data-nav-prefix="/relatorios"><span class="nav-icon" aria-hidden="true">▥</span><span>{{ t('reports', user) }}</span></a>{% endif %}
-    {% if can(user, 'users_manage') %}<a href="/utilizadores" data-nav-prefix="/utilizadores"><span class="nav-icon" aria-hidden="true">◉</span><span>{{ t('users', user) }}</span></a>{% endif %}
-    {% if can(user, 'profiles_manage') %}<a href="/perfis" data-nav-prefix="/perfis"><span class="nav-icon" aria-hidden="true">◈</span><span>{{ t('profiles', user) }}</span></a>{% endif %}
-    {% if can(user, 'imports') %}<a href="/importar" data-nav-prefix="/importar"><span class="nav-icon" aria-hidden="true">⇧</span><span>{{ t('imports', user) }}</span></a>{% endif %}
-    {% if can(user, 'audit') %}<a href="/auditoria" data-nav-prefix="/auditoria"><span class="nav-icon" aria-hidden="true">◎</span><span>{{ t('audit', user) }}</span></a>{% endif %}
-    {% if can(user, 'settings_manage') %}<a href="/configuracoes" data-nav-prefix="/configuracoes"><span class="nav-icon" aria-hidden="true">◌</span><span>{{ t('settings', user) }}</span></a>{% endif %}
+    <a href="/operacoes-internas/relatorios-departamentais" data-nav-prefix="/operacoes-internas/relatorios-departamentais"><span class="nav-icon" aria-hidden="true">▣</span><span>{{ tx("Relatórios departamentais", user if user is defined else none) }}</span></a>
+    <a href="/financeiro" data-nav-prefix="/financeiro"><span class="nav-icon" aria-hidden="true">$</span><span>{{ t('finance', user) }}</span></a>
+    <a href="/relatorios" data-nav-prefix="/relatorios"><span class="nav-icon" aria-hidden="true">▥</span><span>{{ t('reports', user) }}</span></a>
+    <a href="/utilizadores" data-nav-prefix="/utilizadores"><span class="nav-icon" aria-hidden="true">◉</span><span>{{ t('users', user) }}</span></a>
+    <a href="/perfis" data-nav-prefix="/perfis"><span class="nav-icon" aria-hidden="true">◈</span><span>{{ t('profiles', user) }}</span></a>
+    <a href="/importar" data-nav-prefix="/importar"><span class="nav-icon" aria-hidden="true">⇧</span><span>{{ t('imports', user) }}</span></a>
+    <a href="/auditoria" data-nav-prefix="/auditoria"><span class="nav-icon" aria-hidden="true">◎</span><span>{{ t('audit', user) }}</span></a>
+    <a href="/configuracoes" data-nav-prefix="/configuracoes"><span class="nav-icon" aria-hidden="true">◌</span><span>{{ t('settings', user) }}</span></a>
     <a href="/sobre" data-nav-prefix="/sobre"><span class="nav-icon" aria-hidden="true">i</span><span>{{ t('about', user) }}</span></a>
   </nav>
   <form method="post" action="/logout"><button class="link-button">{{ tx("Sair", user if user is defined else none) }}</button></form>
