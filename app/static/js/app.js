@@ -619,6 +619,20 @@ function initDashboardCharts() {
   drawDonutChart(document.getElementById("unitChart"), data.units.labels, data.units.values);
 }
 
+function initFinanceCharts() {
+  const dataEl = document.getElementById("finance-data");
+  if (!dataEl) return;
+  const data = JSON.parse(dataEl.textContent);
+  drawBarLineChart(
+    document.getElementById("financeDailyTrendChart"),
+    data.dailyTrend.labels,
+    data.dailyTrend.vehicles,
+    data.dailyTrend.revenue
+  );
+  drawDonutChart(document.getElementById("financeSpendChart"), data.spendComposition.labels, data.spendComposition.values);
+  drawDonutChart(document.getElementById("financeOperationalChart"), data.operationalMix.labels, data.operationalMix.values);
+}
+
 function autosaveKey(form) {
   return `gtims:auto-draft:${form.dataset.autosaveForm}:${window.location.pathname}`;
 }
@@ -742,6 +756,7 @@ window.addEventListener("load", () => {
   initInstantTableSearch();
   initAutoSubmitFilters();
   initDashboardCharts();
+  initFinanceCharts();
   initRequisitionForm();
   initRequisitionReview();
   initMovementForm();
@@ -753,7 +768,9 @@ window.addEventListener("load", () => {
 });
 window.addEventListener("resize", () => {
   window.clearTimeout(window.__chartResize);
+  window.clearTimeout(window.__financeChartResize);
   window.__chartResize = window.setTimeout(initDashboardCharts, 120);
+  window.__financeChartResize = window.setTimeout(initFinanceCharts, 120);
 });
 
 function updateRequisitionItemRow(row) {

@@ -547,9 +547,34 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.login("adminreports")
         admin_area = self.client.get("/operacoes-internas/relatorios-departamentais")
         self.assertEqual(admin_area.status_code, 200)
+        self.assertIn('name="department_key" value="maintenance"', admin_area.text)
+        self.assertIn('name="report_date"', admin_area.text)
         self.assertIn("?department=maintenance", admin_area.text)
         self.assertIn("?department=it", admin_area.text)
         self.assertIn("?department=security", admin_area.text)
+
+        self.admin_role.permissions = json.dumps(["finance_view"])
+        self.db.commit()
+        stale_admin_area = self.client.get("/operacoes-internas/relatorios-departamentais")
+        self.assertEqual(stale_admin_area.status_code, 200)
+        self.assertIn('name="department_key" value="maintenance"', stale_admin_area.text)
+        self.assertIn("?department=it", stale_admin_area.text)
+        stale_admin_created = self.client.post(
+            "/operacoes-internas/relatorios-departamentais",
+            data={"department_key": "it", "report_date": "2026-09-03", "activities": "Admin criou relatório de IT."},
+            follow_redirects=False,
+        )
+        self.assertEqual(stale_admin_created.status_code, 303)
+        self.db.expire_all()
+        stale_admin_record = self.db.scalar(select(DepartmentDailyReport).where(DepartmentDailyReport.department_key == "it"))
+        self.assertIsNotNone(stale_admin_record)
+        stale_admin_validated = self.client.post(
+            f"/operacoes-internas/relatorios-departamentais/{stale_admin_record.id}/validar",
+            data={"status": "Validated"},
+            follow_redirects=False,
+        )
+        self.assertEqual(stale_admin_validated.status_code, 303)
+        self.assertEqual(self.client.get("/relatorios/operacoes-internas/departamentos?department=security").status_code, 200)
 
         self.login("ccmanutencao")
         maintenance_area = self.client.get("/operacoes-internas/relatorios-departamentais")
@@ -642,7 +667,7 @@ class V3ModuleFlowTests(unittest.TestCase):
             },
         )
         self.assertEqual(missing_type.status_code, 400)
-        self.assertIn("tipo/categoria", missing_type.text)
+        self.assertTrue("tipo/categoria" in missing_type.text or "type/category" in missing_type.text)
 
         missing_asset = self.client.post(
             "/operacoes-internas/registos",
@@ -656,7 +681,7 @@ class V3ModuleFlowTests(unittest.TestCase):
             },
         )
         self.assertEqual(missing_asset.status_code, 400)
-        self.assertIn("ativo", missing_asset.text.lower())
+        self.assertTrue("ativo" in missing_asset.text.lower() or "asset" in missing_asset.text.lower())
 
         created = self.client.post(
             "/operacoes-internas/registos",

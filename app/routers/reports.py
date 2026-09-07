@@ -9,7 +9,7 @@ from app.database import get_db
 from app.i18n import language_for, localized_name, translate_text, translate_value
 from app.models.core import Department, DepartmentDailyReport, HseRecord, InternalOperationRecord, ProcurementCase, Product, Requisition, StockMovement, User, Warehouse
 from app.routers.common import templates
-from app.routers.internal_ops import DEPARTMENT_REPORTS, allowed_department_report_keys, ensure_department_report_storage, require_department_report_access
+from app.routers.internal_ops import DEPARTMENT_REPORTS, allowed_department_report_keys, can_view_department_reports, ensure_department_report_storage, require_department_report_access
 from app.security import current_user, has_permission, require_permission
 from app.services.exports import rows_to_csv, rows_to_docx, rows_to_pdf, rows_to_xlsx
 from app.services.inventory import warehouse_breakdown
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/relatorios", tags=["relatorios"])
 
 
 def can_view_reports_home(user: User) -> bool:
-    return any(has_permission(user, permission) for permission in {"reports", "hse_reports", "internal_ops_reports"})
+    return can_view_department_reports(user) or any(has_permission(user, permission) for permission in {"reports", "hse_reports"})
 
 
 @router.get("")
@@ -340,8 +340,10 @@ def department_reports_consolidated(
     date_to: str = "",
     export: str = "",
     db: Session = Depends(get_db),
-    user: User = Depends(require_permission("internal_ops_reports")),
+    user: User = Depends(current_user),
 ):
+    if not can_view_department_reports(user):
+        raise HTTPException(403)
     if department and department not in DEPARTMENT_REPORTS:
         raise HTTPException(404)
     if period not in {"daily", "weekly", "monthly"}:

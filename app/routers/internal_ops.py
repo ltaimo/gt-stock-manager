@@ -221,9 +221,25 @@ def require_department_report_access(user: User, department_key: str) -> None:
         raise HTTPException(403, "Sem permissão para este departamento.")
 
 
+def is_department_reports_admin(user: User) -> bool:
+    return user.role.name in DEPARTMENT_REPORT_ADMIN_ROLES
+
+
+def can_view_department_reports(user: User) -> bool:
+    return is_department_reports_admin(user) or has_permission(user, "internal_ops_reports")
+
+
+def can_create_department_reports(user: User) -> bool:
+    return is_department_reports_admin(user) or has_permission(user, "internal_ops_create")
+
+
+def can_approve_department_reports(user: User) -> bool:
+    return is_department_reports_admin(user) or has_permission(user, "internal_ops_approve")
+
+
 def operations_context(request: Request, db: Session, user: User, kind: str = "", error: str | None = None) -> dict:
     can_view_internal_records = has_permission(user, "internal_ops_view")
-    can_view_internal_reports = has_permission(user, "internal_ops_reports")
+    can_view_internal_reports = can_view_department_reports(user)
     records = []
     if can_view_internal_records:
         stmt = select(InternalOperationRecord).order_by(InternalOperationRecord.record_date.desc(), InternalOperationRecord.id.desc())
@@ -401,8 +417,8 @@ def validate_operation_record(
 
 def department_reports_context(request: Request, db: Session, user: User, department_key: str = "", error: str | None = None) -> dict:
     ensure_department_report_storage(db)
-    can_create_reports = has_permission(user, "internal_ops_create")
-    can_view_reports = has_permission(user, "internal_ops_reports")
+    can_create_reports = can_create_department_reports(user)
+    can_view_reports = can_view_department_reports(user)
     allowed_report_keys = allowed_department_report_keys(user)
     reports = []
     if can_view_reports:
@@ -426,7 +442,7 @@ def department_reports_context(request: Request, db: Session, user: User, depart
         "selected_department": department_key,
         "totals": totals,
         "can_create_internal_ops": can_create_reports,
-        "can_approve_internal_ops": has_permission(user, "internal_ops_approve"),
+        "can_approve_internal_ops": can_approve_department_reports(user),
         "can_view_internal_reports": can_view_reports,
         "error": error,
     }
@@ -441,14 +457,14 @@ def department_reports_home(
 ):
     if department and department not in DEPARTMENT_REPORTS:
         raise HTTPException(404)
-    if not (has_permission(user, "internal_ops_create") or has_permission(user, "internal_ops_reports")):
+    if not (can_create_department_reports(user) or can_view_department_reports(user)):
         raise HTTPException(403)
     allowed_report_keys = allowed_department_report_keys(user)
     if not allowed_report_keys:
         raise HTTPException(403, "Sem permissão para relatórios departamentais.")
     if department:
         require_department_report_access(user, department)
-    elif len(allowed_report_keys) == 1:
+    elif allowed_report_keys:
         department = allowed_report_keys[0]
     return templates.TemplateResponse(
         request,
@@ -477,9 +493,11 @@ def create_department_report(
     notes: str | None = Form(None),
     status: str = Form("Submitted"),
     db: Session = Depends(get_db),
-    user: User = Depends(require_permission("internal_ops_create")),
+    user: User = Depends(current_user),
 ):
     ensure_department_report_storage(db)
+    if not can_create_department_reports(user):
+        raise HTTPException(403)
     if department_key not in DEPARTMENT_REPORTS:
         raise HTTPException(400, "Escolha um departamento válido para o relatório.")
     require_department_report_access(user, department_key)
@@ -520,9 +538,11 @@ def validate_department_report(
     request: Request,
     status: str = Form("Validated"),
     db: Session = Depends(get_db),
-    user: User = Depends(require_permission("internal_ops_approve")),
+    user: User = Depends(current_user),
 ):
     ensure_department_report_storage(db)
+    if not can_approve_department_reports(user):
+        raise HTTPException(403)
     report = db.get(DepartmentDailyReport, report_id)
     if not report:
         raise HTTPException(404)

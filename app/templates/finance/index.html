@@ -10,6 +10,7 @@
   <div class="actions">
     <a class="button secondary" href="/dashboard">{{ tx("Dashboard", user if user is defined else none) }}</a>
     <a class="button secondary" href="/relatorios">{{ tx("Relatórios", user if user is defined else none) }}</a>
+    <a class="button success" href="/financeiro/relatorio?month={{ month }}&export=pdf">{{ tx("Gerar relatório final", user if user is defined else none) }}</a>
   </div>
 </header>
 
@@ -25,6 +26,36 @@
   <div><strong>{{ "%.2f"|format(summary.current.daily_revenue|float) }}</strong><span>{{ tx("Receita importada", user if user is defined else none) }}</span><small>MZN</small></div>
   <div><strong>{{ "%.2f"|format(summary.usage_ratio|float) }}%</strong><span>{{ tx("Uso sobre receita", user if user is defined else none) }}</span><small>{{ tx("Gastos / receita importada", user if user is defined else none) }}</small></div>
   <div><strong>{{ summary.current.trucks_in }}</strong><span>{{ tx("Camiões entrados", user if user is defined else none) }}</span><small>{{ summary.current.trucks_out }} {{ tx("saídos", user if user is defined else none) }}</small></div>
+</section>
+
+<section class="dashboard-grid">
+  <div class="panel chart-panel wide">
+    <div class="panel-heading">
+      <h2>{{ tx("Tendência diária financeira", user if user is defined else none) }}</h2>
+      <span class="badge orange">{{ tx("Receita e movimento", user if user is defined else none) }}</span>
+    </div>
+    <canvas id="financeDailyTrendChart" height="150"></canvas>
+  </div>
+  <div class="panel chart-panel">
+    <div class="panel-heading"><h2>{{ tx("Gastos por fonte", user if user is defined else none) }}</h2></div>
+    <canvas id="financeSpendChart" height="190"></canvas>
+  </div>
+  <div class="panel chart-panel">
+    <div class="panel-heading"><h2>{{ tx("Movimento operacional", user if user is defined else none) }}</h2></div>
+    <canvas id="financeOperationalChart" height="190"></canvas>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-heading">
+    <h2>{{ tx("Relatório financeiro final", user if user is defined else none) }}</h2>
+    <span class="badge blue">{{ tx("Consolidação mensal", user if user is defined else none) }}</span>
+  </div>
+  <div class="quick-links">
+    <a href="/financeiro/relatorio?month={{ month }}&export=pdf">PDF<small>{{ tx("Resumo executivo consolidado", user if user is defined else none) }}</small></a>
+    <a href="/financeiro/relatorio?month={{ month }}&export=docx">Word<small>{{ tx("Partilha e edição interna", user if user is defined else none) }}</small></a>
+    <a href="/financeiro/relatorio?month={{ month }}&export=xlsx">Excel<small>{{ tx("Análise e reconciliação", user if user is defined else none) }}</small></a>
+  </div>
 </section>
 
 <section class="grid-two">
@@ -79,7 +110,7 @@
       {% for item in summary.daily_imports %}
         <tr>
           <td data-label="{{ tx("Data", user if user is defined else none) }}">{{ item.report_date.strftime('%Y-%m-%d') }}</td>
-          <td data-label="{{ tx("Documento", user if user is defined else none) }}">{{ item.original_filename }}</td>
+          <td data-label="{{ tx("Documento", user if user is defined else none) }}"><a href="/financeiro/importacoes/{{ item.id }}/download">{{ item.original_filename }}</a></td>
           <td data-label="{{ tx("Camiões", user if user is defined else none) }}">{{ item.trucks_in }} / {{ item.trucks_out }}</td>
           <td data-label="{{ tx("Receita", user if user is defined else none) }}">{{ "%.2f"|format(item.revenue_amount|float) }} MZN</td>
           <td data-label="{{ tx("Carregado por", user if user is defined else none) }}">{{ item.uploaded_by.full_name }}</td>
@@ -91,4 +122,5 @@
     </tbody>
   </table>
 </section>
+<script id="finance-data" type="application/json">{{ summary.charts | tojson }}</script>
 {% endblock %}

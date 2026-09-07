@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, time, timezone
+from datetime import datetime, timezone
 import io
 import json
 import re
@@ -114,6 +114,8 @@ def _daily_import_totals(db: Session, window: MonthWindow) -> dict[str, float | 
         "trucks_in": sum(int(row.trucks_in or 0) for row in rows),
         "trucks_out": sum(int(row.trucks_out or 0) for row in rows),
         "revenue_amount": round(sum(_value(row.revenue_amount) for row in rows), 2),
+        "metrics": monthly_import_metrics(rows),
+        "trend": daily_import_trend(rows),
         "rows": rows,
     }
 
@@ -132,6 +134,10 @@ def monthly_finance_summary(db: Session, month: str | None = None) -> dict:
         "trucks_in": current_imports["trucks_in"],
         "trucks_out": current_imports["trucks_out"],
         "imports_count": current_imports["count"],
+        "total_vehicles": current_imports["metrics"]["total_vehicles"],
+        "imports": current_imports["metrics"]["imports"],
+        "exports_reexports": current_imports["metrics"]["exports_reexports"],
+        "seized_vehicles": current_imports["metrics"]["seized_vehicles"],
     }
     previous = {
         "stock_requisitions": _stock_requisition_total(db, previous_window),
@@ -141,6 +147,10 @@ def monthly_finance_summary(db: Session, month: str | None = None) -> dict:
         "trucks_in": previous_imports["trucks_in"],
         "trucks_out": previous_imports["trucks_out"],
         "imports_count": previous_imports["count"],
+        "total_vehicles": previous_imports["metrics"]["total_vehicles"],
+        "imports": previous_imports["metrics"]["imports"],
+        "exports_reexports": previous_imports["metrics"]["exports_reexports"],
+        "seized_vehicles": previous_imports["metrics"]["seized_vehicles"],
     }
     current["total_spend"] = round(current["stock_requisitions"] + current["procurement"] + current["internal_ops"], 2)
     previous["total_spend"] = round(previous["stock_requisitions"] + previous["procurement"] + previous["internal_ops"], 2)
@@ -154,6 +164,8 @@ def monthly_finance_summary(db: Session, month: str | None = None) -> dict:
         "percent_change": {key: percent_change(current[key], previous[key]) for key in current},
         "usage_ratio": round(usage_ratio, 2),
         "daily_imports": current_imports["rows"],
+        "daily_trend": current_imports["trend"],
+        "charts": finance_charts(current, current_imports["metrics"], current_imports["trend"]),
     }
 
 
@@ -176,13 +188,33 @@ def _nearby_number(pattern: str, text: str) -> int:
     return int(match.group(1)) if match else 0
 
 
+def _label_number(label: str, text: str) -> int:
+    match = re.search(rf"{label}\s*:?\s*(\d+)", text, flags=re.IGNORECASE)
+    return int(match.group(1)) if match else 0
+
+
+def _label_decimal(label: str, text: str) -> float:
+    match = re.search(rf"{label}\s*:?\s*(\d[\d\s.,]*)", text, flags=re.IGNORECASE)
+    if not match:
+        return 0
+    raw = match.group(1).replace(" ", "")
+    if "," in raw and "." in raw:
+        raw = raw.replace(".", "").replace(",", ".")
+    else:
+        raw = raw.replace(",", ".")
+    try:
+        return round(float(raw), 2)
+    except ValueError:
+        return 0
+
+
 def _fold_text(value: str) -> str:
     normalized = unicodedata.normalize("NFKD", value)
     return "".join(char for char in normalized if not unicodedata.combining(char))
 
 
 def _money_amount(text: str) -> float:
-    match = re.search(r"(?:receita|revenue|fatur[aã]?[cç][aã]o|valor)\D{0,40}(\d[\d\s.,]*)", text, flags=re.IGNORECASE)
+    match = re.search(r"(?:receita|revenue|faturacao|facturacao)\D{0,40}(\d[\d\s.,]*)", text, flags=re.IGNORECASE)
     if not match:
         return 0
     raw = match.group(1).replace(" ", "")
@@ -202,8 +234,106 @@ def extract_financial_metrics(text: str) -> dict[str, float | int]:
         "trucks_in": _nearby_number(r"(?:caminhoes|camioes|trucks?)\D{0,35}(?:entraram|entrad[ao]s?|in)\D{0,20}(\d+)", normalized),
         "trucks_out": _nearby_number(r"(?:caminhoes|camioes|trucks?)\D{0,35}(?:sairam|said[ao]s?|out)\D{0,20}(\d+)", normalized),
         "revenue_amount": _money_amount(normalized),
+        "warehouse_downloads": _label_number(r"descargas no armazem", normalized),
+        "exports_reexports": _label_number(r"exportacoes\s*/\s*reexportacoes", normalized),
+        "imports": _label_number(r"importacoes", normalized),
+        "micro_importers": _label_number(r"micro importadores", normalized),
+        "local_transport": _label_number(r"transporte local", normalized),
+        "transit_fuel": _label_number(r"transito combustivel", normalized),
+        "transit_minerals": _label_number(r"transito minerais", normalized),
+        "empty_vehicles": _label_number(r"vazio", normalized),
+        "classified_vehicles": _label_number(r"veiculos classificados", normalized),
+        "unclassified_vehicles": _label_number(r"veiculos n/classificados", normalized),
+        "total_vehicles": _label_number(r"total veiculos", normalized),
+        "seized_vehicles": _label_number(r"viaturas apreendidas", normalized),
+        "terminal_meter_kwh": _label_decimal(r"leitura contador terminal", normalized),
+        "canteen_meter_kwh": _label_decimal(r"leitura contador cantina", normalized),
+        "bypass_kwh": _label_decimal(r"bypass", normalized),
+        "it_operational": 1 if re.search(r"sistema it\s*:\s*operacional", normalized, flags=re.IGNORECASE) else 0,
     }
 
 
 def metrics_as_json(metrics: dict[str, float | int]) -> str:
     return json.dumps(metrics, ensure_ascii=False, sort_keys=True)
+
+
+def load_metrics(row: FinancialDailyImport) -> dict[str, float | int]:
+    try:
+        data = json.loads(row.extracted_metrics or "{}")
+    except (TypeError, ValueError):
+        data = {}
+    return data if isinstance(data, dict) else {}
+
+
+def monthly_import_metrics(rows: list[FinancialDailyImport]) -> dict[str, float | int]:
+    keys = [
+        "warehouse_downloads",
+        "exports_reexports",
+        "imports",
+        "micro_importers",
+        "local_transport",
+        "transit_fuel",
+        "transit_minerals",
+        "empty_vehicles",
+        "classified_vehicles",
+        "unclassified_vehicles",
+        "total_vehicles",
+        "seized_vehicles",
+        "terminal_meter_kwh",
+        "canteen_meter_kwh",
+        "bypass_kwh",
+        "it_operational",
+    ]
+    totals: dict[str, float | int] = {key: 0 for key in keys}
+    for row in rows:
+        metrics = load_metrics(row)
+        for key in keys:
+            totals[key] = round(float(totals[key] or 0) + float(metrics.get(key) or 0), 2)
+    return totals
+
+
+def daily_import_trend(rows: list[FinancialDailyImport]) -> dict[str, list]:
+    ordered = sorted(rows, key=lambda row: row.report_date)
+    return {
+        "labels": [row.report_date.strftime("%d/%m") for row in ordered],
+        "vehicles": [float(load_metrics(row).get("total_vehicles") or row.trucks_in or 0) for row in ordered],
+        "spend": [0 for _row in ordered],
+        "revenue": [float(row.revenue_amount or 0) for row in ordered],
+    }
+
+
+def finance_charts(current: dict, metrics: dict, trend: dict) -> dict:
+    return {
+        "spendComposition": {
+            "labels": ["Stock requisitions", "Procurement / PO", "Operacoes internas"],
+            "values": [current["stock_requisitions"], current["procurement"], current["internal_ops"]],
+        },
+        "operationalMix": {
+            "labels": ["Importacoes", "Exportacoes/Reexportacoes", "Transito minerais", "Micro importadores", "Outros"],
+            "values": [
+                metrics["imports"],
+                metrics["exports_reexports"],
+                metrics["transit_minerals"],
+                metrics["micro_importers"],
+                max(float(metrics["total_vehicles"] or 0) - float(metrics["imports"] or 0) - float(metrics["exports_reexports"] or 0) - float(metrics["transit_minerals"] or 0) - float(metrics["micro_importers"] or 0), 0),
+            ],
+        },
+        "dailyTrend": trend,
+    }
+
+
+def finance_report_rows(summary: dict) -> list[tuple]:
+    current = summary["current"]
+    variance = summary["variance"]
+    percent = summary["percent_change"]
+    return [
+        ("Stock requisitions aprovadas", current["stock_requisitions"], variance["stock_requisitions"], percent["stock_requisitions"]),
+        ("Non-stock / Procurement / PO", current["procurement"], variance["procurement"], percent["procurement"]),
+        ("Operações internas", current["internal_ops"], variance["internal_ops"], percent["internal_ops"]),
+        ("Gasto operacional total", current["total_spend"], variance["total_spend"], percent["total_spend"]),
+        ("Receita importada", current["daily_revenue"], variance["daily_revenue"], percent["daily_revenue"]),
+        ("Camiões entrados", current["trucks_in"], variance["trucks_in"], percent["trucks_in"]),
+        ("Camiões saídos", current["trucks_out"], variance["trucks_out"], percent["trucks_out"]),
+        ("Total veículos", current["total_vehicles"], variance["total_vehicles"], percent["total_vehicles"]),
+        ("Uso sobre receita (%)", summary["usage_ratio"], "", ""),
+    ]

@@ -20,7 +20,7 @@ from app.models.core import (
     User,
 )
 from app.security import hash_password
-from app.services.finance import monthly_finance_summary
+from app.services.finance import extract_financial_metrics, monthly_finance_summary
 
 
 def docx_bytes(text: str) -> bytes:
@@ -169,6 +169,8 @@ class FinanceModuleTests(unittest.TestCase):
         self.assertIn("Módulo financeiro", page.text)
         self.assertIn("800.00", page.text)
         self.assertIn("Uso sobre receita", page.text)
+        self.assertIn("finance-data", page.text)
+        self.assertIn("financeDailyTrendChart", page.text)
 
     def test_financial_daily_docx_upload_extracts_metrics(self):
         self.login()
@@ -192,6 +194,38 @@ class FinanceModuleTests(unittest.TestCase):
         self.assertEqual(imported.trucks_in, 21)
         self.assertEqual(imported.trucks_out, 18)
         self.assertEqual(float(imported.revenue_amount), 12345.5)
+
+    def test_financial_metrics_extract_operational_daily_report_values(self):
+        metrics = extract_financial_metrics(
+            "TOTAL VEICULOS 1163 IMPORTAÇÕES 134 EXPORTAÇÕES / REEXPORTAÇÕES 68 "
+            "TRÂNSITO MINERAIS 763 VIATURAS APREENDIDAS:27 Viaturas "
+            "LEITURA CONTADOR TERMINAL:13310,12kw SISTEMA IT: Operacional"
+        )
+        self.assertEqual(metrics["total_vehicles"], 1163)
+        self.assertEqual(metrics["imports"], 134)
+        self.assertEqual(metrics["exports_reexports"], 68)
+        self.assertEqual(metrics["transit_minerals"], 763)
+        self.assertEqual(metrics["seized_vehicles"], 27)
+        self.assertEqual(metrics["terminal_meter_kwh"], 13310.12)
+        self.assertEqual(metrics["it_operational"], 1)
+
+    def test_finance_final_report_exports(self):
+        self.seed_monthly_finance()
+        self.login()
+        pdf = self.client.get("/financeiro/relatorio?month=2026-09&export=pdf")
+        self.assertEqual(pdf.status_code, 200)
+        self.assertEqual(pdf.headers["content-type"], "application/pdf")
+        self.assertTrue(pdf.content.startswith(b"%PDF"))
+
+        docx = self.client.get("/financeiro/relatorio?month=2026-09&export=docx")
+        self.assertEqual(docx.status_code, 200)
+        self.assertEqual(docx.headers["content-type"], "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        self.assertTrue(docx.content.startswith(b"PK"))
+
+        xlsx = self.client.get("/financeiro/relatorio?month=2026-09&export=xlsx")
+        self.assertEqual(xlsx.status_code, 200)
+        self.assertEqual(xlsx.headers["content-type"], "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        self.assertTrue(xlsx.content.startswith(b"PK"))
 
     def test_dashboard_and_menu_show_finance_for_allowed_profile(self):
         self.login()
