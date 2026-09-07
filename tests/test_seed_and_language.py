@@ -1,3 +1,4 @@
+import json
 import unittest
 
 from fastapi.testclient import TestClient
@@ -94,9 +95,26 @@ class SeedAndLanguageTests(unittest.TestCase):
         self.assertIsNotNone(account)
         self.assertEqual(account.full_name, "Agente 007")
         self.assertEqual(account.role.name, "Admin")
+        self.assertIn("finance_view", json.loads(account.role.permissions))
+        self.assertIn("internal_ops_create", json.loads(account.role.permissions))
         self.assertTrue(account.is_active)
         self.assertFalse(account.must_reset_password)
         self.assertTrue(verify_password("123456789", account.password_hash))
+
+    def test_codex_agent_user_refreshes_existing_admin_role_permissions(self):
+        admin_role = Role(name="Admin", permissions=json.dumps(["reports"]), is_system=True)
+        self.db.add(admin_role)
+        self.db.commit()
+
+        ensure_codex_agent_user(self.db)
+        self.db.commit()
+
+        self.db.refresh(admin_role)
+        permissions = set(json.loads(admin_role.permissions))
+        self.assertIn("finance_view", permissions)
+        self.assertIn("finance_import", permissions)
+        self.assertIn("internal_ops_create", permissions)
+        self.assertIn("internal_ops_reports", permissions)
 
     def test_consolidates_previous_duplicate_air_conditioners(self):
         category = Category(name="Ar Condicionado", normalized_name="ar condicionado")

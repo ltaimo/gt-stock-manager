@@ -42,6 +42,9 @@ def ensure_codex_agent_user(db) -> str:
         role = Role(name="Admin", permissions=_default_role_permissions("Admin"), is_system=True)
         db.add(role)
         db.flush()
+    else:
+        role.permissions = _default_role_permissions("Admin")
+        role.is_system = True
     department = db.scalar(select(Department).where(Department.name == "Geral"))
     if not department:
         department = Department(name="Geral", is_active=True)
