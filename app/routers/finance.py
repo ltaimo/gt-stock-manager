@@ -15,6 +15,7 @@ from app.services.audit import audit_log
 from app.services.finance import (
     extract_financial_metrics,
     extract_text_from_financial_file,
+    ensure_financial_import_storage,
     finance_report_rows,
     metrics_as_json,
     monthly_finance_summary,
@@ -89,6 +90,7 @@ def download_financial_daily_report(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("finance_view")),
 ):
+    ensure_financial_import_storage(db)
     imported = db.get(FinancialDailyImport, import_id)
     if not imported:
         raise HTTPException(404)
@@ -109,6 +111,7 @@ async def upload_financial_daily_report(
     user: User = Depends(require_permission("finance_import")),
 ):
     parsed_date = parse_financial_report_date(report_date)
+    ensure_financial_import_storage(db)
     filename = document.filename or "relatorio-financeiro"
     content = await document.read()
     if not content:

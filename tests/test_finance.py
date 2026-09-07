@@ -4,7 +4,7 @@ import zipfile
 from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, inspect, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -170,6 +170,17 @@ class FinanceModuleTests(unittest.TestCase):
         self.assertIn("800.00", page.text)
         self.assertIn("Uso sobre receita", page.text)
         self.assertIn("finance-data", page.text)
+        self.assertIn("financeDailyTrendChart", page.text)
+
+    def test_finance_dashboard_recovers_missing_import_storage(self):
+        self.login()
+        FinancialDailyImport.__table__.drop(self.engine)
+        self.assertNotIn("financial_daily_imports", inspect(self.engine).get_table_names())
+
+        page = self.client.get("/financeiro?month=2026-09")
+
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("financial_daily_imports", inspect(self.engine).get_table_names())
         self.assertIn("financeDailyTrendChart", page.text)
 
     def test_financial_daily_docx_upload_extracts_metrics(self):
