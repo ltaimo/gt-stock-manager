@@ -56,14 +56,14 @@ class PermissionTests(unittest.TestCase):
     def test_production_roles_get_v3_module_permissions(self):
         expected = {
             "Director do Terminal": {"hse_view", "internal_ops_view", "procurement_tor_approve_terminal"},
-            "Director de Informatica": {"users_manage", "profiles_manage", "hse_view", "internal_ops_view"},
-            "IT Supervisor": {"users_manage", "profiles_manage", "hse_view", "internal_ops_view"},
-            "IT Senior": {"users_manage", "profiles_manage", "hse_view", "internal_ops_view"},
-            "IT": {"users_manage", "settings_manage", "hse_view", "internal_ops_view"},
+            "Director de Informatica": {"users_manage", "profiles_manage", "hse_view", "internal_ops_view", "internal_ops_reports_create_all"},
+            "IT Supervisor": {"users_manage", "profiles_manage", "hse_view", "internal_ops_view", "internal_ops_reports_create_it"},
+            "IT Senior": {"users_manage", "profiles_manage", "hse_view", "internal_ops_view", "internal_ops_reports_create_it"},
+            "IT": {"users_manage", "settings_manage", "hse_view", "internal_ops_view", "internal_ops_reports_create_it"},
             "HR Manager": {"hse_view", "hse_records_create"},
             "Procurement Officer": {"procurement_manage", "procurement_archive"},
-            "Inspector de Seguranca": {"hse_view", "hse_records_create", "hse_workflow_manage"},
-            "Tecnico de Manutencao": {"hse_view", "internal_ops_create"},
+            "Inspector de Seguranca": {"hse_view", "hse_records_create", "hse_workflow_manage", "internal_ops_reports_create_security"},
+            "Tecnico de Manutencao": {"hse_view", "internal_ops_create", "internal_ops_reports_create_maintenance"},
             "Conferente do Armazem": {"movements", "requisitions_issue"},
         }
 

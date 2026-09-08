@@ -88,6 +88,11 @@ DEPARTMENT_REPORT_ACCESS_MARKERS = {
 }
 DEPARTMENT_REPORT_ADMIN_ROLES = {"SuperAdmin", "Admin"}
 DEPARTMENT_REPORT_OPERATIONS_ROLES = {"Gestor Operacional", "Operações"}
+DEPARTMENT_REPORT_CREATE_PERMISSIONS = {
+    "maintenance": "internal_ops_reports_create_maintenance",
+    "it": "internal_ops_reports_create_it",
+    "security": "internal_ops_reports_create_security",
+}
 QUANTITY_REQUIRED_TYPES = {
     "fuel_purchase_storage",
     "fuel_refuel",
@@ -238,12 +243,27 @@ def can_view_all_department_reports(user: User) -> bool:
     return is_department_reports_admin(user) or user.role.name in DEPARTMENT_REPORT_OPERATIONS_ROLES or has_permission(user, "internal_ops_reports_view_all")
 
 
+def creatable_department_report_keys(user: User) -> list[str]:
+    if is_department_reports_admin(user) or has_permission(user, "internal_ops_reports_create_all"):
+        return list(DEPARTMENT_REPORTS)
+
+    matched = {
+        key
+        for key, permission in DEPARTMENT_REPORT_CREATE_PERMISSIONS.items()
+        if has_permission(user, permission)
+    }
+    if has_permission(user, "internal_ops_create"):
+        matched.update(user_department_report_keys(user))
+    return [key for key in DEPARTMENT_REPORTS if key in matched]
+
+
 def allowed_department_report_keys(user: User) -> list[str]:
     if can_view_all_department_reports(user):
         return list(DEPARTMENT_REPORTS)
-    own_keys = user_department_report_keys(user)
+    own_keys = set(user_department_report_keys(user))
+    own_keys.update(creatable_department_report_keys(user))
     if own_keys:
-        return own_keys
+        return [key for key in DEPARTMENT_REPORTS if key in own_keys]
     if has_permission(user, "internal_ops_reports"):
         return list(DEPARTMENT_REPORTS)
     return []
@@ -259,17 +279,20 @@ def is_department_reports_admin(user: User) -> bool:
 
 
 def can_view_department_reports(user: User) -> bool:
-    return is_department_reports_admin(user) or user.role.name in DEPARTMENT_REPORT_OPERATIONS_ROLES or has_permission(user, "internal_ops_reports")
+    return (
+        is_department_reports_admin(user)
+        or user.role.name in DEPARTMENT_REPORT_OPERATIONS_ROLES
+        or has_permission(user, "internal_ops_reports")
+        or bool(creatable_department_report_keys(user))
+    )
 
 
 def can_create_department_report(user: User, department_key: str) -> bool:
-    if is_department_reports_admin(user):
-        return True
-    return has_permission(user, "internal_ops_create") and department_key in user_department_report_keys(user)
+    return department_key in creatable_department_report_keys(user)
 
 
 def can_create_department_reports(user: User) -> bool:
-    return is_department_reports_admin(user) or (has_permission(user, "internal_ops_create") and bool(user_department_report_keys(user)))
+    return bool(creatable_department_report_keys(user))
 
 
 def can_approve_department_reports(user: User) -> bool:
@@ -475,6 +498,7 @@ def department_reports_context(
     can_create_reports = bool(department_key and can_create_department_report(user, department_key))
     can_view_reports = can_view_department_reports(user)
     allowed_report_keys = allowed_department_report_keys(user)
+    create_report_keys = creatable_department_report_keys(user)
     visible_report_keys = allowed_report_keys if allowed_report_keys else list(DEPARTMENT_REPORTS)
     start = optional_date_start(date_from)
     end = optional_date_end(date_to)
@@ -509,6 +533,7 @@ def department_reports_context(
         for key in visible_report_keys
     }
     report_types = {key: DEPARTMENT_REPORTS[key] for key in visible_report_keys}
+    create_report_types = {key: DEPARTMENT_REPORTS[key] for key in create_report_keys}
     prepared_date = (prepare_date or date_from or datetime.now(timezone.utc).strftime("%Y-%m-%d")).strip()
     prepare_start = optional_date_start(prepared_date)
     prepare_end = optional_date_end(prepared_date)
@@ -545,6 +570,8 @@ def department_reports_context(
         "user": user,
         "reports": reports,
         "report_types": report_types,
+        "create_report_types": create_report_types,
+        "first_create_department": create_report_keys[0] if create_report_keys else "",
         "statuses": DEPARTMENT_REPORT_STATUSES,
         "selected_department": department_key,
         "filters": {"date_from": date_from, "date_to": date_to, "status": status, "responsible": responsible, "q": q},
@@ -578,10 +605,13 @@ def department_reports_home(
     if department and department not in DEPARTMENT_REPORTS:
         raise HTTPException(404)
     allowed_report_keys = allowed_department_report_keys(user)
+    create_report_keys = creatable_department_report_keys(user)
     if department and allowed_report_keys:
         require_department_report_access(user, department)
     elif department and not allowed_report_keys:
         department = ""
+    elif create_report_keys:
+        department = create_report_keys[0]
     elif allowed_report_keys:
         department = allowed_report_keys[0]
     return templates.TemplateResponse(

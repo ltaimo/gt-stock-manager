@@ -7,6 +7,9 @@
     <p class="muted">{{ tx("Relatórios diários de Manutenção, Informática e Segurança, consolidados para consulta semanal e mensal.", user if user is defined else none) }}</p>
   </div>
   <div class="actions">
+    {% if first_create_department %}
+      <a class="button success" href="/operacoes-internas/relatorios-departamentais?department={{ first_create_department }}#department-report-form">{{ tx("Criar relatório diário", user if user is defined else none) }}</a>
+    {% endif %}
     <a class="button secondary" href="/operacoes-internas">{{ tx("Operações internas", user if user is defined else none) }}</a>
     <a class="button secondary" href="/relatorios/operacoes-internas/departamentos">{{ tx("Ver consolidação", user if user is defined else none) }}</a>
   </div>
@@ -19,6 +22,7 @@
       <span class="tile-icon" aria-hidden="true">{{ item.icon }}</span>
       <strong>{{ tx(item.short, user if user is defined else none) }}</strong>
       <small>{{ totals[key] }} {{ tx("relatórios registados", user if user is defined else none) }}</small>
+      {% if key in create_report_types %}<span class="badge green">{{ tx("Pode criar", user if user is defined else none) }}</span>{% endif %}
     </a>
   {% endfor %}
 </section>
@@ -109,7 +113,16 @@
         <div class="actions"><button class="success">{{ tx("Guardar relatório diário", user if user is defined else none) }}</button></div>
       </form>
     {% else %}
-      <div class="empty-state">{{ tx("O seu perfil pode consultar este módulo, mas não possui permissão para criar relatório deste departamento.", user if user is defined else none) }}</div>
+      <div class="empty-state">
+        <p>{{ tx("O seu perfil pode consultar este módulo, mas não possui permissão para criar relatório deste departamento.", user if user is defined else none) }}</p>
+        {% if create_report_types %}
+          <div class="actions">
+            {% for key, item in create_report_types.items() %}
+              <a class="button success compact" href="/operacoes-internas/relatorios-departamentais?department={{ key }}#department-report-form">{{ tx("Criar relatório diário", user if user is defined else none) }} - {{ tx(item.short, user if user is defined else none) }}</a>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
     {% endif %}
   {% endif %}
 </section>

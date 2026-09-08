@@ -554,9 +554,80 @@ class V3ModuleFlowTests(unittest.TestCase):
         report_area = self.client.get("/operacoes-internas/relatorios-departamentais?department=security")
         self.assertEqual(report_area.status_code, 200)
         self.assertNotIn('name="report_date"', report_area.text)
+        self.assertNotIn("Criar relatório diário", report_area.text)
 
         consolidated = self.client.get("/relatorios/operacoes-internas/departamentos?department=security")
         self.assertEqual(consolidated.status_code, 200)
+
+    def test_department_report_create_all_profile_opens_form_and_posts_any_department(self):
+        create_all_role = Role(
+            name="Criador Todos Relatorios",
+            permissions=json.dumps(["internal_ops_reports_create_all"]),
+        )
+        create_all_user = User(
+            full_name="Criador Todos",
+            username="criadorall",
+            password_hash=hash_password("Test@12345"),
+            role=create_all_role,
+            department=self.department,
+            notify_email=False,
+        )
+        self.db.add_all([create_all_role, create_all_user])
+        self.db.commit()
+
+        self.login("criadorall")
+        page = self.client.get("/operacoes-internas/relatorios-departamentais")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("Criar relatório diário", page.text)
+        self.assertIn('name="department_key" value="maintenance"', page.text)
+        self.assertIn("?department=it", page.text)
+        self.assertIn("?department=security", page.text)
+
+        created = self.client.post(
+            "/operacoes-internas/relatorios-departamentais",
+            data={"department_key": "security", "report_date": "2026-09-05", "activities": "Relatorio por permissao criar todos."},
+            follow_redirects=False,
+        )
+        self.assertEqual(created.status_code, 303)
+        self.db.expire_all()
+        record = self.db.scalar(select(DepartmentDailyReport).where(DepartmentDailyReport.department_key == "security"))
+        self.assertIsNotNone(record)
+
+    def test_department_report_single_create_permission_opens_only_that_form(self):
+        it_only_role = Role(
+            name="Criador IT Apenas",
+            permissions=json.dumps(["internal_ops_reports_create_it"]),
+        )
+        it_only_user = User(
+            full_name="Criador IT",
+            username="criadorit",
+            password_hash=hash_password("Test@12345"),
+            role=it_only_role,
+            department=self.department,
+            notify_email=False,
+        )
+        self.db.add_all([it_only_role, it_only_user])
+        self.db.commit()
+
+        self.login("criadorit")
+        page = self.client.get("/operacoes-internas/relatorios-departamentais")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("Criar relatório diário", page.text)
+        self.assertIn('name="department_key" value="it"', page.text)
+        self.assertNotIn("?department=maintenance", page.text)
+        self.assertNotIn("?department=security", page.text)
+
+        created = self.client.post(
+            "/operacoes-internas/relatorios-departamentais",
+            data={"department_key": "it", "report_date": "2026-09-05", "activities": "Relatorio IT por permissao especifica."},
+            follow_redirects=False,
+        )
+        self.assertEqual(created.status_code, 303)
+        blocked = self.client.post(
+            "/operacoes-internas/relatorios-departamentais",
+            data={"department_key": "maintenance", "report_date": "2026-09-05", "activities": "Tentativa fora da permissao."},
+        )
+        self.assertEqual(blocked.status_code, 403)
 
     def test_department_report_access_follows_user_department_unless_admin(self):
         self.login("adminreports")
