@@ -50,7 +50,11 @@ PERMISSIONS = {
     "internal_ops_reports_create_maintenance": "Criar relatórios departamentais de Manutenção",
     "internal_ops_reports_create_it": "Criar relatórios departamentais de Informática",
     "internal_ops_reports_create_security": "Criar relatórios departamentais de Segurança",
-    "internal_ops_reports_copy": "Copiar relatórios departamentais para o relatório diário",
+    "operational_reports_manage": "Gerar e submeter relatórios consolidados e carregar relatório do Gestor",
+    "operational_reports_receive": "Consultar relatórios oficiais e receber notificações",
+    "operational_reports_settings": "Configurar períodos e submissão parcial de relatórios",
+    "cctv_manage": "Gerir câmaras, monitoria e inspeções CCTV",
+    "operational_pending_manage": "Gerir pendências operacionais",
     "finance_view": "Consultar módulo financeiro",
     "finance_import": "Importar relatórios financeiros diários",
     "reports": "Consultar relatórios",
@@ -175,7 +179,8 @@ DEFAULT_ROLE_PERMISSIONS = {
         "internal_ops_edit",
         "internal_ops_reports",
         "internal_ops_reports_view_all",
-        "internal_ops_reports_copy",
+        "operational_reports_manage",
+        "operational_pending_manage",
         "finance_view",
     },
     "Operações": {
@@ -184,7 +189,8 @@ DEFAULT_ROLE_PERMISSIONS = {
         "internal_ops_edit",
         "internal_ops_reports",
         "internal_ops_reports_view_all",
-        "internal_ops_reports_copy",
+        "operational_reports_manage",
+        "operational_pending_manage",
         "finance_view",
         "stock_requisitions_create",
         "non_stock_requisitions_create",
@@ -332,6 +338,12 @@ DEFAULT_ROLE_PERMISSIONS = {
     "Supervisor": {"hse_view", "hse_records_create", "hse_workflow_manage", "internal_ops_view", "internal_ops_create"},
     "User": {"stock_requisitions_create", "non_stock_requisitions_create"},
 }
+
+
+for _name in ["Chefe do Terminal", "Director do Terminal", "Director Financeiro", "Administrador Delegado", "PCA"]:
+    DEFAULT_ROLE_PERMISSIONS[_name].add("operational_reports_receive")
+for _name in ["Director de Informatica", "IT Supervisor"]:
+    DEFAULT_ROLE_PERMISSIONS[_name].add("cctv_manage")
 
 
 def hash_password(password: str) -> str:

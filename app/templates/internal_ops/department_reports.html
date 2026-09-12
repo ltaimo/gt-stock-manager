@@ -11,7 +11,7 @@
       <a class="button success" href="/operacoes-internas/relatorios-departamentais?department={{ first_create_department }}#department-report-form">{{ tx("Criar relatório diário", user if user is defined else none) }}</a>
     {% endif %}
     <a class="button secondary" href="/operacoes-internas">{{ tx("Operações internas", user if user is defined else none) }}</a>
-    <a class="button secondary" href="/relatorios/operacoes-internas/departamentos">{{ tx("Ver consolidação", user if user is defined else none) }}</a>
+    <a class="button secondary" href="/operacoes-internas/relatorios">Histórico e relatórios consolidados</a>
   </div>
 </header>
 
@@ -27,45 +27,8 @@
   {% endfor %}
 </section>
 
-{% if can_copy_department_reports %}
-<section class="panel daily-prep-panel">
-  <div class="panel-heading">
-    <div>
-      <h2>{{ tx("Preparar Relatório Diário", user if user is defined else none) }}</h2>
-      <p class="muted">{{ tx("Copie os blocos departamentais disponíveis para a aplicação externa do relatório diário.", user if user is defined else none) }}</p>
-    </div>
-    <form class="filters" method="get">
-      {% if selected_department %}<input type="hidden" name="department" value="{{ selected_department }}">{% endif %}
-      <label>{{ tx("Data", user if user is defined else none) }}<input type="date" name="prepare_date" value="{{ prepare_date }}"></label>
-      <button class="secondary compact">{{ tx("Aplicar", user if user is defined else none) }}</button>
-    </form>
-  </div>
-  <div class="prep-grid">
-    {% for item in prepare_items %}
-      <article class="prep-card">
-        <div>
-          <strong>{{ tx(item.label, user if user is defined else none) }}</strong>
-          <span class="badge {{ 'green' if item.report and item.report.status in ['Submitted', 'Validated'] else 'orange' }}">{{ tv(item.status, user) if item.report else tx("Pendente", user if user is defined else none) }}</span>
-        </div>
-        {% if item.report %}
-          <small class="muted">{{ item.report.number }} · {{ item.report.prepared_by or item.report.created_by.full_name }}</small>
-          <textarea id="prep-copy-{{ item.key }}" class="clipboard-source">{{ item.copy_text }}</textarea>
-          <div class="actions">
-            <button type="button" class="secondary compact" data-preview-source="#prep-copy-{{ item.key }}">{{ tx("Previsualizar", user if user is defined else none) }}</button>
-            <button type="button" class="success compact" data-copy-source="#prep-copy-{{ item.key }}">{{ tx("Copiar", user if user is defined else none) }}</button>
-          </div>
-        {% else %}
-          <small class="muted">{{ tx("Relatório ainda não submetido.", user if user is defined else none) }}</small>
-        {% endif %}
-      </article>
-    {% endfor %}
-  </div>
-  <textarea id="prep-copy-all" class="clipboard-source">{{ prepare_bundle_text }}</textarea>
-  <div class="actions"><button type="button" class="success" data-copy-source="#prep-copy-all">{{ tx("Copiar Todos", user if user is defined else none) }}</button></div>
-</section>
-{% endif %}
-
-<section class="panel" id="department-report-form">
+<section class="panel department-entry" id="department-report-form">
+  <div class="report-brand"><img src="/static/img/logo-gt.png" alt="GT"><div><strong>Gestão de Terminais, SA</strong><p>{{ tx("Relatório diário", user) }}</p></div></div>
   {% if not has_department_report_data_access %}
     <div class="choice-empty-state">
       <strong>{{ tx("Relatórios departamentais", user if user is defined else none) }}</strong>
@@ -85,32 +48,51 @@
       </div>
     </div>
     {% if error %}<div class="alert red">{{ tm(error, user, request) }}</div>{% endif %}
+    {% if editing_draft %}<p><a class="button secondary" href="/operacoes-internas/relatorios/diarios/{{ editing_draft.id }}/dados">Adicionar ocorrências e indicadores ao diário</a></p>{% else %}<p class="muted">Guarde o rascunho para acrescentar ocorrências e indicadores estruturados antes da submissão.</p>{% endif %}
     {% if can_create_internal_ops %}
-      <form method="post" action="/operacoes-internas/relatorios-departamentais" class="form-stack">
+      <form method="post" action="/operacoes-internas/relatorios-departamentais" class="form-stack" data-department-draft data-msg-conflict="{{ tx('Existe uma versão mais recente no sistema. Escolha qual pretende continuar.', user) }}" data-msg-recover="{{ tx('Recuperar a minha cópia local', user) }}" data-msg-use-server="{{ tx('Usar versão do sistema', user) }}" data-draft-user="{{ user.id }}" data-draft-department="{{ selected_department }}" data-draft-id="{{ editing_draft.id if editing_draft else 'new' }}"
+        data-msg-local="{{ tx('Rascunho guardado neste dispositivo. A aguardar sincronização.', user) }}" data-msg-saved="{{ tx('Rascunho guardado automaticamente.', user) }}" data-msg-error="{{ tx('Não foi possível sincronizar. O rascunho permanece neste dispositivo.', user) }}" data-msg-expired="{{ tx('Sessão expirada. Inicie sessão novamente para continuar o rascunho.', user) }}" data-msg-unavailable="{{ tx('Não foi possível guardar neste dispositivo. Guarde o rascunho no sistema.', user) }}">
+        <input type="hidden" name="draft_version" value="{{ draft_values.get('draft_version', '') }}">
+        <input type="hidden" name="structured_tables" value="{{ draft_values.get('structured_tables', '{}') }}">
+        <input type="hidden" name="draft_key" value="{{ draft_key }}">
+        <input type="hidden" name="draft_id" value="{{ editing_draft.id if editing_draft else '' }}">
+        <p class="alert blue" data-draft-status role="status" aria-live="polite">{{ tx('O relatório é guardado automaticamente enquanto escreve.', user) }}</p>
         <input type="hidden" name="department_key" value="{{ selected_department }}">
         <div class="form-grid">
-          <label>{{ tx("Data do relatório", user if user is defined else none) }}<input type="date" name="report_date" required></label>
-          <label>{{ tx("Turno / período", user if user is defined else none) }}<input name="shift" maxlength="80" placeholder="07h00-17h00 / 17h00-07h00"></label>
-          <label>{{ tx("Início do período", user if user is defined else none) }}<input name="period_start" maxlength="40" placeholder="07h00"></label>
-          <label>{{ tx("Fim do período", user if user is defined else none) }}<input name="period_end" maxlength="40" placeholder="17h00"></label>
-          <label>{{ tx("Preparado por", user if user is defined else none) }}<input name="prepared_by" maxlength="160" value="{{ user.full_name }}"></label>
-          <label>{{ tx("Supervisor / chefe de turno", user if user is defined else none) }}<input name="supervisor" maxlength="160"></label>
-          <label>{{ tx("Local / área", user if user is defined else none) }}<input name="location" maxlength="160"></label>
-          <label>{{ tx("Estado inicial", user if user is defined else none) }}
-            <select name="status">
-              <option value="Submitted">{{ tx("Submetido", user if user is defined else none) }}</option>
-              <option value="Draft">{{ tx("Rascunho", user if user is defined else none) }}</option>
-            </select>
-          </label>
+          <label>{{ tx("Data do relatório", user if user is defined else none) }}<input type="date" name="report_date" value="{{ draft_values.get('report_date', today.strftime('%Y-%m-%d')) }}" required></label>
+          <label>{{ tx("Turno / período", user if user is defined else none) }}<input name="shift" value="{{ draft_values.get('shift', '') }}" maxlength="80" placeholder="07h00-17h00 / 17h00-07h00"></label>
+          <label>{{ tx("Início do período", user if user is defined else none) }}<input name="period_start" value="{{ draft_values.get('period_start', '') }}" maxlength="40" placeholder="07h00"></label>
+          <label>{{ tx("Fim do período", user if user is defined else none) }}<input name="period_end" value="{{ draft_values.get('period_end', '') }}" maxlength="40" placeholder="17h00"></label>
+          <label>{{ tx("Preparado por", user if user is defined else none) }}<input name="prepared_by" maxlength="160" value="{{ draft_values.get('prepared_by', user.full_name) }}"></label>
+          <label>{{ tx("Supervisor / chefe de turno", user if user is defined else none) }}<input name="supervisor" value="{{ draft_values.get('supervisor', '') }}" maxlength="160"></label>
+          <label>{{ tx("Local / área", user if user is defined else none) }}<input name="location" value="{{ draft_values.get('location', '') }}" maxlength="160"></label>
+
         </div>
-        <label>{{ tx("Equipa / staff em serviço", user if user is defined else none) }}<textarea name="team"></textarea></label>
-        <label>{{ tx(selected.activity_label, user if user is defined else none) }}<textarea name="activities"></textarea></label>
-        <label>{{ tx(selected.incident_label, user if user is defined else none) }}<textarea name="incidents"></textarea></label>
-        <label>{{ tx(selected.equipment_label, user if user is defined else none) }}<textarea name="equipment_status"></textarea></label>
-        <label>{{ tx(selected.readings_label, user if user is defined else none) }}<textarea name="readings"></textarea></label>
-        <label>{{ tx("Pendências / ações para acompanhamento", user if user is defined else none) }}<textarea name="pending_actions"></textarea></label>
-        <label>{{ tx("Notas adicionais", user if user is defined else none) }}<textarea name="notes"></textarea></label>
-        <div class="actions"><button class="success">{{ tx("Guardar relatório diário", user if user is defined else none) }}</button></div>
+        <nav class="report-section-nav" aria-label="{{ tx('Secções do relatório', user) }}">
+          {% for field, title, subtitles in report_sections %}<a href="#entry-{{ field }}">{{ '%02d'|format(loop.index) }} {{ tx(title, user) }}</a>{% endfor %}
+        </nav>
+        {% for field, title, subtitles in report_sections %}
+        <fieldset class="report-entry-section" id="entry-{{ field }}">
+          <legend><span>{{ '%02d'|format(loop.index) }}</span> {{ tx(title, user) }}</legend>
+          {% for table in report_tables if table.section == field %}
+          <details class="report-table-editor" data-report-table="{{ table.key }}">
+            <summary>{{ table.title }} — preencher tabela</summary>
+            <label>{% if table.key == 'parade' %}Tema do dia / observações da parada{% else %}Observações da tabela{% endif %}<textarea data-table-note rows="2" maxlength="1000"></textarea></label>
+            <p class="muted">Uma linha por registo. Pode colar células do Excel ou de uma tabela do Word a partir da primeira célula correspondente.</p>
+            <div class="report-table-scroll"><table class="report-data-table"><thead><tr>{% for column in table.columns %}<th scope="col">{{ column }}</th>{% endfor %}<th>Ações</th></tr></thead><tbody></tbody></table></div>
+            <template><tr>{% for column in table.columns %}<td><textarea rows="2" maxlength="1000" aria-label="{{ column }}"></textarea></td>{% endfor %}<td><button type="button" data-remove-row class="secondary compact">Remover linha</button></td></tr></template>
+            <button type="button" data-add-row class="secondary compact">Adicionar linha</button>
+            <p data-table-message role="status"></p>
+          </details>
+          {% endfor %}
+          {% if subtitles %}<div class="form-grid">
+            {% for subtitle in subtitles %}<label>{{ tx(subtitle, user) }}<textarea name="{{ field }}__{{ loop.index0 }}" rows="3">{{ draft_values.get(field ~ '__' ~ loop.index0, '') }}</textarea></label>{% endfor %}
+          </div><label>{{ tx('Outros registos desta secção', user) }}<textarea name="{{ field }}" rows="2">{{ draft_values.get(field, '') }}</textarea></label>{% else %}
+          <label>{{ tx(title, user) }}<textarea name="{{ field }}" rows="4">{{ draft_values.get(field, '') }}</textarea></label>
+          {% endif %}
+        </fieldset>
+        {% endfor %}
+        <div class="actions"><button class="secondary" name="status" value="Draft" formnovalidate>{{ tx('Guardar rascunho', user) }}</button><button class="success" name="status" value="Submitted">{{ tx('Submeter relatório', user) }}</button></div>
       </form>
     {% else %}
       <div class="empty-state">
@@ -164,7 +146,8 @@
     <tbody>
       {% for report in reports %}
         <tr>
-          <td>{{ report.number }}</td>
+          <td><a href="/operacoes-internas/relatorios-departamentais/{{ report.id }}/preview">{{ report.number }}</a>
+          {% if report.status == 'Draft' and report.created_by_id == user.id %}<a class="button secondary compact" href="?department={{ report.department_key }}&draft_id={{ report.id }}#department-report-form">{{ tx('Continuar rascunho', user) }}</a>{% endif %}</td>
           <td>{{ report.report_date.strftime('%Y-%m-%d') }}</td>
           <td>{{ tx(report_types[report.department_key].short, user if user is defined else none) }}</td>
           <td>{% if report.shift %}{{ report.shift }}{% elif report.period_start or report.period_end %}{{ report.period_start or '' }} - {{ report.period_end or '' }}{% else %}-{% endif %}</td>
@@ -174,19 +157,13 @@
           <td><strong>{{ report.activities or report.incidents or report.equipment_status or "-" }}</strong><br><small class="muted">{{ report.pending_actions or report.notes or "" }}</small></td>
           <td><span class="badge {{ 'green' if report.status == 'Validated' else 'grey' if report.status == 'Cancelled' else 'orange' }}">{{ tv(report.status, user) }}</span></td>
           <td>
-            {% if can_copy_department_reports %}
-              <textarea id="report-copy-{{ report.id }}" class="clipboard-source" data-fetch-text="/operacoes-internas/relatorios-departamentais/{{ report.id }}/texto"></textarea>
-              <div class="actions">
-                <button type="button" class="secondary compact" data-preview-source="#report-copy-{{ report.id }}">{{ tx("Previsualizar", user if user is defined else none) }}</button>
-                <button type="button" class="success compact" data-copy-source="#report-copy-{{ report.id }}">{{ tx("Copiar para Relatório Diário", user if user is defined else none) }}</button>
-              </div>
-            {% endif %}
-            {% if can_approve_internal_ops and report.status != 'Validated' %}
+            <a href="/operacoes-internas/relatorios/diarios/{{ report.id }}/dados">Ocorrências e indicadores</a>
+            {% if can_approve_internal_ops and report.status not in ['Validated', 'Draft'] %}
               <form method="post" action="/operacoes-internas/relatorios-departamentais/{{ report.id }}/validar" class="inline-form">
-                <select name="status">{% for status in statuses %}<option value="{{ status }}" {% if report.status == status %}selected{% endif %}>{{ tv(status, user) }}</option>{% endfor %}</select>
+                <select name="status">{% for status in ["Validated", "Cancelled"] %}<option value="{{ status }}" {% if report.status == status %}selected{% endif %}>{{ tv(status, user) }}</option>{% endfor %}</select>
                 <button class="secondary compact">{{ tx("Atualizar", user if user is defined else none) }}</button>
               </form>
-            {% elif not can_copy_department_reports %}
+            {% else %}
               {{ report.approved_by.full_name if report.approved_by else "-" }}
             {% endif %}
           </td>
@@ -198,14 +175,6 @@
   </table>
 </section>
 
-<dialog class="clipboard-preview" data-clipboard-preview>
-  <form method="dialog">
-    <div class="panel-heading">
-      <h2>{{ tx("Previsualizar", user if user is defined else none) }}</h2>
-      <button class="secondary compact">{{ tx("Fechar", user if user is defined else none) }}</button>
-    </div>
-    <textarea data-preview-text></textarea>
-    <div class="actions"><button type="button" class="success" data-copy-preview>{{ tx("Copiar", user if user is defined else none) }}</button></div>
-  </form>
-</dialog>
+<script src="/static/js/department-tables.js?v={{ app_version }}-tables1"></script>
+<script src="/static/js/department-drafts.js?v={{ app_version }}-tables1"></script>
 {% endblock %}

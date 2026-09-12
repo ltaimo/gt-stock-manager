@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-header"><h1>{{ title }}</h1><div class="actions">
+  <a class="button secondary" href="/operacoes-internas/relatorios-departamentais">{{ tx("Voltar", user) }}</a>
+  <a class="button secondary" href="?export=pdf">PDF</a><a class="button secondary" href="?export=docx">Word</a>
+</div></header>
+{% include "reports/department_document.html" %}
+{% endblock %}

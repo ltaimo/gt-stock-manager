@@ -731,99 +731,49 @@ function initAutosaveForms() {
 function initAutoLogout() {
   const timeoutSeconds = Number(document.body?.dataset.sessionTimeoutSeconds || 0);
   if (!timeoutSeconds) return;
-  let timer;
+  const key = `gtims:activity:${document.body.dataset.sessionUser}`;
+  let lastActivity = Date.now(), lastPing = 0, timer, leaving = false;
+  const storedActivity = () => {
+    try { return Number(localStorage.getItem(key)) || 0; } catch (_) { return 0; }
+  };
+  const remember = () => {
+    try { localStorage.setItem(key, String(lastActivity)); } catch (_) { /* Timer still works in this tab. */ }
+  };
   const logout = () => {
-    const form = document.createElement("form");
-    form.method = "post";
-    form.action = "/logout";
+    if (leaving) return;
+    leaving = true;
+    window.dispatchEvent(new Event('gtims:before-logout'));
+    const form = document.createElement('form');
+    form.method = 'post';
+    form.action = '/logout?timeout=1';
     document.body.appendChild(form);
     form.submit();
   };
-  const reset = () => {
-    window.clearTimeout(timer);
-    timer = window.setTimeout(logout, timeoutSeconds * 1000);
+  const check = () => {
+    clearTimeout(timer);
+    lastActivity = Math.max(lastActivity, storedActivity());
+    const remaining = timeoutSeconds * 1000 - (Date.now() - lastActivity);
+    if (remaining <= 0) logout();
+    else timer = setTimeout(check, remaining);
   };
-  ["click", "keydown", "mousemove", "scroll", "touchstart", "input"].forEach((eventName) => {
-    document.addEventListener(eventName, reset, { passive: true });
-  });
-  reset();
-}
-
-async function clipboardTextFromSource(selector) {
-  const source = document.querySelector(selector);
-  if (!source) return "";
-  if (source.dataset.fetchText && !source.value.trim()) {
-    const response = await fetch(source.dataset.fetchText, { credentials: "same-origin" });
-    if (!response.ok) throw new Error("clipboard text unavailable");
-    source.value = await response.text();
-  }
-  return source.value || source.textContent || "";
-}
-
-async function copyTextToClipboard(text) {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return;
-  }
-  const fallback = document.createElement("textarea");
-  fallback.value = text;
-  fallback.style.position = "fixed";
-  fallback.style.opacity = "0";
-  document.body.appendChild(fallback);
-  fallback.focus();
-  fallback.select();
-  document.execCommand("copy");
-  fallback.remove();
-}
-
-function setTemporaryButtonText(button, text) {
-  if (!button || !text) return;
-  const original = button.textContent;
-  button.textContent = text;
-  window.setTimeout(() => {
-    button.textContent = original;
-  }, 1800);
-}
-
-function initDepartmentReportClipboard() {
-  const dialog = document.querySelector("[data-clipboard-preview]");
-  const previewText = dialog?.querySelector("[data-preview-text]");
-  let currentText = "";
-
-  document.querySelectorAll("[data-preview-source]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      try {
-        currentText = await clipboardTextFromSource(button.dataset.previewSource);
-        if (previewText) previewText.value = currentText;
-        if (dialog?.showModal) dialog.showModal();
-      } catch (_error) {
-        setTemporaryButtonText(button, uiMessage("i18nClipboardError"));
-      }
-    });
-  });
-
-  document.querySelectorAll("[data-copy-source]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      try {
-        const text = await clipboardTextFromSource(button.dataset.copySource);
-        await copyTextToClipboard(text);
-        setTemporaryButtonText(button, uiMessage("i18nClipboardCopied"));
-      } catch (_error) {
-        setTemporaryButtonText(button, uiMessage("i18nClipboardError"));
-      }
-    });
-  });
-
-  dialog?.querySelector("[data-copy-preview]")?.addEventListener("click", async (event) => {
-    const button = event.currentTarget;
-    try {
-      currentText = previewText?.value || currentText;
-      await copyTextToClipboard(currentText);
-      setTemporaryButtonText(button, uiMessage("i18nClipboardCopied"));
-    } catch (_error) {
-      setTemporaryButtonText(button, uiMessage("i18nClipboardError"));
+  const activity = () => {
+    // Check the deadline before allowing a stale page to renew its timer.
+    if (Date.now() - Math.max(lastActivity, storedActivity()) >= timeoutSeconds * 1000) { logout(); return; }
+    lastActivity = Date.now();
+    remember();
+    check();
+    if (lastActivity - lastPing >= Math.min(60000, timeoutSeconds * 250)) {
+      lastPing = lastActivity;
+      fetch('/session/activity', {method: 'POST', credentials: 'same-origin', headers: {Accept: 'application/json'}})
+        .then(response => { if (response.status === 401 || response.redirected) logout(); })
+        .catch(() => {});
     }
-  });
+  };
+  ['click', 'keydown', 'scroll', 'touchstart', 'input'].forEach(name => document.addEventListener(name, activity, {passive: true}));
+  window.addEventListener('storage', event => { if (event.key === key) check(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+  remember();
+  check();
 }
 
 window.addEventListener("load", () => {
@@ -840,7 +790,6 @@ window.addEventListener("load", () => {
   initProductStockAdjustment();
   initReplenishmentForm();
   initInternalOperationsForm();
-  initDepartmentReportClipboard();
   initAutosaveForms();
   initAutoLogout();
 });

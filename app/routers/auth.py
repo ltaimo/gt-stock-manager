@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 import logging
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
@@ -215,10 +215,22 @@ def reset_password(
 
 
 @router.post("/logout")
-def logout(request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)):
-    with atomic(db):
-        audit_log(db, user, "Logout", "Auth", user.id, request=request)
-    language = user.preferred_language or request.session.get("language") or "pt"
+def logout(request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    language = request.session.get("language") or "pt"
     request.session.clear()
     request.session["language"] = language
-    return RedirectResponse("/login", status_code=303)
+    try:
+        user = db.get(User, user_id) if user_id else None
+        if user:
+            with atomic(db):
+                audit_log(db, user, "Logout", "Auth", user.id, request=request)
+    except Exception:
+        logger.exception("Falha de auditoria no logout")
+        db.rollback()
+    return RedirectResponse("/login?timeout=1" if request.query_params.get("timeout") == "1" else "/login", status_code=303)
+
+
+@router.post("/session/activity")
+def session_activity(user: User = Depends(current_user)):
+    return JSONResponse({"active": True})

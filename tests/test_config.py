@@ -22,7 +22,7 @@ class ConfigTests(unittest.TestCase):
         with patch.dict("os.environ", {"GTIMS_AUTO_PREPARE_SCHEMA": "true"}, clear=True):
             self.assertTrue(auto_prepare_schema_enabled("production"))
 
-    def test_default_application_version_is_4_0_0(self):
+    def test_default_application_version_is_4_0_1(self):
         get_settings.cache_clear()
         with patch.dict("os.environ", {}, clear=True):
             self.assertEqual(get_settings().app_version, "4.0.0")

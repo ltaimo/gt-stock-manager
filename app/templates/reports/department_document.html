@@ -1,0 +1,16 @@
+<article class="department-document">
+  <header class="report-brand"><img src="/static/img/logo-gt.png" alt="GT"><div><small>Gestão de Terminais, SA</small><h2>{{ item.title }}</h2><strong>{{ item.number }}</strong></div></header>
+  <dl class="report-metadata">{% for label, value in item.meta %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
+  <nav class="report-section-nav" aria-label="{{ tx('Secções do relatório', user) }}">{% for section in item.sections %}<a href="#report-{{ item.id }}-{{ loop.index }}">{{ '%02d'|format(loop.index) }} {{ section.title }}</a>{% endfor %}</nav>
+  {% for section in item.sections %}
+  <section class="report-content-section" id="report-{{ item.id }}-{{ loop.index }}">
+    <h3><span>{{ '%02d'|format(loop.index) }}</span> {{ section.title }}</h3>
+    {% for line in section.lines %}{% if line.heading %}<h4>{{ line.text }}</h4>{% else %}<p>{{ line.text }}</p>{% endif %}{% endfor %}
+    {% for table in section.get('tables', []) %}
+      <h4>{{ table.title }}</h4>{% if table.note %}<p>{{ table.note }}</p>{% endif %}
+      {% if table.rows %}<div class="report-table-scroll" tabindex="0" aria-label="{{ table.title }}"><table class="report-data-table"><thead><tr>{% for column in table.columns %}<th scope="col">{{ column }}</th>{% endfor %}</tr></thead><tbody>{% for row in table.rows %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>{% endif %}
+    {% endfor %}
+    {% if section.title=='Indicadores operacionais' and item.charts %}{% for metric in item.charts %}<details class="report-chart"><summary>Evolução · {{ metric.label }} / {{ metric.dimension }} · {{ metric.unit }}</summary>{% for point in metric.trend %}<label><span>{{ point.date }}</span><meter min="0" max="{{ metric.maximum }}" value="{{ point.value }}">{{ point.value }}</meter><span>{{ point.value }}</span></label>{% endfor %}</details>{% endfor %}{% endif %}
+  </section>
+  {% endfor %}
+</article>

@@ -76,6 +76,10 @@ def open_notification(notification_id: int, db: Session = Depends(get_db), user:
         mark_notification_group_read(db, notification)
 
     module = canonical_notification_module(notification.module)
+    if module == 'RelatoriosOperacionais' and notification.record_id and notification.record_id.isdigit():
+        return RedirectResponse(f'/operacoes-internas/relatorios/{notification.record_id}', status_code=303)
+    if module == 'PendenciasOperacionais':
+        return RedirectResponse('/operacoes-internas/pendencias', status_code=303)
     if module == "Requisicoes" and notification.record_id:
         requisition = db.scalar(select(Requisition).where(Requisition.number == notification.record_id))
         if requisition:

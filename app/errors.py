@@ -2,7 +2,7 @@ import logging
 
 from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import joinedload
 
 from app.database import SessionLocal
@@ -30,6 +30,8 @@ def request_user(request: Request) -> User | None:
 
 
 def error_response(request: Request, message: str, status_code: int):
+    if "application/json" in request.headers.get("accept", ""):
+        return JSONResponse({"detail": translate_message(message, language_for(None, request))}, status_code=status_code)
     user = request_user(request)
     return templates.TemplateResponse(
         request,

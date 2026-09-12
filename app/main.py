@@ -14,6 +14,7 @@ from app.errors import http_error_handler, unexpected_error_handler, validation_
 from app.maintenance.create_codex_agent_user import create_codex_agent_user
 from app.maintenance.migrate_schema import ensure_schema
 from app.routers import about, audit, auth, dashboard, documents, finance, hse, imports, internal_ops, movements, notifications, preferences, procurement, products, profiles, reports, requisitions, settings as settings_router, sync, users
+from app.routers import operational_reporting, cctv
 from app.security import session_is_expired
 from app.services.sync import push_snapshot_to_target
 
@@ -24,6 +25,8 @@ if settings.auto_prepare_schema:
     ensure_schema()
 
 app = FastAPI(title=settings.app_name)
+app.include_router(operational_reporting.router)
+app.include_router(cctv.router)
 app.add_exception_handler(RequestValidationError, validation_error_handler)
 app.add_exception_handler(HTTPException, http_error_handler)
 app.add_exception_handler(StarletteHTTPException, http_error_handler)

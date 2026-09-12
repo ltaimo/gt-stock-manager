@@ -54,7 +54,7 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.security_role = Role(name="Segurança", permissions=json.dumps(["internal_ops_view", "internal_ops_create", "internal_ops_reports"]))
         self.ops_manager_role = Role(
             name="Gestor Operacional",
-            permissions=json.dumps(["internal_ops_view", "internal_ops_create", "internal_ops_reports", "internal_ops_reports_view_all", "internal_ops_reports_copy"]),
+            permissions=json.dumps(["internal_ops_view", "internal_ops_create", "internal_ops_reports", "internal_ops_reports_view_all", "operational_reports_manage"]),
         )
         self.replenishment_role = Role(name="Reposicao Manager", permissions=json.dumps(["stock_replenishment_create"]))
         self.limited_hse_role = Role(name="Limited HSE Creator", permissions=json.dumps(["hse_view", "hse_records_create"]))
@@ -490,8 +490,8 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.assertIn("/operacoes-internas/relatorios-departamentais?department=maintenance", form.text)
         self.assertIn("/operacoes-internas/relatorios-departamentais?department=security", form.text)
         self.assertIn("/operacoes-internas/relatorios-departamentais?department=it", form.text)
-        self.assertIn("Tarefas executadas", form.text)
-        self.assertIn("Equipamentos e utilidades", form.text)
+        self.assertIn("Trabalhos executados", form.text)
+        self.assertIn("Utilidades e equipamentos críticos", form.text)
 
         created = self.client.post(
             "/operacoes-internas/relatorios-departamentais",
@@ -691,7 +691,7 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.assertIn('name="department_key" value="security"', security_area.text)
         self.assertIn("Departamento de Proteção e Segurança", security_area.text)
 
-    def test_operational_manager_views_and_copies_without_cross_department_create(self):
+    def test_operational_manager_views_without_legacy_copy_or_cross_department_create(self):
         for department_key, activities in [
             ("security", "Patrulha diurna concluida.\nBypass: 0.00 kw"),
             ("maintenance", "Controle de fluxo de agua."),
@@ -719,20 +719,16 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.login("gestorops")
         page = self.client.get("/operacoes-internas/relatorios-departamentais?prepare_date=2026-09-02")
         self.assertEqual(page.status_code, 200)
-        self.assertIn("Preparar Relatório Diário", page.text)
-        self.assertIn("Copiar Todos", page.text)
-        self.assertIn("SECURITY-DR-2026-999", page.text)
+        self.assertIn("Histórico e relatórios consolidados", page.text)
+        self.assertNotIn("Copiar Todos", page.text)
+        self.assertIn("SECURITY-DR-2026-999", self.client.get("/operacoes-internas/relatorios-departamentais?department=security").text)
         self.assertIn("MAINTENANCE-DR-2026-999", page.text)
-        self.assertIn("IT-DR-2026-999", page.text)
+        self.assertIn("IT-DR-2026-999", self.client.get("/operacoes-internas/relatorios-departamentais?department=it").text)
         self.assertNotIn('name="report_date"', page.text)
 
         security = self.db.scalar(select(DepartmentDailyReport).where(DepartmentDailyReport.department_key == "security"))
         copied = self.client.get(f"/operacoes-internas/relatorios-departamentais/{security.id}/texto")
-        self.assertEqual(copied.status_code, 200)
-        self.assertEqual(copied.headers["content-type"], "text/plain; charset=utf-8")
-        self.assertIn("DEPARTAMENTO DE PROTECAO E SEGURANCA", copied.text)
-        self.assertIn("Bypass: 0.00 kw", copied.text)
-        self.assertNotIn("created_by_id", copied.text)
+        self.assertEqual(copied.status_code, 404)
 
         blocked_create = self.client.post(
             "/operacoes-internas/relatorios-departamentais",

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import urllib.error
 import urllib.request
@@ -7,7 +8,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, Integer, Numeric, insert, select
+from sqlalchemy import LargeBinary, Boolean, Date, DateTime, Integer, Numeric, insert, select
 from sqlalchemy.engine import Connection
 
 from app.config import get_settings
@@ -18,6 +19,8 @@ EXCLUDED_TABLES = {"sqlite_sequence"}
 
 
 def _json_value(value: Any) -> Any:
+    if isinstance(value, bytes):
+        return {"$binary": base64.b64encode(value).decode("ascii")}
     if isinstance(value, (datetime, date)):
         return value.isoformat()
     if isinstance(value, Decimal):
@@ -29,6 +32,10 @@ def _coerce_value(column, value: Any) -> Any:
     if value is None:
         return None
     column_type = column.type
+    if isinstance(column_type, LargeBinary):
+        if not isinstance(value, dict) or set(value) != {"$binary"}:
+            raise ValueError("Conteúdo binário inválido no snapshot.")
+        return base64.b64decode(value["$binary"], validate=True)
     if isinstance(column_type, DateTime):
         if isinstance(value, datetime):
             return value
@@ -38,6 +45,8 @@ def _coerce_value(column, value: Any) -> Any:
         if isinstance(value, Decimal):
             return value
         return Decimal(str(value))
+    if isinstance(column_type, Date):
+        return date.fromisoformat(value) if isinstance(value, str) else value
     if isinstance(column_type, Boolean):
         if isinstance(value, str):
             return value.strip().lower() in {"1", "true", "yes", "sim"}

@@ -18,6 +18,9 @@
     <h2>{{ tx("Manutenção, Informática e Segurança", user if user is defined else none) }}</h2>
     <p class="muted">{{ tx("Registo diário com consolidação semanal e mensal, visualização no sistema e exportação em PDF, Excel ou Word.", user if user is defined else none) }}</p>
   </div>
+  <a class="button secondary" href="/operacoes-internas/relatorios">Histórico, consolidação e indicadores</a>
+  <a class="button secondary" href="/operacoes-internas/cctv">IT · CCTV</a>
+  <a class="button secondary" href="/operacoes-internas/pendencias">Pendências operacionais</a>
   <a class="button success" href="/operacoes-internas/relatorios-departamentais">{{ tx("Abrir relatórios departamentais", user if user is defined else none) }}</a>
 </section>
 {% endif %}
