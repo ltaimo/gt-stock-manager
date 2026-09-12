@@ -11,6 +11,7 @@ from app.models.reporting import OperationalReport, DailyReportEntry, ManagerRep
 from app.services.reporting_common import DEPARTMENTS, PERIODS, STATES, METRICS, CATEGORIES, dumps, utc_day, policy, notify_reporting, display_number, display_time, date_ranges, record_day
 from app.services.department_presentation import SECTIONS, presentation, reports_pdf, reports_docx
 from app.services.cctv import cctv_snapshot, pending_state_at, PENDING_STATES, create_pending
+from app.services.report_access import active, view_all
 
 SUPPLEMENTS = {'summary':'Resumo executivo', 'challenges':'Principais desafios', 'recommendations':'Recomendações', 'conclusion':'Conclusão', 'review_notes':'Validação das fontes e divergências'}
 SOURCE_TYPES={'daily':'Relatório departamental','entry':'Ocorrência ou indicador','manager':'Documento do Gestor','operation':'Operação interna','pending':'Pendência','cctv':'CCTV'}
@@ -31,9 +32,11 @@ def source_details(source):
 def source(kind, record_id, day, label, data):
     return {'kind':kind, 'id':record_id, 'date':str(day), 'label':label, 'data':data}
 
-def collect_sources(db, department, start, end, daily_id=None):
+def collect_sources(db, department, start, end, daily_id=None, owner_id=None):
     sources=[];points=[];events=[];warnings=[];narratives=defaultdict(list)
     stmt=select(DepartmentDailyReport).where(DepartmentDailyReport.report_date>=utc_day(start),DepartmentDailyReport.report_date<utc_day(end+timedelta(days=1)),DepartmentDailyReport.status.in_(['Submitted','Validated']))
+    stmt=stmt.where(active(DepartmentDailyReport,'daily'))
+    if owner_id:stmt=stmt.where(DepartmentDailyReport.created_by_id==owner_id)
     if daily_id:stmt=stmt.where(DepartmentDailyReport.id==daily_id)
     elif department!='consolidated':stmt=stmt.where(DepartmentDailyReport.department_key==department)
     daily=db.scalars(stmt.order_by(DepartmentDailyReport.report_date,DepartmentDailyReport.id)).all()
@@ -56,8 +59,10 @@ def collect_sources(db, department, start, end, daily_id=None):
                 points.append({'key':entry.metric_key,'dimension':entry.dimension,'value':str(entry.value),'date':day,'kind':'structured','source':f'entry:{entry.id}'})
     if department=='consolidated':
         imports=db.execute(select(ManagerReportSource,FinancialDailyImport).join(FinancialDailyImport,ManagerReportSource.import_id==FinancialDailyImport.id).where(FinancialDailyImport.report_date>=utc_day(start),FinancialDailyImport.report_date<utc_day(end+timedelta(days=1)))).all()
+        imports=[(m,i) for m,i in imports if db.scalar(select(ManagerReportSource.id).where(ManagerReportSource.id==m.id,active(ManagerReportSource,'manager')))]
         superseded={m.supersedes_id for m,_ in imports if m.status=='Reviewed' and m.supersedes_id}
         for manager, imported in imports:
+            if not db.scalar(select(ManagerReportSource.id).where(ManagerReportSource.id==manager.id,active(ManagerReportSource,'manager'))):continue
             if manager.id in superseded:continue
             day=imported.report_date.date().isoformat()
             if manager.status!='Reviewed':
@@ -115,8 +120,8 @@ def aggregate_metrics(points):
         metrics.append({'key':key,'label':label,'unit':unit,'dimension':dimension,'mode':mode,'value':str(value),'first':str(first),'delta':str(delta) if delta is not None else None,'days':len(values),'trend':values})
     return metrics,conflicts
 
-def build_snapshot(db,department,start,end,daily_id=None,inspection=False,period=None):
-    sources,points,events,narratives,missing,warnings=collect_sources(db,department,start,end,daily_id)
+def build_snapshot(db,department,start,end,daily_id=None,inspection=False,period=None,owner_id=None):
+    sources,points,events,narratives,missing,warnings=collect_sources(db,department,start,end,daily_id,owner_id)
     metrics,conflicts=aggregate_metrics(points)
     grouped_events={}
     for event in events:
@@ -129,12 +134,13 @@ def build_snapshot(db,department,start,end,daily_id=None,inspection=False,period
     if period and period!='inspection':
         previous_end=start-timedelta(days=1)
         previous_start=previous_end.replace(day=1) if period=='monthly' else start-timedelta(days=(end-start).days+1)
-        previous_sources,previous_points,*_=collect_sources(db,department,previous_start,previous_end)
+        previous_sources,previous_points,*_=collect_sources(db,department,previous_start,previous_end,owner_id=owner_id)
         if previous_points:
             previous_metrics,previous_conflicts=aggregate_metrics(previous_points)
             comparison={'date_from':str(previous_start),'date_to':str(previous_end),'metrics':previous_metrics,'conflicts':previous_conflicts,'sources':previous_sources}
     pending=[]
     stmt=select(OperationalPending).where(OperationalPending.opened_on<=end)
+    if owner_id:stmt=stmt.where(OperationalPending.owner_id==owner_id)
     if department!='consolidated':stmt=stmt.where(OperationalPending.department_key==department)
     for row in db.scalars(stmt.order_by(OperationalPending.opened_on,OperationalPending.id)).all():
         state=pending_state_at(row,end)
@@ -149,7 +155,7 @@ def build_snapshot(db,department,start,end,daily_id=None,inspection=False,period
         pending.append(item);sources.append(source('pending',row.id,row.opened_on,row.title,item))
         item['owner']=db.get(User,assigned_id).full_name if assigned_id else 'Por atribuir'
         item['due_date']=due_at_end
-    cctv=cctv_snapshot(db,start,end) if department in {'it','consolidated'} else None
+    cctv=cctv_snapshot(db,start,end) if department in {'it','consolidated'} and not owner_id else None
     if cctv and cctv['total']:
         sources.append(source('cctv',0,end,'Monitoria e inspeções CCTV',cctv))
     if inspection:missing=[]
@@ -158,10 +164,13 @@ def build_snapshot(db,department,start,end,daily_id=None,inspection=False,period
 
 def create_report(db,user,department,period,start,end,daily_id=None,new_version=False):
     series=f'{department}:{period}:{start}:{end}'+(f':daily-{daily_id}' if daily_id else '')
+    owner_id=None if view_all(user) else user.id
+    if owner_id and not daily_id:series+=f':author-{owner_id}'
     previous=db.scalars(select(OperationalReport).where(OperationalReport.series_key==series).order_by(OperationalReport.version.desc())).first()
-    if previous and not new_version:raise HTTPException(409,f'Já existe o relatório {previous.number}. Consulte o histórico ou crie uma nova versão.')
-    if previous and previous.status!='Submitted':raise HTTPException(409,'Já existe uma versão em preparação. Continue esse rascunho.')
-    snapshot=build_snapshot(db,department,start,end,daily_id,period=='inspection',period)
+    previous_active=previous and db.scalar(select(OperationalReport.id).where(OperationalReport.id==previous.id,active(OperationalReport,'operational')))
+    if previous_active and not new_version:raise HTTPException(409,f'Já existe o relatório {previous.number}. Consulte o histórico ou crie uma nova versão.')
+    if previous_active and previous.status!='Submitted':raise HTTPException(409,'Já existe uma versão em preparação. Continue esse rascunho.')
+    snapshot=build_snapshot(db,department,start,end,daily_id,period=='inspection',period,owner_id)
     snapshot['generated_by']=user.full_name
     version=(previous.version+1) if previous else 1
     number=f'REL-{department.upper()}-{period.upper()}-{start}-{hashlib.sha256(series.encode()).hexdigest()[:6]}-V{version}'

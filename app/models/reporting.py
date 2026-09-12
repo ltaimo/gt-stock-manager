@@ -12,6 +12,26 @@ class DepartmentReportTables(Base):
     payload: Mapped[str] = mapped_column(Text, default='{}')
 
 
+class ReportFormSchema(Base):
+    __tablename__ = 'report_form_schemas'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    department_key: Mapped[str] = mapped_column(String(30), unique=True)
+    payload: Mapped[str] = mapped_column(Text, default='{}')
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+    __mapper_args__ = {'version_id_col': revision}
+
+
+class ReportDeletion(Base):
+    __tablename__ = 'report_deletions'
+    __table_args__ = (UniqueConstraint('kind', 'record_id'),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(30))
+    record_id: Mapped[int] = mapped_column(Integer)
+    deleted_by_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
+    deleted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    reason: Mapped[str] = mapped_column(String(1000))
+
+
 class OperationalReport(Base):
     __tablename__ = 'operational_reports'
     __table_args__ = (UniqueConstraint('series_key', 'version'),)

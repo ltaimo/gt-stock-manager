@@ -22,17 +22,20 @@ from app.services.department_presentation import reports_pdf, reports_docx
 from app.services.transactions import atomic
 from app.services.audit import audit_log
 from app.routers.reporting_route import ReportingRoute
+from app.services.report_access import visible, require_record, active, view_all
+from app.services.report_text_extraction import suggested_metrics
 
 router=APIRouter(prefix='/operacoes-internas/relatorios',tags=['relatórios operacionais'],route_class=ReportingRoute)
 
 def read_report(db,user,report_id,edit=False):
     row=db.get(OperationalReport,report_id)
+    require_record(db,user,row,'operational')
     if not row:raise HTTPException(404,'Relatório não encontrado.')
     require_access(user,row.department_key,write=edit)
     if edit:
         if row.status=='Submitted':raise HTTPException(409,'Esta versão oficial está fechada. Crie uma nova versão.')
         if row.created_by_id!=user.id and not has_permission(user,'operational_reports_settings'):raise HTTPException(403,'Apenas o autor pode editar este rascunho.')
-    elif row.status!='Submitted' and row.created_by_id!=user.id and not has_permission(user,'operational_reports_settings'):
+    elif row.status!='Submitted' and row.created_by_id!=user.id and not view_all(user):
         raise HTTPException(403,'Este rascunho pertence a outro utilizador.')
     return row
 
@@ -47,7 +50,7 @@ def save_or_conflict(db):
 @router.get('')
 def history(request:Request,department:str='',period:str='',status:str='',date_from:str='',date_to:str='',responsible:str='',page:int=1,db:Session=Depends(get_db),user:User=Depends(current_user)):
     allowed=[key for key in DEPARTMENTS if can_view(user,key)]
-    stmt=select(OperationalReport).where(OperationalReport.department_key.in_(allowed))
+    stmt=visible(select(OperationalReport).where(OperationalReport.department_key.in_(allowed)),OperationalReport,'operational',user)
     if not has_permission(user,'operational_reports_settings'):
         stmt=stmt.where((OperationalReport.status=='Submitted')|(OperationalReport.created_by_id==user.id))
     if department:
@@ -62,7 +65,7 @@ def history(request:Request,department:str='',period:str='',status:str='',date_f
     page=max(1,page);total=db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     rows=db.scalars(stmt.order_by(OperationalReport.created_at.desc(),OperationalReport.id.desc()).offset((page-1)*25).limit(25)).all()
     today=date.today()
-    submitted=db.scalars(select(DepartmentDailyReport).where(DepartmentDailyReport.report_date>=utc_day(today),DepartmentDailyReport.report_date<utc_day(today+timedelta(days=1)),DepartmentDailyReport.status.in_(['Submitted','Validated']),DepartmentDailyReport.department_key.in_(allowed))).all()
+    submitted=db.scalars(visible(select(DepartmentDailyReport),DepartmentDailyReport,'daily',user).where(DepartmentDailyReport.report_date>=utc_day(today),DepartmentDailyReport.report_date<utc_day(today+timedelta(days=1)),DepartmentDailyReport.status.in_(['Submitted','Validated']),DepartmentDailyReport.department_key.in_(allowed))).all()
     manager_ready=bool(db.scalar(select(ManagerReportSource.id).join(FinancialDailyImport,ManagerReportSource.import_id==FinancialDailyImport.id).where(FinancialDailyImport.report_date>=utc_day(today),FinancialDailyImport.report_date<utc_day(today+timedelta(days=1)),ManagerReportSource.status=='Reviewed'))) if can_manage(user) else False
     pending=db.scalars(select(OperationalPending).where(OperationalPending.department_key.in_(allowed if 'consolidated' not in allowed else list(DEPARTMENTS)),OperationalPending.status!='Closed')).all()
     return templates.TemplateResponse(request,'operational_reports/history.html',dict(request=request,user=user,rows=rows,total=total,page=page,allowed=allowed,departments=DEPARTMENTS,periods=PERIODS,states=STATES,department=department,period=period,status=status,date_from=date_from,date_to=date_to,responsible=responsible,today=str(today),ready={k:any(r.department_key==k for r in submitted) for k in allowed},manager_ready=manager_ready,generate_keys=[k for k in ['consolidated','security','maintenance','it'] if can_generate(user,k)],manager=can_manage(user),pending_count=len(pending),critical_count=sum(p.priority=='Crítica' for p in pending),settings=policy(db),users=db.scalars(select(User).where(User.is_active==True).order_by(User.full_name)).all() if allowed else []))
@@ -95,7 +98,7 @@ def update_settings(request:Request,week_start:int=Form(...),allow_partial:str=F
 @router.get('/gestor')
 def manager_sources(request:Request,page:int=1,db:Session=Depends(get_db),user:User=Depends(current_user)):
     if not can_manage(user):raise HTTPException(403)
-    rows=db.execute(select(ManagerReportSource,FinancialDailyImport).join(FinancialDailyImport,ManagerReportSource.import_id==FinancialDailyImport.id).order_by(FinancialDailyImport.report_date.desc()).offset((max(1,page)-1)*25).limit(25)).all()
+    rows=db.execute(select(ManagerReportSource,FinancialDailyImport).join(FinancialDailyImport,ManagerReportSource.import_id==FinancialDailyImport.id).where(active(ManagerReportSource,'manager')).order_by(FinancialDailyImport.report_date.desc()).offset((max(1,page)-1)*25).limit(25)).all()
     return templates.TemplateResponse(request,'operational_reports/manager.html',dict(request=request,user=user,rows=rows,today=str(date.today()),page=max(1,page),source=None,imports=db.scalars(select(FinancialDailyImport).order_by(FinancialDailyImport.report_date.desc()).limit(200)).all()))
 
 @router.post('/gestor')
@@ -156,7 +159,31 @@ def manager_source(db,user,source_id):
     if not (can_manage(user) or has_permission(user,'operational_reports_receive')):raise HTTPException(403)
     row=db.get(ManagerReportSource,source_id)
     if not row:raise HTTPException(404,'Documento não encontrado.')
+    from app.models.reporting import ReportDeletion
+    if db.scalar(select(ReportDeletion.id).where(ReportDeletion.kind=='manager',ReportDeletion.record_id==row.id)):raise HTTPException(404)
     return row,db.get(FinancialDailyImport,row.import_id)
+
+
+@router.post('/gestor/{source_id}/ocr')
+async def save_ocr(source_id:int,request:Request,db:Session=Depends(get_db),user:User=Depends(current_user)):
+    row,original=manager_source(db,user,source_id)
+    if not can_manage(user):raise HTTPException(403)
+    if row.status!='Draft':raise HTTPException(409,'Crie uma nova revisão antes de reler este documento.')
+    form=await request.form();check_revision(row,form.get('revision'))
+    text=str(form.get('text','')).strip()
+    if not re.sub(r'Página\s+\d+|\s','',text) or len(text)>500000:raise HTTPException(400,'O OCR não devolveu texto válido ou excedeu o limite.')
+    if original.content_type!='application/pdf':raise HTTPException(400,'O OCR está disponível para PDF.')
+    from pypdf import PdfReader
+    pages=len(PdfReader(io.BytesIO(original.content)).pages)
+    if str(pages)!=str(form.get('pages')):raise HTTPException(400,'O OCR deve incluir todas as páginas do documento.')
+    original.extracted_text=text
+    row.extraction_warning='Texto obtido por OCR: confira o original, os nomes e os valores antes de validar.'
+    if not json.loads(row.metrics or '[]'):row.metrics=dumps(suggested_metrics(text))
+    # Even repeated OCR must advance the revision for concurrent reviewers.
+    row.revision+=1
+    audit_log(db,user,'Reconheceu texto do PDF por OCR','RelatoriosOperacionais',f'gestor:{row.id}',new_value={'pages':pages,'characters':len(text)},request=request)
+    save_or_conflict(db)
+    return {'revision':row.revision,'characters':len(text)}
 
 @router.get('/gestor/{source_id}')
 def source_review(request:Request,source_id:int,db:Session=Depends(get_db),user:User=Depends(current_user)):
@@ -207,6 +234,7 @@ async def save_manager(source_id:int,request:Request,db:Session=Depends(get_db),
 @router.get('/diarios/{daily_id}/dados')
 def daily_entries(request:Request,daily_id:int,db:Session=Depends(get_db),user:User=Depends(current_user)):
     row=db.get(DepartmentDailyReport,daily_id)
+    require_record(db,user,row,'daily')
     if not row:raise HTTPException(404)
     require_access(user,row.department_key)
     editable=row.status=='Draft' and row.created_by_id==user.id and can_generate(user,row.department_key)
@@ -216,6 +244,7 @@ def daily_entries(request:Request,daily_id:int,db:Session=Depends(get_db),user:U
 @router.post('/diarios/{daily_id}/dados')
 async def add_entry(request:Request,daily_id:int,db:Session=Depends(get_db),user:User=Depends(current_user)):
     row=db.scalar(select(DepartmentDailyReport).where(DepartmentDailyReport.id==daily_id).with_for_update())
+    require_record(db,user,row,'daily')
     if not row:raise HTTPException(404)
     require_access(user,row.department_key,True)
     if row.status!='Draft' or row.created_by_id!=user.id:raise HTTPException(409,'Os dados só podem ser alterados pelo autor enquanto o diário estiver em rascunho.')
@@ -237,7 +266,7 @@ async def add_entry(request:Request,daily_id:int,db:Session=Depends(get_db),user
 @router.get('/{report_id}')
 def detail(request:Request,report_id:int,db:Session=Depends(get_db),user:User=Depends(current_user)):
     row=read_report(db,user,report_id)
-    versions=db.scalars(select(OperationalReport).where(OperationalReport.series_key==row.series_key).order_by(OperationalReport.version.desc())).all()
+    versions=db.scalars(visible(select(OperationalReport),OperationalReport,'operational',user).where(OperationalReport.series_key==row.series_key).order_by(OperationalReport.version.desc())).all()
     return templates.TemplateResponse(request,'operational_reports/detail.html',dict(request=request,user=user,report=row,item=report_presentation(row),snapshot=json.loads(row.snapshot),notes=json.loads(row.supplements or '{}'),supplements=SUPPLEMENTS,versions=versions,editable=row.status!='Submitted' and can_generate(user,row.department_key) and (row.created_by_id==user.id or has_permission(user,'operational_reports_settings')),can_generate=can_generate(user,row.department_key),states=STATES,source_details=source_details,source_types=SOURCE_TYPES))
 
 @router.post('/{report_id}/guardar')
@@ -256,7 +285,7 @@ async def save_review(request:Request,report_id:int,db:Session=Depends(get_db),u
 @router.post('/{report_id}/regenerar')
 def regenerate(request:Request,report_id:int,revision:int=Form(...),db:Session=Depends(get_db),user:User=Depends(current_user)):
     row=read_report(db,user,report_id,True);check_revision(row,revision)
-    row.snapshot=dumps(build_snapshot(db,row.department_key,row.date_from,row.date_to,row.source_daily_id,row.period=='inspection',row.period))
+    row.snapshot=dumps(build_snapshot(db,row.department_key,row.date_from,row.date_to,row.source_daily_id,row.period=='inspection',row.period,None if view_all(user) else user.id))
     row.status='Generated';save_or_conflict(db);return RedirectResponse(f'{router.prefix}/{row.id}',303)
 
 @router.post('/{report_id}/versao')

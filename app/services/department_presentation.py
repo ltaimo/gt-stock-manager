@@ -112,7 +112,7 @@ def reports_pdf(items, title, generated_by, language="pt"):
                 if table.get('note'): story.append(Paragraph(escape(table['note']), styles['Normal']))
                 if table['rows']:
                     cells = [[Paragraph(escape(str(c)).replace('\n', '<br/>'), head_style if ri == 0 else cell_style) for c in row] for ri, row in enumerate([table['columns'], *table['rows']])]
-                    weights = [.6,2.2,1,1.2,1.6,1.5,1.3] if table.get('key') == 'parade' else [1]*len(table['columns'])
+                    weights = [.6,2.2,1,1.2,1.6,1.5,1.3] if table.get('key') == 'parade' and len(table['columns']) == 7 else [1]*len(table['columns'])
                     grid = Table(cells, colWidths=[doc.width*w/sum(weights) for w in weights], repeatRows=1, hAlign='LEFT', splitInRow=int(any(len(c)>500 for row in table['rows'] for c in row)))
                     grid.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor('#FFF4CF')), ('GRID', (0,0), (-1,-1), .4, colors.HexColor('#B8BABD')), ('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (0,0), (-1,-1), 5), ('RIGHTPADDING', (0,0), (-1,-1), 5), ('TOPPADDING', (0,0), (-1,-1), 5), ('BOTTOMPADDING', (0,0), (-1,-1), 5)]))
                     story.extend([grid, Spacer(1, 8)])

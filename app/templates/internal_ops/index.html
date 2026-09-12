@@ -50,7 +50,7 @@
 </section>
 {% endif %}
 
-<section class="panel" id="internal-ops-form">
+<details class="panel create-panel"><summary class="button">Criar registo de operação</summary><section class="panel" id="internal-ops-form">
   {% if not can_view_internal_records and not can_create_internal_ops and not can_view_internal_reports %}
     <div class="choice-empty-state">
       <strong>{{ tx("Sem módulos disponíveis", user if user is defined else none) }}</strong>
@@ -144,7 +144,7 @@
     </form>
   {% endif %}
   {% endif %}
-</section>
+</section></details>
 
 {% if can_view_internal_records %}
 <section class="panel">

@@ -39,7 +39,4 @@
   </div>
 </form>
 
-{% for item in presentations %}
-  {% include "reports/department_document.html" %}
-{% else %}<div class="panel empty-state">{{ tx("Sem dados para apresentar.", user) }}</div>{% endfor %}
-{% endblock %}
+<section class="panel"><table><thead><tr><th>Relatório</th><th>Data</th><th>Autor</th><th>Ação</th></tr></thead><tbody>{% for item in presentations %}<tr><td>{{ item.title }} · {{ item.number }}</td><td>{{ item.meta[0][1] }}</td><td>{{ item.meta[2][1] }}</td><td><a href="/operacoes-internas/relatorios-departamentais/{{ item.id }}/preview">Abrir relatório</a></td></tr>{% else %}<tr><td colspan="4">Sem relatórios para apresentar.</td></tr>{% endfor %}</tbody></table></section>{% endblock %}

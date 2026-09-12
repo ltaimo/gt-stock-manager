@@ -13,6 +13,7 @@ from app.routers.internal_ops import DEPARTMENT_REPORTS, allowed_department_repo
 from app.security import current_user, has_permission, require_permission
 from app.services.exports import rows_to_csv, rows_to_docx, rows_to_pdf, rows_to_xlsx
 from app.services.department_presentation import presentation, reports_pdf, reports_docx
+from app.services.report_access import visible
 from app.services.inventory import warehouse_breakdown
 from app.services.procurement import days_open
 
@@ -364,7 +365,7 @@ def department_reports_consolidated(
         stmt = stmt.where(DepartmentDailyReport.report_date >= start)
     if end:
         stmt = stmt.where(DepartmentDailyReport.report_date <= end)
-    reports = db.scalars(stmt).all()
+    reports = db.scalars(visible(stmt, DepartmentDailyReport, 'daily', user)).all()
     headers = [translate_text(value, language) for value in ["Nº", "Data", "Departamento", "Turno", "Preparado por", "Supervisor", "Local", "Atividades", "Ocorrências", "Equipamentos / sistemas", "Leituras", "Pendências", "Estado"]]
     rows = department_daily_report_rows(reports, language)
     title = translate_text("Relatórios departamentais de operações internas", language)

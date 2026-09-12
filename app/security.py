@@ -55,6 +55,7 @@ PERMISSIONS = {
     "operational_reports_settings": "Configurar períodos e submissão parcial de relatórios",
     "cctv_manage": "Gerir câmaras, monitoria e inspeções CCTV",
     "operational_pending_manage": "Gerir pendências operacionais",
+    "operational_reports_delete": "Apagar e restaurar relatórios e rascunhos",
     "finance_view": "Consultar módulo financeiro",
     "finance_import": "Importar relatórios financeiros diários",
     "reports": "Consultar relatórios",

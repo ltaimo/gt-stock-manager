@@ -485,7 +485,7 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.assertEqual(home.status_code, 200)
         self.assertIn("/operacoes-internas/relatorios-departamentais", home.text)
 
-        form = self.client.get("/operacoes-internas/relatorios-departamentais?department=maintenance")
+        form = self.client.get("/operacoes-internas/relatorios-departamentais?department=maintenance&create=1")
         self.assertEqual(form.status_code, 200)
         self.assertIn("/operacoes-internas/relatorios-departamentais?department=maintenance", form.text)
         self.assertIn("/operacoes-internas/relatorios-departamentais?department=security", form.text)
@@ -531,8 +531,10 @@ class V3ModuleFlowTests(unittest.TestCase):
 
         report = self.client.get("/relatorios/operacoes-internas/departamentos?department=maintenance&date_from=2026-08-31&date_to=2026-08-31")
         self.assertEqual(report.status_code, 200)
-        self.assertIn("Controle de fluxo", report.text)
-        self.assertIn("Maquina de soldar", report.text)
+        self.assertIn(record.number, report.text)
+        self.assertNotIn("Maquina de soldar", report.text)
+        preview = self.client.get(f"/operacoes-internas/relatorios-departamentais/{record.id}/preview")
+        self.assertIn("Maquina de soldar", preview.text)
 
         pdf = self.client.get("/relatorios/operacoes-internas/departamentos?department=maintenance&date_from=2026-08-31&date_to=2026-08-31&export=pdf")
         self.assertEqual(pdf.status_code, 200)
@@ -576,7 +578,9 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.db.commit()
 
         self.login("criadorall")
-        page = self.client.get("/operacoes-internas/relatorios-departamentais")
+        landing = self.client.get("/operacoes-internas/relatorios-departamentais")
+        self.assertNotIn('name="report_date"', landing.text)
+        page = self.client.get("/operacoes-internas/relatorios-departamentais?create=1")
         self.assertEqual(page.status_code, 200)
         self.assertIn("Criar relatório diário", page.text)
         self.assertIn('name="department_key" value="maintenance"', page.text)
@@ -610,7 +614,9 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.db.commit()
 
         self.login("criadorit")
-        page = self.client.get("/operacoes-internas/relatorios-departamentais")
+        landing = self.client.get("/operacoes-internas/relatorios-departamentais")
+        self.assertNotIn('name="report_date"', landing.text)
+        page = self.client.get("/operacoes-internas/relatorios-departamentais?create=1")
         self.assertEqual(page.status_code, 200)
         self.assertIn("Criar relatório diário", page.text)
         self.assertIn('name="department_key" value="it"', page.text)
@@ -631,7 +637,7 @@ class V3ModuleFlowTests(unittest.TestCase):
 
     def test_department_report_access_follows_user_department_unless_admin(self):
         self.login("adminreports")
-        admin_area = self.client.get("/operacoes-internas/relatorios-departamentais")
+        admin_area = self.client.get("/operacoes-internas/relatorios-departamentais?create=1")
         self.assertEqual(admin_area.status_code, 200)
         self.assertIn('name="department_key" value="maintenance"', admin_area.text)
         self.assertIn('name="report_date"', admin_area.text)
@@ -641,7 +647,7 @@ class V3ModuleFlowTests(unittest.TestCase):
 
         self.admin_role.permissions = json.dumps(["finance_view"])
         self.db.commit()
-        stale_admin_area = self.client.get("/operacoes-internas/relatorios-departamentais")
+        stale_admin_area = self.client.get("/operacoes-internas/relatorios-departamentais?create=1")
         self.assertEqual(stale_admin_area.status_code, 200)
         self.assertIn('name="department_key" value="maintenance"', stale_admin_area.text)
         self.assertIn("?department=it", stale_admin_area.text)
@@ -663,7 +669,9 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.assertEqual(self.client.get("/relatorios/operacoes-internas/departamentos?department=security").status_code, 200)
 
         self.login("ccmanutencao")
-        maintenance_area = self.client.get("/operacoes-internas/relatorios-departamentais")
+        landing = self.client.get("/operacoes-internas/relatorios-departamentais")
+        self.assertNotIn('name="report_date"', landing.text)
+        maintenance_area = self.client.get("/operacoes-internas/relatorios-departamentais?create=1")
         self.assertEqual(maintenance_area.status_code, 200)
         self.assertIn('name="department_key" value="maintenance"', maintenance_area.text)
         self.assertIn("Departamento de Manutenção", maintenance_area.text)
@@ -679,14 +687,18 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.assertEqual(blocked_post.status_code, 403)
 
         self.login("itreports")
-        it_area = self.client.get("/operacoes-internas/relatorios-departamentais")
+        landing = self.client.get("/operacoes-internas/relatorios-departamentais")
+        self.assertNotIn('name="report_date"', landing.text)
+        it_area = self.client.get("/operacoes-internas/relatorios-departamentais?create=1")
         self.assertEqual(it_area.status_code, 200)
         self.assertIn('name="department_key" value="it"', it_area.text)
         self.assertIn("Departamento de Informática", it_area.text)
         self.assertEqual(self.client.get("/relatorios/operacoes-internas/departamentos?department=maintenance").status_code, 403)
 
         self.login("securityreports")
-        security_area = self.client.get("/operacoes-internas/relatorios-departamentais")
+        landing = self.client.get("/operacoes-internas/relatorios-departamentais")
+        self.assertNotIn('name="report_date"', landing.text)
+        security_area = self.client.get("/operacoes-internas/relatorios-departamentais?create=1")
         self.assertEqual(security_area.status_code, 200)
         self.assertIn('name="department_key" value="security"', security_area.text)
         self.assertIn("Departamento de Proteção e Segurança", security_area.text)

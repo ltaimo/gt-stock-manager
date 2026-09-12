@@ -32,13 +32,13 @@ TABLES = {
 }
 
 
-def parse_tables(raw, department):
+def parse_tables(raw, department, schema=None):
     if len(raw or '') > 600000:
         raise HTTPException(400, 'Tabelas demasiado extensas. Divida o relatório por turno.')
     try:
         data = json.loads(raw or '{}')
         if not isinstance(data, dict): raise ValueError()
-        known = {s['key']: s for s in TABLES[department]}
+        known = {s['key']: s for s in (schema['tables'] if schema else TABLES[department])}
         if set(data) - set(known): raise ValueError()
         clean = {}
         total = 0
@@ -64,18 +64,21 @@ def parse_tables(raw, department):
 def load_tables(report):
     db = object_session(report)
     row = db.get(DepartmentReportTables, report.id) if db and report.id else None
-    return json.loads(row.payload) if row else {}
+    return {k:v for k,v in json.loads(row.payload).items() if k != '_schema'} if row else {}
 
 
-def save_tables(db, report, data):
+def save_tables(db, report, data, schema=None):
     row = db.get(DepartmentReportTables, report.id)
     if row is None:
         row = DepartmentReportTables(report_id=report.id)
         db.add(row)
-    row.payload = json.dumps(data, ensure_ascii=False)
+    row.payload = json.dumps({**data, **({'_schema':schema} if schema else {})}, ensure_ascii=False)
     db.flush()
 
 
 def present_tables(report):
+    from app.services.report_form_schema import schema_for_report
     data = load_tables(report)
-    return [{**s, **data[s['key']]} for s in TABLES[report.department_key] if s['key'] in data]
+    db=object_session(report)
+    specs=schema_for_report(db,report.department_key,report)['tables'] if db else TABLES[report.department_key]
+    return [{**s, **data[s['key']]} for s in specs if s['key'] in data]

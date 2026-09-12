@@ -81,12 +81,12 @@
       <h2>{{ tx("Importar relatório diário", user if user is defined else none) }}</h2>
       <span class="badge orange">Word / PDF</span>
     </div>
-    <form method="post" action="/financeiro/importacoes" enctype="multipart/form-data" class="form-stack">
+    <details class="create-panel"><summary class="button">Carregar documento financeiro</summary><form method="post" action="/financeiro/importacoes" enctype="multipart/form-data" class="form-stack">
       <label>{{ tx("Data do relatório", user if user is defined else none) }}<input type="date" name="report_date" required></label>
       <label>{{ tx("Documento financeiro diário", user if user is defined else none) }}<input type="file" name="document" accept=".docx,.pdf" required></label>
       <label>{{ tx("Notas", user if user is defined else none) }}<textarea name="notes"></textarea></label>
       <div class="actions"><button class="success">{{ tx("Importar e consolidar", user if user is defined else none) }}</button></div>
-    </form>
+    </form></details>
   </div>
 </section>
 

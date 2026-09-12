@@ -34,6 +34,8 @@ def editable_draft(db, user, department, report_id=None, number=None):
     if report_id and not report:
         raise HTTPException(404)
     if report:
+        from app.services.report_access import require_record
+        require_record(db, user, report, 'daily')
         if report.created_by_id != user.id or report.department_key != department:
             raise HTTPException(403)
         if report.status != 'Draft':

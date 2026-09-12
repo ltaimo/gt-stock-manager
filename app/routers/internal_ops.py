@@ -16,6 +16,8 @@ from app.security import current_user, has_permission, require_permission
 from app.services.audit import audit_log
 from app.services.department_presentation import SECTIONS, collect_sections, presentation, reports_pdf, reports_docx
 from app.services.department_tables import TABLES, parse_tables, save_tables
+from app.services.report_access import visible, require_record, active, view_all
+from app.services.report_form_schema import schema_for_report
 from app.i18n import language_for
 from fastapi.responses import Response
 from app.services.forms import optional_float, optional_int, required_float, required_text
@@ -497,6 +499,7 @@ def department_reports_context(
     responsible: str = "",
     q: str = "",
     prepare_date: str = "",
+    page: int = 1,
 ) -> dict:
     ensure_department_report_storage(db)
     can_create_reports = bool(department_key and can_create_department_report(user, department_key))
@@ -507,6 +510,8 @@ def department_reports_context(
     start = optional_date_start(date_from)
     end = optional_date_end(date_to)
     reports = []
+    page=max(1,page)
+    total_reports=0
     if can_view_reports:
         stmt = select(DepartmentDailyReport).order_by(DepartmentDailyReport.report_date.desc(), DepartmentDailyReport.id.desc())
         if department_key:
@@ -531,9 +536,11 @@ def department_reports_context(
                 | DepartmentDailyReport.pending_actions.ilike(like)
                 | DepartmentDailyReport.notes.ilike(like)
             )
-        reports = db.scalars(stmt.limit(250)).all()
+        stmt=visible(stmt, DepartmentDailyReport, 'daily', user)
+        total_reports=db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery())) or 0
+        reports = db.scalars(stmt.offset((page-1)*25).limit(25)).all()
     totals = {
-        key: db.scalar(select(func.count(DepartmentDailyReport.id)).where(DepartmentDailyReport.department_key == key)) or 0
+        key: db.scalar(visible(select(func.count(DepartmentDailyReport.id)).where(DepartmentDailyReport.department_key == key), DepartmentDailyReport, 'daily', user)) or 0
         for key in visible_report_keys
     }
     report_types = {key: DEPARTMENT_REPORTS[key] for key in visible_report_keys}
@@ -542,6 +549,7 @@ def department_reports_context(
         "request": request,
         "user": user,
         "reports": reports,
+        "page":page,"total_reports":total_reports,
         "report_types": report_types,
         "create_report_types": create_report_types,
         "first_create_department": create_report_keys[0] if create_report_keys else "",
@@ -571,6 +579,8 @@ def department_reports_home(
     q: str = "",
     prepare_date: str = "",
     draft_id: int | None = None,
+    create: bool = False,
+    page: int = 1,
     db: Session = Depends(get_db),
     user: User = Depends(current_user),
 ):
@@ -582,15 +592,20 @@ def department_reports_home(
         require_department_report_access(user, department)
     elif department and not allowed_report_keys:
         department = ""
-    elif create_report_keys:
+    elif create and create_report_keys:
         department = create_report_keys[0]
-    elif allowed_report_keys:
-        department = allowed_report_keys[0]
-    context = department_reports_context(request, db, user, department, date_from=date_from, date_to=date_to, status=status, responsible=responsible, q=q, prepare_date=prepare_date)
+    if draft_id and not department:
+        candidate = db.get(DepartmentDailyReport, draft_id)
+        require_record(db, user, candidate, 'daily')
+        department = candidate.department_key
+    context = department_reports_context(request, db, user, department, date_from=date_from, date_to=date_to, status=status, responsible=responsible, q=q, prepare_date=prepare_date,page=page)
     draft = editable_draft(db, user, department, report_id=draft_id) if draft_id else None
     if draft and not can_create_department_report(user, department):
         raise HTTPException(403)
     context.update(draft_values=draft_form_values(draft) if draft else {}, draft_key=str(uuid4()), editing_draft=draft)
+    context['show_form'] = bool(create or draft_id)
+    schema=schema_for_report(db,department,draft) if department else {'revision':0,'tables':[],'shift':[],'location':[]}
+    context.update(report_tables=schema['tables'],form_schema=schema)
     return templates.TemplateResponse(request, "internal_ops/department_reports.html", context)
 
 
@@ -633,7 +648,11 @@ async def create_department_report(
     if autosave:
         status = "Draft"
     form = await request.form()
-    tables = parse_tables(form.get('structured_tables'), department_key)
+    prior = editable_draft(db,user,department_key,draft_id,draft_number(department_key,draft_key) if draft_key else None) if draft_id or draft_key else None
+    schema=schema_for_report(db,department_key,prior)
+    if form.get('schema_revision') is not None and str(schema['revision']) != str(form['schema_revision']):
+        raise HTTPException(409,'A configuração do formulário mudou. Reabra o formulário antes de continuar.')
+    tables = parse_tables(form.get('structured_tables'), department_key, schema)
     values = collect_sections(form, department_key, dict(team=team, activities=activities, incidents=incidents, equipment_status=equipment_status, readings=readings, pending_actions=pending_actions, notes=notes))
     if status == "Submitted" and not tables and not any(str(values[k] or "").strip() for k in ("activities", "incidents", "equipment_status", "readings", "pending_actions", "notes")):
         raise HTTPException(400, "Preencha pelo menos uma secção operacional do relatório.")
@@ -647,6 +666,7 @@ async def create_department_report(
         report = editable_draft(db, user, department_key, draft_id, number) if draft_id or number else None
         if report is not None and draft_version and draft_version != report_draft_version(report):
             return JSONResponse({"detail": "O rascunho foi atualizado noutra aba ou dispositivo. Reabra-o antes de continuar.", "version": report_draft_version(report)}, status_code=409)
+        is_new = report is None
         if report is None:
             report = DepartmentDailyReport(number=number or next_department_report_number(db, department_key), department_key=department_key, created_by_id=user.id)
             db.add(report)
@@ -656,8 +676,8 @@ async def create_department_report(
         report.status = status
         report.updated_at = datetime.now(timezone.utc)
         db.flush()
-        if 'structured_tables' in form:
-            save_tables(db, report, tables)
+        if 'structured_tables' in form or is_new:
+            save_tables(db, report, tables, schema)
         if status == 'Submitted':
             from app.services.operational_reporting import archive_daily
             archive_daily(db, report, user)
@@ -690,6 +710,7 @@ def validate_department_report(
         raise HTTPException(409, "Submeta o relatório antes de o validar.")
     if status not in {'Validated', 'Cancelled'}:
         raise HTTPException(409, 'Um relatório submetido não pode regressar a rascunho. Crie uma nova versão no histórico.')
+    require_record(db,user,report,'daily')
     old_status = report.status
     with atomic(db):
         report.status = status
@@ -703,13 +724,14 @@ def validate_department_report(
 @router.get("/relatorios-departamentais/{report_id}/preview")
 def department_report_preview(request: Request, report_id: int, export: str = "", db: Session = Depends(get_db), user: User = Depends(current_user)):
     report = db.get(DepartmentDailyReport, report_id)
+    require_record(db, user, report, 'daily')
     if not report:
         raise HTTPException(404)
     require_department_report_access(user, report.department_key)
     item = presentation(report, language_for(user, request))
     from app.models.reporting import OperationalReport
     from app.services.operational_reporting import report_presentation
-    official = db.scalars(select(OperationalReport).where(OperationalReport.source_daily_id == report.id, OperationalReport.status == 'Submitted').order_by(OperationalReport.version.desc())).first()
+    official = db.scalars(select(OperationalReport).where(active(OperationalReport,'operational'),OperationalReport.source_daily_id == report.id, OperationalReport.status == 'Submitted').order_by(OperationalReport.version.desc())).first()
     if official:
         item = report_presentation(official)
     title = "Relatório diário" if language_for(user, request) != "en" else "Daily report"

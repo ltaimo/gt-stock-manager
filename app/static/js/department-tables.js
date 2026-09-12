@@ -1,3 +1,24 @@
+function syncReportChoices(root) {
+  root.querySelectorAll('[data-fixed-options]').forEach(cell=>{
+    let options;try{options=JSON.parse(cell.dataset.fixedOptions);}catch(_){return;}
+    if(!options.length)return;
+    let select=cell.previousElementSibling;
+    if(!select?.hasAttribute('data-fixed-select')){
+      select=document.createElement('select');select.dataset.fixedSelect='';
+      select.setAttribute('aria-label',cell.getAttribute('aria-label')||cell.closest('label')?.childNodes[0]?.textContent||'Selecionar opção');
+      for(const [value,label] of [['','Selecionar…'],...options.map((v,i)=>[String(i),v]),['other','Outro valor…']]){const option=document.createElement('option');option.value=value;option.textContent=label;select.append(option);}
+      cell.before(select);
+      select.addEventListener('change',()=>{
+        const other=select.value==='other';cell.hidden=!other;
+        if(!other)cell.value=select.value===''?'':options[Number(select.value)];
+        else{cell.value='';cell.focus();}
+        cell.dispatchEvent(new Event('input',{bubbles:true}));
+      });
+    }
+    const index=options.indexOf(cell.value);
+    select.value=index>=0?String(index):(cell.value?'other':'');cell.hidden=select.value!=='other';
+  });
+}
 function parseReportTsv(text) {
   const rows = []; let row = [], value = '', quoted = false;
   text = text.replace(/\r\n?/g, '\n');
@@ -45,15 +66,16 @@ document.addEventListener('DOMContentLoaded', () => {
         editor.querySelector('[data-table-note]').value = value.note || '';
         if (value.rows?.some(row => row.some(Boolean)) || value.note) editor.open = true;
       });
+      syncReportChoices(form);
     };
     editors.forEach(editor => {
       editor.addEventListener('input', persist);
       editor.addEventListener('click', event => {
-        if (event.target.closest('[data-add-row]')) { const row=add(editor); row?.querySelector('textarea').focus(); changed(); }
+        if (event.target.closest('[data-add-row]')) { const row=add(editor); syncReportChoices(editor); row?.querySelector('textarea:not([hidden]),select').focus(); changed(); }
         if (event.target.closest('[data-remove-row]')) { event.target.closest('tr').remove(); changed(); }
       });
       editor.addEventListener('paste', event => {
-        const cell = event.target.closest('tbody textarea');
+        const cell = event.target.closest('tbody textarea') || event.target.closest('tbody select[data-fixed-select]')?.nextElementSibling;
         const text = event.clipboardData?.getData('text/plain');
         if (!cell || !text?.includes('\t')) return;
         event.preventDefault();
@@ -68,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         while (body.rows.length < ri + lines.length) add(editor);
         lines.forEach((row,i) => row.forEach((value,j) => { body.rows[ri+i].querySelectorAll('textarea')[ci+j].value=value; }));
+        syncReportChoices(editor);
         editor.querySelector('[data-table-message]').textContent = `${lines.length} linha(s) colada(s). Confira os cabeçalhos antes de submeter.`;
         changed();
       });

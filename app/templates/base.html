@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ tx(app_name, user if user is defined else none) }}{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/app.css?v={{ app_version }}-tables1">
+  <link rel="stylesheet" href="/static/css/app.css?v={{ app_version }}-usability1">
 </head>
 <body
   spellcheck="true"
@@ -98,6 +98,6 @@
   <footer class="auth-footer">{{ app_short_name }} v{{ app_version }} &middot; {{ tx("Designed by", user if user is defined else none) }} Layton Taimo</footer>
 </main>
 {% endif %}
-<script src="/static/js/app.js?v={{ app_version }}-tables1"></script>
+<script src="/static/js/app.js?v={{ app_version }}-usability1"></script>
 </body>
 </html>

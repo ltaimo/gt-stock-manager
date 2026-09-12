@@ -848,3 +848,13 @@ function validateRequisitionTotals() {
   });
   return valid;
 }
+// Explicit links to creation forms also open their collapsed container.
+window.addEventListener('hashchange', openRequestedForm);
+document.addEventListener('DOMContentLoaded', openRequestedForm);
+function openRequestedForm() {
+  if (!location.hash) return;
+  let target;
+  try { target=document.getElementById(decodeURIComponent(location.hash.slice(1))); } catch (_) { return; }
+  const panel=target?.closest('details.create-panel');
+  if (panel) { panel.open=true; target.scrollIntoView({block:'start'}); }
+}

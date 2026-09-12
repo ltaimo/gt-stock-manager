@@ -8,16 +8,17 @@
   </div>
   <div class="actions">
     {% if first_create_department %}
-      <a class="button success" href="/operacoes-internas/relatorios-departamentais?department={{ first_create_department }}#department-report-form">{{ tx("Criar relatório diário", user if user is defined else none) }}</a>
+      <a class="button success" href="/operacoes-internas/relatorios-departamentais?department={{ selected_department or first_create_department }}&create=1#department-report-form">{{ tx("Criar relatório diário", user if user is defined else none) }}</a>
     {% endif %}
-    <a class="button secondary" href="/operacoes-internas">{{ tx("Operações internas", user if user is defined else none) }}</a>
+    {% if can(user,"operational_reports_delete") %}<a class="button secondary" href="/operacoes-internas/relatorios/administracao/eliminados">Relatórios eliminados</a>{% endif %}<a class="button secondary" href="/operacoes-internas">{{ tx("Operações internas", user if user is defined else none) }}</a>
     <a class="button secondary" href="/operacoes-internas/relatorios">Histórico e relatórios consolidados</a>
   </div>
 </header>
+{% if not has_department_report_data_access %}<p class="alert">{{ tx("O seu perfil não possui permissão para executar esta operação.", user) }}</p>{% endif %}
 
 <section class="action-hub ops-hub" aria-label="{{ tx("Departamentos com relatório diário", user if user is defined else none) }}">
   {% for key, item in report_types.items() %}
-    <a class="action-tile {% if selected_department == key %}active{% endif %}" href="/operacoes-internas/relatorios-departamentais?department={{ key }}#department-report-form">
+    <a class="action-tile {% if selected_department == key %}active{% endif %}" href="/operacoes-internas/relatorios-departamentais?department={{ key }}">
       <span class="tile-code">{{ "%02d"|format(loop.index) }}</span>
       <span class="tile-icon" aria-hidden="true">{{ item.icon }}</span>
       <strong>{{ tx(item.short, user if user is defined else none) }}</strong>
@@ -27,7 +28,7 @@
   {% endfor %}
 </section>
 
-<section class="panel department-entry" id="department-report-form">
+{% if show_form %}<section class="panel department-entry" id="department-report-form">
   <div class="report-brand"><img src="/static/img/logo-gt.png" alt="GT"><div><strong>Gestão de Terminais, SA</strong><p>{{ tx("Relatório diário", user) }}</p></div></div>
   {% if not has_department_report_data_access %}
     <div class="choice-empty-state">
@@ -53,19 +54,19 @@
       <form method="post" action="/operacoes-internas/relatorios-departamentais" class="form-stack" data-department-draft data-msg-conflict="{{ tx('Existe uma versão mais recente no sistema. Escolha qual pretende continuar.', user) }}" data-msg-recover="{{ tx('Recuperar a minha cópia local', user) }}" data-msg-use-server="{{ tx('Usar versão do sistema', user) }}" data-draft-user="{{ user.id }}" data-draft-department="{{ selected_department }}" data-draft-id="{{ editing_draft.id if editing_draft else 'new' }}"
         data-msg-local="{{ tx('Rascunho guardado neste dispositivo. A aguardar sincronização.', user) }}" data-msg-saved="{{ tx('Rascunho guardado automaticamente.', user) }}" data-msg-error="{{ tx('Não foi possível sincronizar. O rascunho permanece neste dispositivo.', user) }}" data-msg-expired="{{ tx('Sessão expirada. Inicie sessão novamente para continuar o rascunho.', user) }}" data-msg-unavailable="{{ tx('Não foi possível guardar neste dispositivo. Guarde o rascunho no sistema.', user) }}">
         <input type="hidden" name="draft_version" value="{{ draft_values.get('draft_version', '') }}">
-        <input type="hidden" name="structured_tables" value="{{ draft_values.get('structured_tables', '{}') }}">
+        <input type="hidden" name="schema_revision" value="{{ form_schema.revision }}"><input type="hidden" name="structured_tables" value="{{ draft_values.get('structured_tables', '{}') }}">
         <input type="hidden" name="draft_key" value="{{ draft_key }}">
         <input type="hidden" name="draft_id" value="{{ editing_draft.id if editing_draft else '' }}">
         <p class="alert blue" data-draft-status role="status" aria-live="polite">{{ tx('O relatório é guardado automaticamente enquanto escreve.', user) }}</p>
         <input type="hidden" name="department_key" value="{{ selected_department }}">
         <div class="form-grid">
           <label>{{ tx("Data do relatório", user if user is defined else none) }}<input type="date" name="report_date" value="{{ draft_values.get('report_date', today.strftime('%Y-%m-%d')) }}" required></label>
-          <label>{{ tx("Turno / período", user if user is defined else none) }}<input name="shift" value="{{ draft_values.get('shift', '') }}" maxlength="80" placeholder="07h00-17h00 / 17h00-07h00"></label>
+          <label>{{ tx("Turno / período", user if user is defined else none) }}<input data-fixed-options='{{ form_schema.shift|tojson }}' name="shift" value="{{ draft_values.get('shift', '') }}" maxlength="80" placeholder="07h00-17h00 / 17h00-07h00"></label>
           <label>{{ tx("Início do período", user if user is defined else none) }}<input name="period_start" value="{{ draft_values.get('period_start', '') }}" maxlength="40" placeholder="07h00"></label>
           <label>{{ tx("Fim do período", user if user is defined else none) }}<input name="period_end" value="{{ draft_values.get('period_end', '') }}" maxlength="40" placeholder="17h00"></label>
           <label>{{ tx("Preparado por", user if user is defined else none) }}<input name="prepared_by" maxlength="160" value="{{ draft_values.get('prepared_by', user.full_name) }}"></label>
           <label>{{ tx("Supervisor / chefe de turno", user if user is defined else none) }}<input name="supervisor" value="{{ draft_values.get('supervisor', '') }}" maxlength="160"></label>
-          <label>{{ tx("Local / área", user if user is defined else none) }}<input name="location" value="{{ draft_values.get('location', '') }}" maxlength="160"></label>
+          <label>{{ tx("Local / área", user if user is defined else none) }}<input data-fixed-options='{{ form_schema.location|tojson }}' name="location" value="{{ draft_values.get('location', '') }}" maxlength="160"></label>
 
         </div>
         <nav class="report-section-nav" aria-label="{{ tx('Secções do relatório', user) }}">
@@ -80,7 +81,7 @@
             <label>{% if table.key == 'parade' %}Tema do dia / observações da parada{% else %}Observações da tabela{% endif %}<textarea data-table-note rows="2" maxlength="1000"></textarea></label>
             <p class="muted">Uma linha por registo. Pode colar células do Excel ou de uma tabela do Word a partir da primeira célula correspondente.</p>
             <div class="report-table-scroll"><table class="report-data-table"><thead><tr>{% for column in table.columns %}<th scope="col">{{ column }}</th>{% endfor %}<th>Ações</th></tr></thead><tbody></tbody></table></div>
-            <template><tr>{% for column in table.columns %}<td><textarea rows="2" maxlength="1000" aria-label="{{ column }}"></textarea></td>{% endfor %}<td><button type="button" data-remove-row class="secondary compact">Remover linha</button></td></tr></template>
+            <template><tr>{% for column in table.columns %}<td><textarea data-fixed-options='{{ (table.get("choices",[])[loop.index0] if loop.index0 < table.get("choices",[])|length else [])|tojson }}' rows="2" maxlength="1000" aria-label="{{ column }}"></textarea></td>{% endfor %}<td><button type="button" data-remove-row class="secondary compact">Remover linha</button></td></tr></template>
             <button type="button" data-add-row class="secondary compact">Adicionar linha</button>
             <p data-table-message role="status"></p>
           </details>
@@ -100,7 +101,7 @@
         {% if create_report_types %}
           <div class="actions">
             {% for key, item in create_report_types.items() %}
-              <a class="button success compact" href="/operacoes-internas/relatorios-departamentais?department={{ key }}#department-report-form">{{ tx("Criar relatório diário", user if user is defined else none) }} - {{ tx(item.short, user if user is defined else none) }}</a>
+              <a class="button success compact" href="/operacoes-internas/relatorios-departamentais?department={{ key }}">{{ tx("Criar relatório diário", user if user is defined else none) }} - {{ tx(item.short, user if user is defined else none) }}</a>
             {% endfor %}
           </div>
         {% endif %}
@@ -109,7 +110,7 @@
   {% endif %}
 </section>
 
-<section class="panel">
+{% endif %}<section class="panel">
   <div class="panel-heading">
     <h2>{{ tx("Relatórios recentes", user if user is defined else none) }}</h2>
   </div>
@@ -154,7 +155,7 @@
           <td>{{ report.created_at.strftime('%Y-%m-%d %H:%M') if report.created_at else '-' }}</td>
           <td>{{ report.created_by.full_name }}</td>
           <td>{{ report.prepared_by or report.created_by.full_name }}</td>
-          <td><strong>{{ report.activities or report.incidents or report.equipment_status or "-" }}</strong><br><small class="muted">{{ report.pending_actions or report.notes or "" }}</small></td>
+          <td><strong>{{ (report.activities or report.incidents or report.equipment_status or "-")|truncate(90, true) }}</strong><br><small class="muted">{{ (report.pending_actions or report.notes or "")|truncate(60, true) }}</small></td>
           <td><span class="badge {{ 'green' if report.status == 'Validated' else 'grey' if report.status == 'Cancelled' else 'orange' }}">{{ tv(report.status, user) }}</span></td>
           <td>
             <a href="/operacoes-internas/relatorios/diarios/{{ report.id }}/dados">Ocorrências e indicadores</a>
@@ -166,6 +167,7 @@
             {% else %}
               {{ report.approved_by.full_name if report.approved_by else "-" }}
             {% endif %}
+            {% set delete_kind="daily" %}{% set delete_id=report.id %}{% include "operational_reports/delete_action.html" %}
           </td>
         </tr>
       {% else %}
@@ -173,8 +175,9 @@
       {% endfor %}
     </tbody>
   </table>
+  <nav class="actions">{% if page>1 %}<a href="{{ request.url.include_query_params(page=page-1) }}">Anterior</a>{% endif %}<span>{{ total_reports }} relatórios · página {{ page }}</span>{% if page*25<total_reports %}<a href="{{ request.url.include_query_params(page=page+1) }}">Seguinte</a>{% endif %}</nav>
 </section>
 
-<script src="/static/js/department-tables.js?v={{ app_version }}-tables1"></script>
-<script src="/static/js/department-drafts.js?v={{ app_version }}-tables1"></script>
+<script src="/static/js/department-tables.js?v={{ app_version }}-usability1"></script>
+<script src="/static/js/department-drafts.js?v={{ app_version }}-usability1"></script>
 {% endblock %}

@@ -80,4 +80,4 @@ class DepartmentTableTests(unittest.TestCase):
         self.login('blocked')
         self.assertEqual(self.client.post(self.url+'/rascunho',data=self.data).status_code,403)
         self.login();self.data['department_key']='maintenance'
-        self.assertEqual(self.client.post(self.url+'/rascunho',data=self.data).status_code,400)
+        self.assertEqual(self.client.post(self.url+'/rascunho',data=self.data).status_code,403)

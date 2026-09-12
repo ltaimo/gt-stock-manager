@@ -15,6 +15,12 @@
   --grey:#6b7280;
 }
 *{box-sizing:border-box}
+.create-panel>summary{cursor:pointer;display:inline-block;margin-bottom:8px}
+.create-panel[open]>summary{margin-bottom:20px}
+.extracted-text{white-space:pre-wrap;overflow-wrap:anywhere;max-height:420px;overflow:auto;font:inherit}
+.report-delete{margin:6px 0;font-size:.85rem}
+[data-schema-table]{padding:18px;margin:16px 0;border:1px solid var(--line);border-radius:10px}
+[data-schema-column]{border-bottom:1px solid var(--line);padding:12px 0}
 .report-table-editor{margin:14px 0;padding:14px;border:1px solid var(--line);border-radius:10px;background:#fff}
 .report-table-editor summary{font-weight:700;cursor:pointer;margin-bottom:12px}
 .report-table-scroll{width:100%;max-width:100%;overflow-x:auto;margin:12px 0}

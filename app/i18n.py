@@ -69,6 +69,7 @@ PHRASES_EN: dict[str, str] = {
     "Configurar períodos e submissão parcial de relatórios": "Configure reporting periods and partial submissions",
     "Gerir câmaras, monitoria e inspeções CCTV": "Manage CCTV cameras, monitoring and inspections",
     "Gerir pendências operacionais": "Manage operational follow-up actions",
+    "Apagar e restaurar relatórios e rascunhos": "Delete and restore reports and drafts",
     'Existe uma versão mais recente no sistema. Escolha qual pretende continuar.': 'A newer version exists in the system. Choose which one to continue.',
     'Recuperar a minha cópia local': 'Recover my local copy',
     'Usar versão do sistema': 'Use system version',
