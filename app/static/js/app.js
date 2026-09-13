@@ -852,6 +852,22 @@ function validateRequisitionTotals() {
 // Explicit links to creation forms also open their collapsed container.
 window.addEventListener('hashchange', openRequestedForm);
 document.addEventListener('DOMContentLoaded', openRequestedForm);
+
+document.addEventListener('DOMContentLoaded', () => {
+  const clock = document.querySelector('[data-computer-clock]');
+  if (!clock) return;
+  const update = () => {
+    const now = new Date();
+    clock.textContent = new Intl.DateTimeFormat(document.documentElement.lang || 'pt', {
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
+    }).format(now);
+    clock.dateTime = now.toISOString();
+  };
+  update();
+  setInterval(update, 1000);
+  document.addEventListener('visibilitychange', update);
+  window.addEventListener('focus', update);
+});
 function openRequestedForm() {
   if (!location.hash) return;
   let target;

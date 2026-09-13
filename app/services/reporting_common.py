@@ -114,6 +114,11 @@ def period_window(period, anchor, week_start=0):
 
 def can_manage(user): return has_permission(user, 'operational_reports_manage')
 
+def can_upload_manager(user): return has_permission(user, 'operational_manager_upload')
+
+def can_view_manager(user):
+    return can_upload_manager(user) or can_manage(user) or has_permission(user, 'operational_reports_receive')
+
 def can_view(user, department):
     from app.routers.internal_ops import allowed_department_report_keys
     return (can_manage(user) or has_permission(user, 'operational_reports_receive') or department in allowed_department_report_keys(user)) if department != 'consolidated' else (can_manage(user) or has_permission(user, 'operational_reports_receive'))

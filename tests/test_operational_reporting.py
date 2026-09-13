@@ -31,6 +31,44 @@ class OperationalReportingTests(unittest.TestCase):
         if value is not None:self.db.add(DailyReportEntry(report_id=row.id,category='metric',title='Indicador diário',metric_key=metric,dimension=dimension,value=value))
         self.db.commit();return row
 
+    def test_independent_consolidation_and_manager_permissions(self):
+        source_id=self.manager(date(2026,9,2))
+        for permissions,generate_status,upload_status in [
+            ([],403,403),(['operational_reports_manage'],303,403),
+            (['operational_manager_upload'],403,303),
+            (['operational_reports_manage','operational_manager_upload'],303,303)]:
+            with self.subTest(permissions=permissions):
+                role=Role(name='Isolated '+str(uuid4()),permissions=json.dumps(permissions))
+                self.db.add(role);self.db.flush();self.blocked_user.role_id=role.id;self.db.commit();self.login('blocked')
+                self.assertEqual(self.client.post(self.root+'/gerar',data={'department':'consolidated','period':'weekly','anchor':'2026-09-02'},follow_redirects=False).status_code,generate_status)
+                page=self.client.get(self.root+'/gestor')
+                self.assertEqual(page.status_code,200 if permissions else 403)
+                if page.status_code==200:self.assertEqual('Carregar e rever</button>' in page.text,upload_status==303)
+                if permissions:self.assertEqual(self.client.get('/operacoes-internas/relatorios-departamentais').status_code,200)
+                response=self.client.post(self.root+'/gestor',data={'report_date':'2026-09-02'},files={'document':('teste.docx',docx_bytes('Teste de permissões '+str(uuid4())))},follow_redirects=False)
+                self.assertEqual(response.status_code,upload_status,response.text)
+                self.assertEqual(self.client.post(self.root+f'/gestor/{source_id}/versao',follow_redirects=False).status_code,upload_status)
+                if upload_status==403:
+                    self.assertEqual(self.client.post(self.root+f'/gestor/{source_id}/ocr',data={}).status_code,403)
+                    self.assertEqual(self.client.post(self.root+f'/gestor/{source_id}',data={}).status_code,403)
+
+    def test_custom_range_uses_exact_boundaries_and_validates_dates(self):
+        inside=self.seed_daily(date(2026,9,3),value=7)
+        self.seed_daily(date(2026,9,2),value=50)
+        self.seed_daily(date(2026,9,6),value=100)
+        response=self.client.post(self.root+'/gerar',data={'department':'security','period':'monthly','range_mode':'custom','date_from':'2026-09-03','date_to':'2026-09-05'},follow_redirects=False)
+        self.assertEqual(response.status_code,303,response.text)
+        row=self.db.get(OperationalReport,int(response.headers['location'].split('/')[-1]))
+        self.assertEqual((row.date_from,row.date_to),(date(2026,9,3),date(2026,9,5)))
+        snapshot=json.loads(row.snapshot)
+        self.assertEqual([s['id'] for s in snapshot['sources'] if s['kind']=='daily'],[inside.id])
+        for dates in [('2026-09-05','2026-09-03'),('','2026-09-03'),('wrong','2026-09-03')]:
+            invalid=self.client.post(self.root+'/gerar',data={'department':'security','period':'weekly','range_mode':'custom','date_from':dates[0],'date_to':dates[1]})
+            self.assertEqual(invalid.status_code,400)
+        page=self.client.get(self.root+'?create=1')
+        self.assertIn('name="date_from"',page.text);self.assertIn('name="range_mode"',page.text)
+        self.assertIn('data-computer-clock',page.text)
+
     def manager(self,day,values=()):
         response=self.client.post(self.root+'/gestor',data={'report_date':str(day)},files={'document':('gestor.docx',docx_bytes('Relatório operacional '+str(day)+' '+str(uuid4())),'application/vnd.openxmlformats-officedocument.wordprocessingml.document')},follow_redirects=False)
         self.assertEqual(response.status_code,303,response.text)

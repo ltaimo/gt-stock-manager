@@ -64,7 +64,9 @@ KEY_TRANSLATIONS: dict[str, dict[str, str]] = {
 # The Portuguese phrase is the canonical source. User-entered business data is
 # never passed through this catalogue.
 PHRASES_EN: dict[str, str] = {
-    "Gerar e submeter relatórios consolidados e carregar relatório do Gestor": "Generate and submit consolidated reports and upload the manager report",
+    "Gerar e submeter relatórios consolidados": "Generate and submit consolidated reports",
+    "Carregar e rever relatórios do Gestor": "Upload and review manager reports",
+    "Hora do computador": "Computer time",
     "Consultar relatórios oficiais e receber notificações": "View official reports and receive notifications",
     "Configurar períodos e submissão parcial de relatórios": "Configure reporting periods and partial submissions",
     "Gerir câmaras, monitoria e inspeções CCTV": "Manage CCTV cameras, monitoring and inspections",

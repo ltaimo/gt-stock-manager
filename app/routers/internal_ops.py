@@ -292,6 +292,7 @@ def can_view_department_reports(user: User) -> bool:
         or user.role.name in DEPARTMENT_REPORT_OPERATIONS_ROLES
         or has_permission(user, "internal_ops_reports")
         or has_permission(user, "operational_reports_manage")
+        or has_permission(user, "operational_manager_upload")
         or has_permission(user, "operational_reports_receive")
         or bool(creatable_department_report_keys(user))
     )

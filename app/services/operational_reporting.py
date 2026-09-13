@@ -139,7 +139,8 @@ def build_snapshot(db,department,start,end,daily_id=None,inspection=False,period
     comparison=None
     if period and period!='inspection':
         previous_end=start-timedelta(days=1)
-        previous_start=previous_end.replace(day=1) if period=='monthly' else start-timedelta(days=(end-start).days+1)
+        full_month=start.day==1 and (end+timedelta(days=1)).day==1 and start.month==end.month and start.year==end.year
+        previous_start=previous_end.replace(day=1) if period=='monthly' and full_month else start-timedelta(days=(end-start).days+1)
         previous_sources,previous_points,*_=collect_sources(db,department,previous_start,previous_end,owner_id=owner_id)
         if previous_points:
             previous_metrics,previous_conflicts=aggregate_metrics(previous_points)

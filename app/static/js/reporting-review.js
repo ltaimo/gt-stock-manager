@@ -2,13 +2,37 @@
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('[data-report-generator]').forEach(form => {
     const department=form.elements.namedItem('department'),period=form.elements.namedItem('period');
+    const mode=form.elements.namedItem('range_mode'),anchor=form.elements.namedItem('anchor');
+    const from=form.elements.namedItem('date_from'),to=form.elements.namedItem('date_to');
+    const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const dates=()=>{
+      if(!mode)return;
+      const custom=mode.value==='custom';
+      from.readOnly=to.readOnly=!custom;
+      anchor.required=!custom;
+      form.querySelector('[data-automatic-date]').hidden=custom;
+      if(!custom && anchor.value){
+        const start=new Date(`${anchor.value}T12:00:00`),end=new Date(start);
+        if(period.value==='monthly'){
+          start.setDate(1);end.setMonth(end.getMonth()+1,0);
+        }else if(period.value!=='daily'){
+          start.setDate(start.getDate()-((start.getDay()+6-Number(form.dataset.weekStart))%7));
+          end.setTime(start.getTime());end.setDate(start.getDate()+6);
+        }
+        from.value=iso(start);to.value=iso(end);
+      }
+      to.min=from.value;
+      to.setCustomValidity(to.value && from.value && to.value<from.value?'A data Até deve ser igual ou posterior à data De.':'');
+    };
     const update=()=>{
       for(const option of period.options){
         const allowed=option.value==='daily' ? department.value==='consolidated' : option.value==='inspection' ? department.value==='it' : true;
         option.hidden=option.disabled=!allowed;
       }
       if(period.selectedOptions[0]?.disabled)period.value='weekly';
+      dates();
     };
+    [mode,anchor,period,from,to].filter(Boolean).forEach(field=>field.addEventListener('change',dates));
     department.addEventListener('change',update);update();
   });
   const addMetric = () => {

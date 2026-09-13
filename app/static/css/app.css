@@ -175,3 +175,4 @@ output.rejected-quantity{font-weight:800;color:var(--red)}
 .report-guide-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:1rem}
 .report-guide-grid li{margin:.65rem 0;line-height:1.6}
 #department-reports-table td{vertical-align:top}#department-reports-table .inline-form{margin:.35rem 0}
+.computer-clock { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; font-size: .9rem; }

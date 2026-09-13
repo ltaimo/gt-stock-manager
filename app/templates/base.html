@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ tx(app_name, user if user is defined else none) }}{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/app.css?v={{ app_version }}-navigation1">
+  <link rel="stylesheet" href="/static/css/app.css?v={{ app_version }}-accessdates1">
 </head>
 <body
   spellcheck="true"
@@ -63,6 +63,7 @@
       <span>{{ tx(app_name, user if user is defined else none) }}</span>
     </div>
     <div class="topbar-actions">
+      <time class="computer-clock" data-computer-clock title="{{ tx('Hora do computador', user) }}" aria-label="{{ tx('Hora do computador', user) }}">--:--:--</time>
       <a class="notification-link" href="/notificacoes" aria-label="{{ t('notifications', user) }}: {{ unread_notifications(user.id) }} {{ tx('não lidas', user) }}">
         <span class="notification-label">{{ t('notifications', user) }}</span>
         <span>{{ unread_notifications(user.id) }}</span>
@@ -97,6 +98,6 @@
   <footer class="auth-footer">{{ app_short_name }} v{{ app_version }} &middot; {{ tx("Designed by", user if user is defined else none) }} Layton Taimo</footer>
 </main>
 {% endif %}
-<script src="/static/js/app.js?v={{ app_version }}-navigation1"></script>
+<script src="/static/js/app.js?v={{ app_version }}-accessdates1"></script>
 </body>
 </html>

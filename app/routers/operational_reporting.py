@@ -76,11 +76,18 @@ def history(request:Request,department:str='',period:str='',status:str='',date_f
     return templates.TemplateResponse(request,'operational_reports/history.html',dict(request=request,user=user,rows=rows,total=total,page=page,allowed=allowed,departments=DEPARTMENTS,periods=PERIODS,states=STATES,department=department,period=period,status=status,date_from=date_from,date_to=date_to,responsible=responsible,today=str(today),ready={k:any(r.department_key==k for r in submitted) for k in allowed},manager_ready=manager_ready,generate_keys=[k for k in ['consolidated','security','maintenance','it'] if can_generate(user,k)],manager=can_manage(user),pending_count=len(pending),critical_count=sum(p.priority=='Crítica' for p in pending),settings=policy(db),users=db.scalars(select(User).where(User.is_active==True).order_by(User.full_name)).all() if allowed else []))
 
 @router.post('/gerar')
-def generate(request:Request,department:str=Form(...),period:str=Form(...),anchor:str=Form(...),db:Session=Depends(get_db),user:User=Depends(current_user)):
+def generate(request:Request,department:str=Form(...),period:str=Form(...),anchor:str=Form(''),range_mode:str=Form('automatic'),date_from:str=Form(''),date_to:str=Form(''),db:Session=Depends(get_db),user:User=Depends(current_user)):
     require_access(user,department,True)
     if period=='inspection' and department!='it':raise HTTPException(400,'A inspeção CCTV pertence ao IT.')
     if period=='daily' and department!='consolidated':raise HTTPException(400,'Preencha o relatório diário no formulário departamental.')
-    start,end=period_window(period,anchor,policy(db).week_start)
+    if range_mode=='custom':
+        if period not in PERIODS:raise HTTPException(400,'Período inválido.')
+        start,end=parsed_date(date_from),parsed_date(date_to)
+        if end<start:raise HTTPException(400,'A data Até deve ser igual ou posterior à data De.')
+        if period=='daily' and start!=end:raise HTTPException(400,'O relatório diário deve abranger apenas um dia.')
+    elif range_mode=='automatic':
+        start,end=period_window(period,anchor,policy(db).week_start)
+    else:raise HTTPException(400,'Seleção de datas inválida.')
     row=create_report(db,user,department,period,start,end)
     audit_log(db,user,'Gerou relatório operacional','RelatoriosOperacionais',str(row.id),new_value={'number':row.number},request=request)
     save_or_conflict(db)
@@ -102,16 +109,17 @@ def update_settings(request:Request,week_start:int=Form(...),allow_partial:str=F
 
 @router.get('/gestor')
 def manager_sources(request:Request,page:int=1,db:Session=Depends(get_db),user:User=Depends(current_user)):
-    if not can_manage(user):raise HTTPException(403)
+    if not can_view_manager(user):raise HTTPException(403)
     rows=db.execute(select(ManagerReportSource,FinancialDailyImport).join(FinancialDailyImport,ManagerReportSource.import_id==FinancialDailyImport.id).where(active(ManagerReportSource,'manager')).order_by(FinancialDailyImport.report_date.desc()).offset((max(1,page)-1)*25).limit(25)).all()
-    return templates.TemplateResponse(request,'operational_reports/manager.html',dict(request=request,user=user,rows=rows,today=str(date.today()),page=max(1,page),source=None,imports=db.scalars(select(FinancialDailyImport).order_by(FinancialDailyImport.report_date.desc()).limit(200)).all()))
+    return templates.TemplateResponse(request,'operational_reports/manager.html',dict(request=request,user=user,rows=rows,today=str(date.today()),page=max(1,page),source=None,imports=db.scalars(select(FinancialDailyImport).order_by(FinancialDailyImport.report_date.desc()).limit(200)).all() if has_permission(user,'finance_view') else []))
 
 @router.post('/gestor')
 async def upload_manager(request:Request,report_date:str=Form(...),document:UploadFile|None=File(None),import_id:str=Form(''),supersedes_id:str=Form(''),db:Session=Depends(get_db),user:User=Depends(current_user)):
-    if not can_manage(user):raise HTTPException(403)
+    if not can_upload_manager(user):raise HTTPException(403)
     day=parsed_date(report_date)
     existing=None
     if import_id:
+        if not has_permission(user,'finance_view'):raise HTTPException(403)
         try:existing=db.get(FinancialDailyImport,int(import_id))
         except ValueError:raise HTTPException(400,'Importação inválida.')
         if not existing:raise HTTPException(404,'Importação não encontrada.')
@@ -163,7 +171,7 @@ async def upload_manager(request:Request,report_date:str=Form(...),document:Uplo
     save_or_conflict(db);return RedirectResponse(f'{router.prefix}/gestor/{row.id}',303)
 
 def manager_source(db,user,source_id):
-    if not (can_manage(user) or has_permission(user,'operational_reports_receive')):raise HTTPException(403)
+    if not can_view_manager(user):raise HTTPException(403)
     row=db.get(ManagerReportSource,source_id)
     if not row:raise HTTPException(404,'Documento não encontrado.')
     from app.models.reporting import ReportDeletion
@@ -174,7 +182,7 @@ def manager_source(db,user,source_id):
 @router.post('/gestor/{source_id}/ocr')
 async def save_ocr(source_id:int,request:Request,db:Session=Depends(get_db),user:User=Depends(current_user)):
     row,original=manager_source(db,user,source_id)
-    if not can_manage(user):raise HTTPException(403)
+    if not can_upload_manager(user):raise HTTPException(403)
     if row.status!='Draft':raise HTTPException(409,'Crie uma nova revisão antes de reler este documento.')
     form=await request.form();check_revision(row,form.get('revision'))
     text=str(form.get('text','')).strip()
@@ -195,7 +203,7 @@ async def save_ocr(source_id:int,request:Request,db:Session=Depends(get_db),user
 @router.get('/gestor/{source_id}')
 def source_review(request:Request,source_id:int,db:Session=Depends(get_db),user:User=Depends(current_user)):
     row,original=manager_source(db,user,source_id)
-    return templates.TemplateResponse(request,'operational_reports/manager.html',dict(request=request,user=user,source=row,original=original,metrics=json.loads(row.metrics),metric_options=METRICS,editable=can_manage(user) and row.status=='Draft'))
+    return templates.TemplateResponse(request,'operational_reports/manager.html',dict(request=request,user=user,source=row,original=original,metrics=json.loads(row.metrics),metric_options=METRICS,editable=can_upload_manager(user) and row.status=='Draft'))
 
 @router.get('/gestor/{source_id}/original')
 def source_original(source_id:int,download:bool=False,db:Session=Depends(get_db),user:User=Depends(current_user)):
@@ -204,7 +212,7 @@ def source_original(source_id:int,download:bool=False,db:Session=Depends(get_db)
 
 @router.post('/gestor/{source_id}/versao')
 def revise_manager(request:Request,source_id:int,db:Session=Depends(get_db),user:User=Depends(current_user)):
-    if not can_manage(user):raise HTTPException(403)
+    if not can_upload_manager(user):raise HTTPException(403)
     row,original=manager_source(db,user,source_id)
     lock_numbering(db,'manager:'+row.fingerprint)
     latest=db.scalar(select(func.max(ManagerReportSource.version)).where(ManagerReportSource.fingerprint==row.fingerprint)) or 1
@@ -216,7 +224,7 @@ def revise_manager(request:Request,source_id:int,db:Session=Depends(get_db),user
 @router.post('/gestor/{source_id}')
 async def save_manager(source_id:int,request:Request,db:Session=Depends(get_db),user:User=Depends(current_user)):
     row,original=manager_source(db,user,source_id)
-    if not can_manage(user):raise HTTPException(403)
+    if not can_upload_manager(user):raise HTTPException(403)
     if row.status!='Draft':raise HTTPException(409,'O original validado é imutável. Carregue um documento corrigido para revisão.')
     form=await request.form();check_revision(row,form.get('revision'))
     metrics=[];seen=set()

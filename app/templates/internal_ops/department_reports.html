@@ -173,6 +173,6 @@
   <nav class="actions">{% if page>1 %}<a href="{{ request.url.include_query_params(page=page-1) }}">Anterior</a>{% endif %}<span>{{ total_reports }} relatórios · página {{ page }}</span>{% if page*25<total_reports %}<a href="{{ request.url.include_query_params(page=page+1) }}">Seguinte</a>{% endif %}</nav>
 </section>
 
-<script src="/static/js/department-tables.js?v={{ app_version }}-navigation1"></script>
-<script src="/static/js/department-drafts.js?v={{ app_version }}-navigation1"></script>
+<script src="/static/js/department-tables.js?v={{ app_version }}-accessdates1"></script>
+<script src="/static/js/department-drafts.js?v={{ app_version }}-accessdates1"></script>
 {% endblock %}
