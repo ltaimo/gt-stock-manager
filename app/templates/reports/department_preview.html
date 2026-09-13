@@ -3,6 +3,7 @@
 <header class="page-header"><h1>{{ title }}</h1><div class="actions">
   <a class="button secondary" href="/operacoes-internas/relatorios-departamentais">{{ tx("Voltar", user) }}</a>
   <a class="button secondary" href="?export=pdf">PDF</a><a class="button secondary" href="?export=docx">Word</a>
-</div></header>
+{% if copy_allowed %}<form class="inline-form" method="post" action="{{ request.url.path.rsplit("/",1)[0] }}/copiar"><button>Criar cópia</button></form>{% endif %}</div></header>
+{% include "operational_reports/navigation.html" %}
 {% include "reports/department_document.html" %}
 {% endblock %}

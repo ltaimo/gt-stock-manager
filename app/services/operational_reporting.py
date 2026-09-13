@@ -11,7 +11,7 @@ from app.models.reporting import OperationalReport, DailyReportEntry, ManagerRep
 from app.services.reporting_common import DEPARTMENTS, PERIODS, STATES, METRICS, CATEGORIES, dumps, utc_day, policy, notify_reporting, display_number, display_time, date_ranges, record_day
 from app.services.department_presentation import SECTIONS, presentation, reports_pdf, reports_docx
 from app.services.cctv import cctv_snapshot, pending_state_at, PENDING_STATES, create_pending
-from app.services.report_access import active, view_all
+from app.services.report_access import active, view_all, lock_numbering
 
 SUPPLEMENTS = {'summary':'Resumo executivo', 'challenges':'Principais desafios', 'recommendations':'Recomendações', 'conclusion':'Conclusão', 'review_notes':'Validação das fontes e divergências'}
 SOURCE_TYPES={'daily':'Relatório departamental','entry':'Ocorrência ou indicador','manager':'Documento do Gestor','operation':'Operação interna','pending':'Pendência','cctv':'CCTV'}
@@ -61,12 +61,18 @@ def collect_sources(db, department, start, end, daily_id=None, owner_id=None):
         imports=db.execute(select(ManagerReportSource,FinancialDailyImport).join(FinancialDailyImport,ManagerReportSource.import_id==FinancialDailyImport.id).where(FinancialDailyImport.report_date>=utc_day(start),FinancialDailyImport.report_date<utc_day(end+timedelta(days=1)))).all()
         imports=[(m,i) for m,i in imports if db.scalar(select(ManagerReportSource.id).where(ManagerReportSource.id==m.id,active(ManagerReportSource,'manager')))]
         superseded={m.supersedes_id for m,_ in imports if m.status=='Reviewed' and m.supersedes_id}
+        latest_reviewed={}
+        for m,i in imports:
+            if m.status=='Reviewed':
+                key=(m.fingerprint,i.report_date.date())
+                latest_reviewed[key]=max(latest_reviewed.get(key,0),m.version)
         for manager, imported in imports:
             if not db.scalar(select(ManagerReportSource.id).where(ManagerReportSource.id==manager.id,active(ManagerReportSource,'manager'))):continue
             if manager.id in superseded:continue
             day=imported.report_date.date().isoformat()
             if manager.status!='Reviewed':
                 warnings.append(f'Relatório do Gestor de {day} aguarda revisão.');continue
+            if manager.version!=latest_reviewed[(manager.fingerprint,imported.report_date.date())]:continue
             coverage['consolidated'].add(day)
             data={'filename':imported.original_filename,'fingerprint':manager.fingerprint,'import_id':imported.id,'notes':manager.notes,'metrics':json.loads(manager.metrics),'warning':manager.extraction_warning}
             sources.append(source('manager',manager.id,day,imported.original_filename,data))
@@ -162,19 +168,21 @@ def build_snapshot(db,department,start,end,daily_id=None,inspection=False,period
     if not sources:raise HTTPException(400,'O período não tem dados para gerar um relatório.')
     return {'schema':1,'generated_at':datetime.now(timezone.utc).isoformat(),'sources':sources,'metrics':metrics,'conflicts':conflicts,'events':events,'narratives':[{'department':k[0],'section':k[1],'items':v} for k,v in narratives.items()],'missing':missing,'warnings':sorted(set(warnings)),'pending':pending,'cctv':cctv,'inspection_only':inspection,'comparison':comparison,'daily_presentation':presentation(db.get(DepartmentDailyReport,daily_id)) if daily_id else None}
 
-def create_report(db,user,department,period,start,end,daily_id=None,new_version=False):
+def create_report(db,user,department,period,start,end,daily_id=None,new_version=False,copy_from=None):
     series=f'{department}:{period}:{start}:{end}'+(f':daily-{daily_id}' if daily_id else '')
     owner_id=None if view_all(user) else user.id
     if owner_id and not daily_id:series+=f':author-{owner_id}'
+    lock_numbering(db,series)
     previous=db.scalars(select(OperationalReport).where(OperationalReport.series_key==series).order_by(OperationalReport.version.desc())).first()
-    previous_active=previous and db.scalar(select(OperationalReport.id).where(OperationalReport.id==previous.id,active(OperationalReport,'operational')))
-    if previous_active and not new_version:raise HTTPException(409,f'Já existe o relatório {previous.number}. Consulte o histórico ou crie uma nova versão.')
-    if previous_active and previous.status!='Submitted':raise HTTPException(409,'Já existe uma versão em preparação. Continue esse rascunho.')
-    snapshot=build_snapshot(db,department,start,end,daily_id,period=='inspection',period,owner_id)
+    snapshot=json.loads(copy_from.snapshot) if copy_from else build_snapshot(db,department,start,end,daily_id,period=='inspection',period,owner_id)
+    if copy_from:
+        snapshot.pop('submitted_by',None)
+        snapshot['generated_at']=datetime.now(timezone.utc).isoformat()
     snapshot['generated_by']=user.full_name
     version=(previous.version+1) if previous else 1
     number=f'REL-{department.upper()}-{period.upper()}-{start}-{hashlib.sha256(series.encode()).hexdigest()[:6]}-V{version}'
     row=OperationalReport(series_key=series,number=number,period=period,department_key=department,date_from=start,date_to=end,version=version,status='Generated',source_daily_id=daily_id,snapshot=dumps(snapshot),created_by_id=user.id,supplements=previous.supplements if previous else '{}')
+    if copy_from:row.supplements=copy_from.supplements;row.status='Draft'
     db.add(row);db.flush();return row
 
 def add_section(sections,title,lines):
@@ -184,6 +192,7 @@ def report_presentation(report,db=None):
     snap=json.loads(report.snapshot);notes=json.loads(report.supplements or '{}');sections=[]
     if snap.get('daily_presentation'):
         item=snap['daily_presentation'];item['number']=report.number;item['id']=report.id
+        item['meta']=[(label,STATES[report.status] if label=='Estado' else value) for label,value in item['meta']]
         item['meta'] += [('Versão',str(report.version)),('Submetido por',snap.get('submitted_by','Por submeter'))]
         if snap['events']:add_section(item['sections'],'Ocorrências e indicadores estruturados',[f"{CATEGORIES[e['category']]} · {e['title']} · {e['location']} · {e['equipment']}\n{e['description']}" for e in snap['events']])
         for key,label in SUPPLEMENTS.items():

@@ -22,7 +22,7 @@ from app.services.department_presentation import reports_pdf, reports_docx
 from app.services.transactions import atomic
 from app.services.audit import audit_log
 from app.routers.reporting_route import ReportingRoute
-from app.services.report_access import visible, require_record, active, view_all
+from app.services.report_access import visible, require_record, active, view_all, lock_numbering
 from app.services.report_text_extraction import suggested_metrics
 
 router=APIRouter(prefix='/operacoes-internas/relatorios',tags=['relatórios operacionais'],route_class=ReportingRoute)
@@ -46,6 +46,11 @@ def save_or_conflict(db):
     try:db.commit()
     except (IntegrityError,StaleDataError) as exc:
         db.rollback();raise HTTPException(409,'Já existe um registo ou uma versão mais recente. Atualize a página.') from exc
+
+@router.get('/guia')
+def report_guide(request:Request,user:User=Depends(current_user)):
+    return templates.TemplateResponse(request,'operational_reports/guide.html',dict(request=request,user=user))
+
 
 @router.get('')
 def history(request:Request,department:str='',period:str='',status:str='',date_from:str='',date_to:str='',responsible:str='',page:int=1,db:Session=Depends(get_db),user:User=Depends(current_user)):
@@ -117,7 +122,8 @@ async def upload_manager(request:Request,report_date:str=Form(...),document:Uplo
         content=await document.read(10*1024*1024+1);filename=PurePath((document.filename or '').replace('\\','/')).name
     if not content or len(content)>10*1024*1024:raise HTTPException(400,'O documento deve ter conteúdo e no máximo 10 MB.')
     fingerprint=hashlib.sha256(content).hexdigest()
-    if db.scalar(select(ManagerReportSource.id).where(ManagerReportSource.fingerprint==fingerprint)):raise HTTPException(409,'Este documento já foi carregado. Consulte o histórico do Gestor.')
+    lock_numbering(db,'manager:'+fingerprint)
+    next_version=(db.scalar(select(func.max(ManagerReportSource.version)).where(ManagerReportSource.fingerprint==fingerprint)) or 0)+1
     try:
         if filename.lower().endswith('.pdf') and content.startswith(b'%PDF'):
             from pypdf import PdfReader
@@ -151,6 +157,7 @@ async def upload_manager(request:Request,report_date:str=Form(...),document:Uplo
     for key,pattern in [('vehicles_total',r'TOTAL\s+VE[IÍ]CULOS\s*:?\s*(\d+)'),('seized_vehicles',r'VIATURAS\s+APREENDIDAS\s*:?\s*(\d+)'),('revenue',r'(?:RECEITA\s+TOTAL|TOTAL\s+RECEITA)\s*:?\s*([\d.,]+)')]:
         found=re.search(pattern,extracted,re.I)
         if found:suggestions.append({'key':key,'dimension':'Geral','value':str(number(found[1]))})
+    row.version=next_version
     row.metrics=dumps(suggestions);db.add(row);db.flush()
     audit_log(db,user,'Carregou relatório diário do Gestor','RelatoriosOperacionais',f'gestor:{row.id}',new_value={'filename':filename,'date':str(day)},request=request)
     save_or_conflict(db);return RedirectResponse(f'{router.prefix}/gestor/{row.id}',303)
@@ -199,11 +206,9 @@ def source_original(source_id:int,download:bool=False,db:Session=Depends(get_db)
 def revise_manager(request:Request,source_id:int,db:Session=Depends(get_db),user:User=Depends(current_user)):
     if not can_manage(user):raise HTTPException(403)
     row,original=manager_source(db,user,source_id)
-    if row.status!='Reviewed':raise HTTPException(409,'Continue a revisão já em rascunho.')
-    if db.scalar(select(ManagerReportSource.id).where(ManagerReportSource.supersedes_id==row.id)):
-        raise HTTPException(409,'Já existe uma revisão posterior deste documento. Consulte o histórico do Gestor.')
+    lock_numbering(db,'manager:'+row.fingerprint)
     latest=db.scalar(select(func.max(ManagerReportSource.version)).where(ManagerReportSource.fingerprint==row.fingerprint)) or 1
-    new=ManagerReportSource(import_id=row.import_id,fingerprint=row.fingerprint,version=latest+1,supersedes_id=row.id,metrics=row.metrics,notes=row.notes,extraction_warning=row.extraction_warning)
+    new=ManagerReportSource(import_id=row.import_id,fingerprint=row.fingerprint,version=latest+1,metrics=row.metrics,notes=row.notes,extraction_warning=row.extraction_warning)
     db.add(new);db.flush()
     audit_log(db,user,'Criou revisão dos dados do Gestor','RelatoriosOperacionais',f'gestor:{new.id}',new_value={'previous':row.id,'version':new.version},request=request)
     save_or_conflict(db);return RedirectResponse(f'{router.prefix}/gestor/{new.id}',303)
@@ -291,8 +296,7 @@ def regenerate(request:Request,report_id:int,revision:int=Form(...),db:Session=D
 @router.post('/{report_id}/versao')
 def new_version(request:Request,report_id:int,db:Session=Depends(get_db),user:User=Depends(current_user)):
     row=read_report(db,user,report_id);require_access(user,row.department_key,True)
-    if row.status!='Submitted':raise HTTPException(409,'Continue a versão em preparação.')
-    new=create_report(db,user,row.department_key,row.period,row.date_from,row.date_to,row.source_daily_id,True)
+    new=create_report(db,user,row.department_key,row.period,row.date_from,row.date_to,row.source_daily_id,True,copy_from=row)
     audit_log(db,user,'Criou nova versão de relatório','RelatoriosOperacionais',str(new.id),new_value={'previous':row.id},request=request)
     save_or_conflict(db);return RedirectResponse(f'{router.prefix}/{new.id}',303)
 

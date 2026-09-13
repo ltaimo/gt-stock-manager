@@ -1,11 +1,17 @@
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, text
 from app.models.reporting import ReportDeletion
 
 
 def view_all(user):
     from app.routers.internal_ops import can_view_all_department_reports
     return can_view_all_department_reports(user)
+
+
+def lock_numbering(db, key):
+    """Serialize numbering within a report family on the production database."""
+    if db.get_bind().dialect.name=='postgresql':
+        db.execute(text('SELECT pg_advisory_xact_lock(hashtext(:key))'),{'key':key})
 
 
 def active(model, kind):

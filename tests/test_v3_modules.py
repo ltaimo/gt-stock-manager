@@ -731,7 +731,7 @@ class V3ModuleFlowTests(unittest.TestCase):
         self.login("gestorops")
         page = self.client.get("/operacoes-internas/relatorios-departamentais?prepare_date=2026-09-02")
         self.assertEqual(page.status_code, 200)
-        self.assertIn("Histórico e relatórios consolidados", page.text)
+        self.assertIn("Consolidados", page.text)
         self.assertNotIn("Copiar Todos", page.text)
         self.assertIn("SECURITY-DR-2026-999", self.client.get("/operacoes-internas/relatorios-departamentais?department=security").text)
         self.assertIn("MAINTENANCE-DR-2026-999", page.text)

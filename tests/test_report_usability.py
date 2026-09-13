@@ -12,6 +12,8 @@ from app.models.reporting import ReportDeletion, ManagerReportSource
 from app.services.report_form_schema import current_schema, schema_for_report
 from app.services.operational_reporting import build_snapshot
 from app.services.department_presentation import presentation, reports_pdf
+from unittest.mock import patch
+from pypdf import PdfReader
 
 
 class ReportUsabilityTests(unittest.TestCase):
@@ -91,3 +93,40 @@ class ReportUsabilityTests(unittest.TestCase):
         self.assertEqual(original.content,content);self.assertIn('1350',original.extracted_text)
         self.assertEqual(self.db.get(ManagerReportSource,source.id).status,'Draft')
         self.login('blocked');self.assertEqual(self.client.post(url+'/ocr',data=payload).status_code,403)
+
+    def test_copy_daily_preserves_tables_and_creates_separate_numbered_drafts(self):
+        rows={'parade':{'rows':[['1','Vigilante QA','GT/SA','07:00','Vigilante','Negativo','']],'note':'Equipa'}}
+        original,_=self.draft(structured_tables=json.dumps(rows))
+        copies=[]
+        for suffix in ['C2','C3']:
+            response=self.client.post(self.daily+f'/{original["id"]}/copiar',follow_redirects=False)
+            self.assertEqual(response.status_code,303,response.text)
+            page=self.client.get(response.headers['location']);self.assertIn('Vigilante QA',page.text)
+            rid=int(response.headers['location'].split('draft_id=')[1]);copies.append(rid)
+            self.db.expire_all();row=self.db.get(DepartmentDailyReport,rid)
+            self.assertTrue(row.number.endswith(suffix));self.assertEqual(row.status,'Draft')
+        self.assertNotEqual(*copies)
+        self.assertNotEqual(copies[0],original['id'])
+        self.login('blocked');self.assertEqual(self.client.post(self.daily+f'/{original["id"]}/copiar').status_code,403)
+
+    def test_unified_navigation_and_quick_guide(self):
+        landing=self.client.get(self.daily).text
+        sidebar=landing.split('</aside>')[0]
+        self.assertNotIn('Histórico de relatórios',sidebar)
+        self.assertIn('Consolidar relatório',landing)
+        self.assertIn('Como fazer',landing)
+        self.assertNotIn('data-report-generator',self.client.get(self.root).text)
+        self.assertIn('data-report-generator',self.client.get(self.root+'?create=1').text)
+        guide=self.client.get(self.root+'/guia')
+        self.assertEqual(guide.status_code,200)
+        self.assertIn('C2, C3',guide.text)
+
+    def test_pdf_repairs_legacy_brand_accent(self):
+        from app.config import get_settings
+        row,_=self.draft()
+        item=presentation(self.db.get(DepartmentDailyReport,row['id']))
+        with patch.object(get_settings(),'app_subtitle','Gest?o de Terminais, SA'):
+            content=reports_pdf([item],'Relatório diário','Agente QA')
+        text='\n'.join(page.extract_text() for page in PdfReader(io.BytesIO(content)).pages)
+        self.assertIn('Gestão de Terminais, SA',text)
+        self.assertNotIn('Gest?o',text)

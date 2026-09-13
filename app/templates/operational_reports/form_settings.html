@@ -1,5 +1,5 @@
 {% extends 'base.html' %}{% block content %}
-<header class="page-header"><h1>Configurar formulário · {{ departments[department] }}</h1><a href="/operacoes-internas/relatorios/configuracoes">Voltar às configurações</a></header>
+<header class="page-header"><h1>Configurar formulário · {{ departments[department] }}</h1><a href="/operacoes-internas/relatorios/configuracoes">Voltar às configurações</a></header>{% include "operational_reports/navigation.html" %}
 <nav class="actions">{% for key in ['security','maintenance','it'] %}<a class="button secondary" href="/operacoes-internas/relatorios/formularios/{{ key }}">{{ departments[key] }}</a>{% endfor %}</nav>
 <form method="post" class="panel form-stack" data-schema-editor><input type="hidden" name="revision" value="{{ schema.revision }}"><p>As alterações aplicam-se a novos relatórios. Os relatórios e rascunhos existentes mantêm as suas colunas. Uma opção por linha; deixe a lista vazia para permitir texto livre.</p>
 <div class="form-grid"><label>Turnos disponíveis<textarea name="shift" rows="4">{{ schema.shift|join('\n') }}</textarea></label><label>Locais disponíveis<textarea name="location" rows="4">{{ schema.location|join('\n') }}</textarea></label></div>

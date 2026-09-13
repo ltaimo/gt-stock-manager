@@ -1,5 +1,6 @@
 from datetime import datetime
 from pathlib import Path
+import re
 
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -65,7 +66,9 @@ def brand_header(title: str, subtitle: str | None = None, meta: list[str] | None
         logo = Image(str(settings.logo_path), width=3.8 * cm, height=1.6 * cm, kind="proportional")
     else:
         logo = Paragraph("<b>GT</b>", styles["GTTitle"])
-    meta_lines = [settings.app_subtitle]
+    # Older deployment configuration lost the tilde when storing the company name.
+    subtitle_brand=re.sub(r'(?i)gest(?:a|ã|\?|�|Ã£)o(?=\s+de\s+terminais)', 'Gestão',settings.app_subtitle)
+    meta_lines = [subtitle_brand]
     if subtitle:
         meta_lines.append(subtitle)
     meta_lines.extend(meta or [])

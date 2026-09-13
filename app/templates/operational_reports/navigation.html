@@ -1,0 +1,8 @@
+<nav class="report-workspace-nav" aria-label="Relatórios departamentais">
+  <a href="/operacoes-internas/relatorios-departamentais" {{ 'aria-current=page' if request.url.path.endswith('relatorios-departamentais') }}>Diários</a>
+  <a href="/operacoes-internas/relatorios" {{ 'aria-current=page' if request.url.path == '/operacoes-internas/relatorios' }}>Consolidados</a>
+  {% if can(user,'operational_reports_manage') or can(user,'operational_reports_receive') %}<a href="/operacoes-internas/relatorios/gestor">Documentos do Gestor</a>{% endif %}
+  {% if can(user,'operational_reports_settings') %}<a href="/operacoes-internas/relatorios/configuracoes">Configuração</a>{% endif %}
+  {% if can(user,'operational_reports_delete') %}<a href="/operacoes-internas/relatorios/administracao/eliminados">Eliminados</a>{% endif %}
+  <a href="/operacoes-internas/relatorios/guia">Como fazer · guia rápido</a>
+</nav>

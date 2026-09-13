@@ -8,12 +8,13 @@
   </div>
   <div class="actions">
     {% if first_create_department %}
-      <a class="button success" href="/operacoes-internas/relatorios-departamentais?department={{ selected_department or first_create_department }}&create=1#department-report-form">{{ tx("Criar relatório diário", user if user is defined else none) }}</a>
+      <a class="button success" href="/operacoes-internas/relatorios-departamentais?department={{ selected_department if selected_department in create_report_types else first_create_department }}&create=1#department-report-form">{{ tx("Criar relatório diário", user if user is defined else none) }}</a>
     {% endif %}
-    {% if can(user,"operational_reports_delete") %}<a class="button secondary" href="/operacoes-internas/relatorios/administracao/eliminados">Relatórios eliminados</a>{% endif %}<a class="button secondary" href="/operacoes-internas">{{ tx("Operações internas", user if user is defined else none) }}</a>
-    <a class="button secondary" href="/operacoes-internas/relatorios">Histórico e relatórios consolidados</a>
+    {% if first_create_department or can(user,'operational_reports_manage') %}<a class="button secondary" href="/operacoes-internas/relatorios?create=1#report-generator">Consolidar relatório</a>{% endif %}
   </div>
 </header>
+{% include "operational_reports/navigation.html" %}
+<p class="report-hint">Escolha o departamento e crie um diário, ou reúna os diários num relatório semanal ou mensal. <a href="/operacoes-internas/relatorios/guia">Ver os passos</a>.</p>
 {% if not has_department_report_data_access %}<p class="alert">{{ tx("O seu perfil não possui permissão para executar esta operação.", user) }}</p>{% endif %}
 
 <section class="action-hub ops-hub" aria-label="{{ tx("Departamentos com relatório diário", user if user is defined else none) }}">
@@ -134,12 +135,8 @@
       <tr>
         <th>{{ tx("Nº", user if user is defined else none) }}</th>
         <th>{{ tx("Data", user if user is defined else none) }}</th>
-        <th>{{ tx("Departamento", user if user is defined else none) }}</th>
         <th>{{ tx("Turno", user if user is defined else none) }}</th>
-        <th>{{ tx("Hora de submissão", user if user is defined else none) }}</th>
         <th>{{ tx("Autor", user if user is defined else none) }}</th>
-        <th>{{ tx("Preparado por", user if user is defined else none) }}</th>
-        <th>{{ tx("Resumo", user if user is defined else none) }}</th>
         <th>{{ tx("Estado", user if user is defined else none) }}</th>
         <th>{{ tx("Ações disponíveis", user if user is defined else none) }}</th>
       </tr>
@@ -147,18 +144,16 @@
     <tbody>
       {% for report in reports %}
         <tr>
-          <td><a href="/operacoes-internas/relatorios-departamentais/{{ report.id }}/preview">{{ report.number }}</a>
+          <td><a title="{{ report.number }}" href="/operacoes-internas/relatorios-departamentais/{{ report.id }}/preview">Diário · {{ tx(report_types[report.department_key].short, user) }}</a><br><small>#{{ report.id }}{% if "-C" in report.number %} · Cópia {{ report.number.rsplit("-C",1)[1] }}{% endif %}</small>
           {% if report.status == 'Draft' and report.created_by_id == user.id %}<a class="button secondary compact" href="?department={{ report.department_key }}&draft_id={{ report.id }}#department-report-form">{{ tx('Continuar rascunho', user) }}</a>{% endif %}</td>
           <td>{{ report.report_date.strftime('%Y-%m-%d') }}</td>
-          <td>{{ tx(report_types[report.department_key].short, user if user is defined else none) }}</td>
           <td>{% if report.shift %}{{ report.shift }}{% elif report.period_start or report.period_end %}{{ report.period_start or '' }} - {{ report.period_end or '' }}{% else %}-{% endif %}</td>
-          <td>{{ report.created_at.strftime('%Y-%m-%d %H:%M') if report.created_at else '-' }}</td>
           <td>{{ report.created_by.full_name }}</td>
-          <td>{{ report.prepared_by or report.created_by.full_name }}</td>
-          <td><strong>{{ (report.activities or report.incidents or report.equipment_status or "-")|truncate(90, true) }}</strong><br><small class="muted">{{ (report.pending_actions or report.notes or "")|truncate(60, true) }}</small></td>
           <td><span class="badge {{ 'green' if report.status == 'Validated' else 'grey' if report.status == 'Cancelled' else 'orange' }}">{{ tv(report.status, user) }}</span></td>
           <td>
-            <a href="/operacoes-internas/relatorios/diarios/{{ report.id }}/dados">Ocorrências e indicadores</a>
+            <a class="button secondary compact" href="/operacoes-internas/relatorios-departamentais/{{ report.id }}/preview">Abrir</a>
+            {% if report.department_key in create_report_types %}<form method="post" action="/operacoes-internas/relatorios-departamentais/{{ report.id }}/copiar" class="inline-form"><button class="secondary compact">Criar cópia</button></form>{% endif %}
+            <details><summary>Mais ações</summary><a href="/operacoes-internas/relatorios/diarios/{{ report.id }}/dados">Ocorrências e indicadores</a>
             {% if can_approve_internal_ops and report.status not in ['Validated', 'Draft'] %}
               <form method="post" action="/operacoes-internas/relatorios-departamentais/{{ report.id }}/validar" class="inline-form">
                 <select name="status">{% for status in ["Validated", "Cancelled"] %}<option value="{{ status }}" {% if report.status == status %}selected{% endif %}>{{ tv(status, user) }}</option>{% endfor %}</select>
@@ -167,17 +162,17 @@
             {% else %}
               {{ report.approved_by.full_name if report.approved_by else "-" }}
             {% endif %}
-            {% set delete_kind="daily" %}{% set delete_id=report.id %}{% include "operational_reports/delete_action.html" %}
+            {% set delete_kind="daily" %}{% set delete_id=report.id %}{% include "operational_reports/delete_action.html" %}</details>
           </td>
         </tr>
       {% else %}
-        <tr><td colspan="10" class="empty-state">{{ tx("Ainda não existem relatórios para os filtros selecionados.", user if user is defined else none) }}</td></tr>
+        <tr><td colspan="6" class="empty-state">{{ tx("Ainda não existem relatórios para os filtros selecionados.", user if user is defined else none) }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
   <nav class="actions">{% if page>1 %}<a href="{{ request.url.include_query_params(page=page-1) }}">Anterior</a>{% endif %}<span>{{ total_reports }} relatórios · página {{ page }}</span>{% if page*25<total_reports %}<a href="{{ request.url.include_query_params(page=page+1) }}">Seguinte</a>{% endif %}</nav>
 </section>
 
-<script src="/static/js/department-tables.js?v={{ app_version }}-usability1"></script>
-<script src="/static/js/department-drafts.js?v={{ app_version }}-usability1"></script>
+<script src="/static/js/department-tables.js?v={{ app_version }}-navigation1"></script>
+<script src="/static/js/department-drafts.js?v={{ app_version }}-navigation1"></script>
 {% endblock %}

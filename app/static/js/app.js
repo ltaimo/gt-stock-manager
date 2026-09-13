@@ -77,7 +77,8 @@ function initNavigation() {
   sidebar.querySelectorAll("nav a").forEach((link) => {
     const exact = link.dataset.navExact;
     const prefix = link.dataset.navPrefix;
-    const matches = exact ? path === exact : prefix && (path === prefix || path.startsWith(`${prefix}/`));
+    const prefixes=[prefix,...(link.dataset.navExtra||'').split(' ')].filter(Boolean);
+    const matches = exact ? path === exact : prefixes.some(p=>path===p||path.startsWith(`${p}/`));
     if (matches && (!bestMatch || (exact || prefix.length > bestMatch.length))) {
       bestMatch = { link, length: exact ? 1000 : prefix.length };
     }

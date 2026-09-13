@@ -168,3 +168,10 @@ output.rejected-quantity{font-weight:800;color:var(--red)}
 .report-chart label { display: grid; grid-template-columns: 7rem minmax(4rem, 1fr) 6rem; gap: .7rem; align-items: center; }
 .report-chart meter { width: 100%; height: 1.3rem; accent-color: var(--report-gold); }
 @media (max-width: 680px) { .report-links { align-items: stretch; } .report-chart label { grid-template-columns: 5rem minmax(3rem,1fr) 4rem; } }
+.report-workspace-nav{display:flex;flex-wrap:wrap;gap:.4rem;margin:0 0 1rem;padding:.5rem;background:#fff;border:1px solid #e3e5e8;border-radius:12px}
+.report-workspace-nav a{padding:.65rem .85rem;border-radius:8px;text-decoration:none;color:#34373b;font-weight:600}
+.report-workspace-nav a:hover,.report-workspace-nav a[aria-current=page]{background:#fff1bd;color:#262626}
+.report-hint{padding:.8rem 1rem;background:#fff9e8;border-left:4px solid #d6a619;border-radius:6px;line-height:1.6}
+.report-guide-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:1rem}
+.report-guide-grid li{margin:.65rem 0;line-height:1.6}
+#department-reports-table td{vertical-align:top}#department-reports-table .inline-form{margin:.35rem 0}

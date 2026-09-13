@@ -117,7 +117,9 @@ class OperationalReportingTests(unittest.TestCase):
         new=self.client.post(self.root+f'/{report_id}/versao',follow_redirects=False);self.assertEqual(new.status_code,303)
         new_id=int(new.headers['location'].split('/')[-1]);self.assertNotEqual(new_id,report_id)
         self.assertEqual(self.client.get(self.root+f'/{report_id}/ficheiro/pdf').content,old)
-        self.assertEqual(self.client.post(self.root+f'/{report_id}/versao').status_code,409)
+        again=self.client.post(self.root+f'/{report_id}/versao',follow_redirects=False)
+        self.assertEqual(again.status_code,303)
+        self.assertNotEqual(again.headers['location'],new.headers['location'])
 
     def test_export_failure_preserves_draft(self):
         self.seed_daily(date(2026,9,1));report_id=self.generate('security','weekly',date(2026,9,1))
@@ -128,13 +130,40 @@ class OperationalReportingTests(unittest.TestCase):
         self.db.expire_all();row=self.db.get(OperationalReport,report_id)
         self.assertEqual(row.status,'Generated');self.assertIsNone(row.pdf);self.assertIsNone(row.docx)
 
+    def test_repeated_generation_and_copy_of_draft_are_allowed(self):
+        day=date(2026,9,11);self.seed_daily(day)
+        first=self.generate('security','weekly',day)
+        second=self.generate('security','weekly',day)
+        self.db.expire_all()
+        self.assertEqual(self.db.get(OperationalReport,second).version,2)
+        clone=self.client.post(self.root+f'/{first}/versao',follow_redirects=False)
+        self.assertEqual(clone.status_code,303)
+        third=int(clone.headers['location'].split('/')[-1])
+        self.assertEqual(self.db.get(OperationalReport,third).version,3)
+        self.assertEqual(self.db.get(OperationalReport,third).status,'Draft')
+
+    def test_manager_copies_only_latest_reviewed_version_is_consolidated(self):
+        day=date(2026,9,11);self.seed_daily(day);self.manager(day,[('vehicles_total','Geral',10)])
+        original=self.db.scalar(select(ManagerReportSource))
+        result=self.client.post(self.root+f'/gestor/{original.id}/versao',follow_redirects=False)
+        self.assertEqual(result.status_code,303)
+        new_id=int(result.headers['location'].split('/')[-1]);copy=self.db.get(ManagerReportSource,new_id)
+        data={'revision':copy.revision,'action':'review','metric_0_key':'vehicles_total','metric_0_dimension':'Geral','metric_0_value':'20'}
+        self.assertEqual(self.client.post(result.headers['location'],data=data,follow_redirects=False).status_code,303)
+        self.db.expire_all()
+        snapshot=build_snapshot(self.db,'consolidated',day,day)
+        managers=[s for s in snapshot['sources'] if s['kind']=='manager']
+        self.assertEqual(len(managers),1);self.assertEqual(managers[0]['id'],new_id)
+
     def test_invalid_duplicate_and_image_only_upload(self):
         path=self.root+'/gestor'
         self.assertEqual(self.client.post(path,data={'report_date':'2026-09-01'},files={'document':('bad.pdf',b'%PDFbroken','application/pdf')}).status_code,400)
         content=docx_bytes('Relatório único')
         first=self.client.post(path,data={'report_date':'2026-09-01'},files={'document':('one.docx',content)},follow_redirects=False)
         self.assertEqual(first.status_code,303)
-        self.assertEqual(self.client.post(path,data={'report_date':'2026-09-01'},files={'document':('one.docx',content)}).status_code,409)
+        duplicate=self.client.post(path,data={'report_date':'2026-09-01'},files={'document':('one.docx',content)},follow_redirects=False)
+        self.assertEqual(duplicate.status_code,303)
+        self.assertNotEqual(duplicate.headers['location'],first.headers['location'])
         from reportlab.pdfgen import canvas
         out=io.BytesIO();c=canvas.Canvas(out);c.rect(10,10,50,50);c.showPage();c.save()
         result=self.client.post(path,data={'report_date':'2026-09-02'},files={'document':('image.pdf',out.getvalue())},follow_redirects=False)

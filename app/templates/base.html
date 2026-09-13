@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ tx(app_name, user if user is defined else none) }}{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/app.css?v={{ app_version }}-usability1">
+  <link rel="stylesheet" href="/static/css/app.css?v={{ app_version }}-navigation1">
 </head>
 <body
   spellcheck="true"
@@ -40,8 +40,7 @@
     <a href="/procurement" data-nav-prefix="/procurement"><span class="nav-icon" aria-hidden="true">◇</span><span>{{ t('procurement', user) }}</span></a>
     <a href="/hse" data-nav-prefix="/hse"><span class="nav-icon" aria-hidden="true">✚</span><span>{{ t('hse', user) }}</span></a>
     <a href="/operacoes-internas" data-nav-prefix="/operacoes-internas"><span class="nav-icon" aria-hidden="true">⚙</span><span>{{ t('internal_ops', user) }}</span></a>
-    <a href="/operacoes-internas/relatorios" data-nav-prefix="/operacoes-internas/relatorios"><span class="nav-icon" aria-hidden="true">▤</span><span>Histórico de relatórios</span></a>
-    <a href="/operacoes-internas/relatorios-departamentais" data-nav-prefix="/operacoes-internas/relatorios-departamentais"><span class="nav-icon" aria-hidden="true">▣</span><span>{{ tx("Relatórios departamentais", user if user is defined else none) }}</span></a>
+    <a href="/operacoes-internas/relatorios-departamentais" data-nav-prefix="/operacoes-internas/relatorios-departamentais" data-nav-extra="/operacoes-internas/relatorios"><span class="nav-icon" aria-hidden="true">▣</span><span>{{ tx("Relatórios departamentais", user if user is defined else none) }}</span></a>
     <a href="/financeiro" data-nav-prefix="/financeiro"><span class="nav-icon" aria-hidden="true">$</span><span>{{ t('finance', user) }}</span></a>
     <a href="/relatorios" data-nav-prefix="/relatorios"><span class="nav-icon" aria-hidden="true">▥</span><span>{{ t('reports', user) }}</span></a>
     <a href="/utilizadores" data-nav-prefix="/utilizadores"><span class="nav-icon" aria-hidden="true">◉</span><span>{{ t('users', user) }}</span></a>
@@ -98,6 +97,6 @@
   <footer class="auth-footer">{{ app_short_name }} v{{ app_version }} &middot; {{ tx("Designed by", user if user is defined else none) }} Layton Taimo</footer>
 </main>
 {% endif %}
-<script src="/static/js/app.js?v={{ app_version }}-usability1"></script>
+<script src="/static/js/app.js?v={{ app_version }}-navigation1"></script>
 </body>
 </html>

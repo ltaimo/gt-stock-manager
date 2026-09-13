@@ -16,7 +16,7 @@ from app.security import current_user, has_permission, require_permission
 from app.services.audit import audit_log
 from app.services.department_presentation import SECTIONS, collect_sections, presentation, reports_pdf, reports_docx
 from app.services.department_tables import TABLES, parse_tables, save_tables
-from app.services.report_access import visible, require_record, active, view_all
+from app.services.report_access import visible, require_record, active, view_all, lock_numbering
 from app.services.report_form_schema import schema_for_report
 from app.i18n import language_for
 from fastapi.responses import Response
@@ -741,4 +741,29 @@ def department_report_preview(request: Request, report_id: int, export: str = ""
             raise HTTPException(404, 'O ficheiro oficial não está disponível.')
         mime = "application/pdf" if export == "pdf" else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         return Response(content, media_type=mime, headers={"Content-Disposition": f'attachment; filename="relatorio-{report_id}.{export}"'})
-    return templates.TemplateResponse(request, "reports/department_preview.html", {"request": request, "user": user, "item": item, "title": title})
+    return templates.TemplateResponse(request, "reports/department_preview.html", {"request": request, "user": user, "item": item, "title": title,"copy_allowed":can_create_department_report(user,report.department_key)})
+
+
+@router.post('/relatorios-departamentais/{report_id}/copiar')
+def copy_department_report(request:Request,report_id:int,db:Session=Depends(get_db),user:User=Depends(current_user)):
+    import re
+    from app.services.department_tables import load_tables
+    from app.models.reporting import DailyReportEntry
+    source=db.scalar(select(DepartmentDailyReport).where(DepartmentDailyReport.id==report_id).with_for_update())
+    require_record(db,user,source,'daily')
+    require_department_report_access(user,source.department_key)
+    if not can_create_department_report(user,source.department_key):raise HTTPException(403)
+    base=re.sub(r'-C\d+$','',source.number)[:65]
+    lock_numbering(db,'daily-copy:'+base)
+    names=db.scalars(select(DepartmentDailyReport.number).where(DepartmentDailyReport.number.like(base+'-C%'))).all()
+    version=max([1]+[int(n.rsplit('-C',1)[1]) for n in names if n.rsplit('-C',1)[1].isdigit()])+1
+    with atomic(db):
+        copied=DepartmentDailyReport(number=f'{base}-C{version}',department_key=source.department_key,report_date=source.report_date,status='Draft',created_by_id=user.id,**{field:getattr(source,field) for field in FIELDS})
+        copied.prepared_by=user.full_name
+        db.add(copied);db.flush()
+        save_tables(db,copied,load_tables(source),schema_for_report(db,source.department_key,source))
+        for entry in db.scalars(select(DailyReportEntry).where(DailyReportEntry.report_id==source.id)).all():
+            db.add(DailyReportEntry(report_id=copied.id,**{col.name:getattr(entry,col.name) for col in DailyReportEntry.__table__.columns if col.name not in {'id','report_id'}}))
+        audit_log(db,user,'Criou cópia de relatório diário','RelatoriosOperacionais',copied.number,new_value={'source':source.id},request=request)
+        copied_id=copied.id
+    return RedirectResponse(f'/operacoes-internas/relatorios-departamentais?department={source.department_key}&draft_id={copied_id}',303)
