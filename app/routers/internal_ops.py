@@ -753,7 +753,7 @@ def copy_department_report(request:Request,report_id:int,db:Session=Depends(get_
     require_record(db,user,source,'daily')
     require_department_report_access(user,source.department_key)
     if not can_create_department_report(user,source.department_key):raise HTTPException(403)
-    base=re.sub(r'-C\d+$','',source.number)[:65]
+    base=re.sub(r'-C\d+$','',source.number)[:32]
     lock_numbering(db,'daily-copy:'+base)
     names=db.scalars(select(DepartmentDailyReport.number).where(DepartmentDailyReport.number.like(base+'-C%'))).all()
     version=max([1]+[int(n.rsplit('-C',1)[1]) for n in names if n.rsplit('-C',1)[1].isdigit()])+1

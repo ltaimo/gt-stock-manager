@@ -97,6 +97,8 @@ class ReportUsabilityTests(unittest.TestCase):
     def test_copy_daily_preserves_tables_and_creates_separate_numbered_drafts(self):
         rows={'parade':{'rows':[['1','Vigilante QA','GT/SA','07:00','Vigilante','Negativo','']],'note':'Equipa'}}
         original,_=self.draft(structured_tables=json.dumps(rows))
+        self.db.get(DepartmentDailyReport,original['id']).number='SEG-DR-'+'a'*32
+        self.db.commit()
         copies=[]
         for suffix in ['C2','C3']:
             response=self.client.post(self.daily+f'/{original["id"]}/copiar',follow_redirects=False)
@@ -105,6 +107,7 @@ class ReportUsabilityTests(unittest.TestCase):
             rid=int(response.headers['location'].split('draft_id=')[1]);copies.append(rid)
             self.db.expire_all();row=self.db.get(DepartmentDailyReport,rid)
             self.assertTrue(row.number.endswith(suffix));self.assertEqual(row.status,'Draft')
+            self.assertLessEqual(len(row.number),40)
         self.assertNotEqual(*copies)
         self.assertNotEqual(copies[0],original['id'])
         self.login('blocked');self.assertEqual(self.client.post(self.daily+f'/{original["id"]}/copiar').status_code,403)
