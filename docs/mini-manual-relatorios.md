@@ -20,6 +20,14 @@ As configurações aplicam-se a novos relatórios. Relatórios e rascunhos anter
 
 ## Atualização do mini manual
 
+### Monitoria CCTV
+
+Abra **Relatórios departamentais → Monitoria operacional CCTV**. Use **Registar nova câmara** para acrescentar equipamentos. Abra uma câmara → **Editar câmara** para alterar código/nome, área, modelo, NVR e localização. A data de retirada remove-a das listas ativas sem apagar o histórico; **Incluir câmaras retiradas** permite encontrá-la.
+
+Em **Programar inspeção e limpeza recorrente**, escolha a próxima data e o intervalo em dias. Em **Inspeção e limpeza**, registe o resultado de cada trabalho. O plano inicial contempla as 102 câmaras dos documentos, com frequência semanal e 14 a 15 câmaras por dia, cumprindo o mínimo de 10 limpezas diárias solicitado.
+
+Nos perfis, **Consultar monitoria CCTV**, **Registar novas câmaras CCTV** e **Editar câmaras, monitoria e programação CCTV** são acessos separados. **Administrar CCTV (todas as ações)** concede o controlo completo; para acesso limitado, selecione apenas as opções específicas.
+
 Em **Perfis de acesso**, atribua separadamente **Gerar e submeter relatórios consolidados** e **Carregar e rever relatórios do Gestor**. Pode marcar uma, ambas ou nenhuma. A primeira não autoriza carregar, editar, executar OCR ou validar documentos do Gestor. As permissões já guardadas nos perfis não recebem automaticamente a nova opção; o administrador escolhe quem deve recebê-la.
 
 Nas datas automáticas, uma data de referência preenche **De** e **Até** para a semana ou o mês. Para escolher outro intervalo, selecione **Personalizado** e preencha as duas datas, inclusive. O intervalo escolhido aparece no relatório e nas exportações.

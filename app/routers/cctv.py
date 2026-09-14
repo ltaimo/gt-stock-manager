@@ -17,8 +17,12 @@ from app.routers.reporting_route import ReportingRoute
 
 router=APIRouter(prefix='/operacoes-internas',tags=['CCTV e pendências'],route_class=ReportingRoute)
 
-def access(user,write=False):
-    if not (has_permission(user,'cctv_manage') if write else (can_view(user,'it') or has_permission(user,'cctv_manage'))):raise HTTPException(403,'O seu perfil não permite esta operação CCTV.')
+def access(user,write=False,action=None):
+    allowed=has_permission(user,'cctv_manage')
+    if action:allowed=allowed or has_permission(user,'cctv_'+action)
+    elif write:allowed=allowed or has_permission(user,'cctv_edit')
+    else:allowed=allowed or can_view(user,'it') or any(has_permission(user,'cctv_'+key) for key in ['view','create','edit'])
+    if not allowed:raise HTTPException(403,'O seu perfil não permite esta operação CCTV.')
 
 def camera_or_404(db,camera_id):
     camera=db.scalar(select(CctvCamera).where(CctvCamera.id==camera_id).with_for_update())
@@ -26,15 +30,17 @@ def camera_or_404(db,camera_id):
     return camera
 
 @router.get('/cctv')
-def index(request:Request,area:str='',state:str='',day:str='',page:int=1,db:Session=Depends(get_db),user:User=Depends(current_user)):
+def index(request:Request,area:str='',state:str='',day:str='',page:int=1,show_retired:bool=False,db:Session=Depends(get_db),user:User=Depends(current_user)):
     access(user);selected=parsed_date(day) if day else date.today()
     snapshot=cctv_snapshot(db,selected,selected)
+    if show_retired:
+        snapshot['cameras'] += [{'id':c.id,'code':c.code,'area':c.area,'status':'Retirada','full_recording':None,'notes':'Retirada em '+str(c.retired_on)} for c in db.scalars(select(CctvCamera).where(CctvCamera.retired_on<=selected)).all()]
     rows=[r for r in snapshot['cameras'] if (not area or r['area']==area) and (not state or r['status']==state)]
-    return templates.TemplateResponse(request,'operational_reports/cctv.html',dict(request=request,user=user,camera=None,rows=rows[(max(page,1)-1)*25:max(page,1)*25],total=len(rows),page=max(page,1),stats=snapshot,areas=db.scalars(select(CctvCamera.area).distinct().order_by(CctvCamera.area)).all(),area=area,state=state,day=str(selected),statuses=status_options(db),editable=has_permission(user,'cctv_manage')))
+    return templates.TemplateResponse(request,'operational_reports/cctv.html',dict(request=request,user=user,camera=None,show_retired=show_retired,rows=rows[(max(page,1)-1)*25:max(page,1)*25],total=len(rows),page=max(page,1),stats=snapshot,areas=db.scalars(select(CctvCamera.area).distinct().order_by(CctvCamera.area)).all(),area=area,state=state,day=str(selected),statuses=status_options(db),editable=has_permission(user,'cctv_manage') or has_permission(user,'cctv_edit')))
 
 @router.post('/cctv')
 async def create_camera(request:Request,db:Session=Depends(get_db),user:User=Depends(current_user)):
-    access(user,True);f=await request.form();code=text_value(f.get('code'),80).upper();area=text_value(f.get('area'),160)
+    access(user,action='create');f=await request.form();code=text_value(f.get('code'),80).upper();area=text_value(f.get('area'),160)
     if not code or not area:raise HTTPException(400,'Indique o código e a área da câmara.')
     if db.scalar(select(CctvCamera.id).where(CctvCamera.code==code)):raise HTTPException(409,'Já existe uma câmara com este código.')
     product=None
@@ -44,6 +50,20 @@ async def create_camera(request:Request,db:Session=Depends(get_db),user:User=Dep
         if not product:raise HTTPException(400,'Produto não encontrado.')
     camera=CctvCamera(code=code,area=area,description=text_value(f.get('description'),220),model=text_value(f.get('model'),160),nvr=text_value(f.get('nvr'),160),location=text_value(f.get('location'),160),product_id=product.id if product else None,registered_on=date.today())
     db.add(camera);db.flush();audit_log(db,user,'Registou câmara CCTV','CCTV',str(camera.id),new_value={'code':code},request=request)
+    save_or_conflict(db);return RedirectResponse(f'/operacoes-internas/cctv/{camera.id}',303)
+
+@router.post('/cctv/{camera_id}/editar')
+async def edit_camera(request:Request,camera_id:int,db:Session=Depends(get_db),user:User=Depends(current_user)):
+    access(user,action='edit');camera=camera_or_404(db,camera_id);f=await request.form()
+    code=text_value(f.get('code'),80).upper();area=text_value(f.get('area'),160)
+    if not code or not area:raise HTTPException(400,'Indique o código e a área da câmara.')
+    if db.scalar(select(CctvCamera.id).where(CctvCamera.code==code,CctvCamera.id!=camera.id)):raise HTTPException(409,'Já existe uma câmara com este código.')
+    retired=parsed_date(f['retired_on']) if f.get('retired_on') else None
+    if retired and (retired<camera.registered_on or retired>date.today()):raise HTTPException(400,'Data de retirada inválida.')
+    before={key:str(getattr(camera,key) or '') for key in ['code','area','description','model','nvr','location','retired_on']}
+    camera.code=code;camera.area=area;camera.retired_on=retired
+    for key,limit in [('description',220),('model',160),('nvr',160),('location',160)]:setattr(camera,key,text_value(f.get(key),limit))
+    audit_log(db,user,'Editou cadastro CCTV','CCTV',str(camera.id),old_value=before,new_value={key:str(getattr(camera,key) or '') for key in before},request=request)
     save_or_conflict(db);return RedirectResponse(f'/operacoes-internas/cctv/{camera.id}',303)
 
 @router.post('/cctv/estados')
@@ -57,7 +77,7 @@ def add_status(request:Request,name:str=Form(...),db:Session=Depends(get_db),use
 def inspections(request:Request,date_from:str='',date_to:str='',db:Session=Depends(get_db),user:User=Depends(current_user)):
     access(user);start=parsed_date(date_from) if date_from else date.today();end=parsed_date(date_to) if date_to else start
     if end<start or (end-start).days>31:raise HTTPException(400,'Selecione até 31 dias de inspeções.')
-    return templates.TemplateResponse(request,'operational_reports/inspections.html',dict(request=request,user=user,rows=checklist(db,start,end),date_from=str(start),date_to=str(end),results=INSPECTION_RESULTS,editable=has_permission(user,'cctv_manage'),today=date.today()))
+    return templates.TemplateResponse(request,'operational_reports/inspections.html',dict(request=request,user=user,rows=checklist(db,start,end),date_from=str(start),date_to=str(end),results=INSPECTION_RESULTS,editable=has_permission(user,'cctv_manage') or has_permission(user,'cctv_edit'),today=date.today()))
 
 @router.post('/cctv/inspecoes/{schedule_id}')
 async def inspect_camera(request:Request,schedule_id:int,db:Session=Depends(get_db),user:User=Depends(current_user)):
@@ -79,7 +99,7 @@ def camera_detail(request:Request,camera_id:int,db:Session=Depends(get_db),user:
     if not camera:raise HTTPException(404)
     logs=db.scalars(select(CctvStatusLog).where(CctvStatusLog.camera_id==camera_id).order_by(CctvStatusLog.effective_at.desc(),CctvStatusLog.id.desc()).limit(100)).all()
     schedules=db.scalars(select(CctvSchedule).where(CctvSchedule.camera_id==camera_id).order_by(CctvSchedule.starts_on.desc())).all()
-    return templates.TemplateResponse(request,'operational_reports/cctv.html',dict(request=request,user=user,camera=camera,logs=logs,schedules=schedules,statuses=status_options(db),priorities=PRIORITIES,users=db.scalars(select(User).where(User.is_active==True)).all(),editable=has_permission(user,'cctv_manage'),today=str(date.today()),now=datetime.now(timezone(timedelta(hours=2))).strftime('%Y-%m-%dT%H:%M')))
+    return templates.TemplateResponse(request,'operational_reports/cctv.html',dict(request=request,user=user,camera=camera,logs=logs,schedules=schedules,statuses=status_options(db),priorities=PRIORITIES,users=db.scalars(select(User).where(User.is_active==True)).all(),editable=has_permission(user,'cctv_manage') or has_permission(user,'cctv_edit'),today=str(date.today()),now=datetime.now(timezone(timedelta(hours=2))).strftime('%Y-%m-%dT%H:%M')))
 
 @router.post('/cctv/{camera_id}/estado')
 async def log_state(request:Request,camera_id:int,db:Session=Depends(get_db),user:User=Depends(current_user)):

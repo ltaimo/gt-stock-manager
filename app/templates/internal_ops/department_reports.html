@@ -10,6 +10,7 @@
     {% if first_create_department %}
       <a class="button success" href="/operacoes-internas/relatorios-departamentais?department={{ selected_department if selected_department in create_report_types else first_create_department }}&create=1#department-report-form">{{ tx("Criar relatório diário", user if user is defined else none) }}</a>
     {% endif %}
+    {% if can(user,'cctv_manage') or can(user,'cctv_view') or can(user,'cctv_create') or can(user,'cctv_edit') or 'it' in report_types %}<a class="button secondary" href="/operacoes-internas/cctv">Monitoria operacional CCTV</a>{% endif %}
     {% if first_create_department or can(user,'operational_reports_manage') %}<a class="button secondary" href="/operacoes-internas/relatorios?create=1#report-generator">Consolidar relatório</a>{% endif %}
   </div>
 </header>

@@ -1,0 +1,12 @@
+<section class="panel"><details><summary class="button secondary">Editar câmara</summary>
+<form method="post" action="/operacoes-internas/cctv/{{ camera.id }}/editar" class="form-stack">
+<div class="form-grid">
+<label>Código / nome<input name="code" value="{{ camera.code }}" maxlength="80" required></label>
+<label>Área<input name="area" value="{{ camera.area }}" maxlength="160" required></label>
+<label>Descrição<input name="description" value="{{ camera.description }}" maxlength="220"></label>
+<label>Modelo<input name="model" value="{{ camera.model }}" maxlength="160"></label>
+<label>NVR<input name="nvr" value="{{ camera.nvr }}" maxlength="160"></label>
+<label>Localização<input name="location" value="{{ camera.location }}" maxlength="160"></label>
+<label>Data de retirada<input name="retired_on" type="date" value="{{ camera.retired_on or '' }}" min="{{ camera.registered_on }}" max="{{ today }}"></label>
+</div><p>Para retirar uma câmara de serviço, indique a data. O cadastro e o histórico ficam preservados. Limpe a data para corrigir uma retirada indevida.</p>
+<button>Guardar alterações</button></form></details></section>

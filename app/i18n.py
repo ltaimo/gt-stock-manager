@@ -64,6 +64,10 @@ KEY_TRANSLATIONS: dict[str, dict[str, str]] = {
 # The Portuguese phrase is the canonical source. User-entered business data is
 # never passed through this catalogue.
 PHRASES_EN: dict[str, str] = {
+    "Administrar CCTV (todas as ações)": "Administer CCTV (all actions)",
+    "Consultar monitoria CCTV": "View CCTV monitoring",
+    "Registar novas câmaras CCTV": "Register new CCTV cameras",
+    "Editar câmaras, monitoria e programação CCTV": "Edit CCTV cameras, monitoring and schedules",
     "Gerar e submeter relatórios consolidados": "Generate and submit consolidated reports",
     "Carregar e rever relatórios do Gestor": "Upload and review manager reports",
     "Hora do computador": "Computer time",

@@ -31,6 +31,22 @@ class OperationalReportingTests(unittest.TestCase):
         if value is not None:self.db.add(DailyReportEntry(report_id=row.id,category='metric',title='Indicador diário',metric_key=metric,dimension=dimension,value=value))
         self.db.commit();return row
 
+    def test_cctv_granular_access_edit_and_retirement(self):
+        camera=CctvCamera(code='REAL-1',area='Entrada',registered_on=date(2026,8,24))
+        self.db.add(camera);self.db.commit();cid=camera.id
+        for key in ['cctv_view','cctv_create','cctv_edit','cctv_manage']:
+            role=Role(name='CCTV '+key,permissions=json.dumps([key]));self.db.add(role);self.db.flush();self.blocked_user.role_id=role.id;self.db.commit();self.login('blocked')
+            landing=self.client.get('/operacoes-internas/relatorios-departamentais');self.assertEqual(landing.status_code,200);self.assertIn('Monitoria operacional CCTV',landing.text)
+            page=self.client.get('/operacoes-internas/cctv');self.assertEqual(page.status_code,200)
+            created=self.client.post('/operacoes-internas/cctv',data={'code':key,'area':'Teste'},follow_redirects=False)
+            self.assertEqual(created.status_code,303 if key in ['cctv_create','cctv_manage'] else 403)
+            edited=self.client.post(f'/operacoes-internas/cctv/{cid}/editar',data={'code':'REAL-1','area':'Entrada corrigida','model':'Modelo real','retired_on':'2026-09-01'},follow_redirects=False)
+            self.assertEqual(edited.status_code,303 if key in ['cctv_edit','cctv_manage'] else 403)
+        self.db.expire_all();self.assertEqual(self.db.get(CctvCamera,cid).model,'Modelo real')
+        self.assertNotIn('REAL-1',self.client.get('/operacoes-internas/cctv?day=2026-09-02').text)
+        self.assertIn('REAL-1',self.client.get('/operacoes-internas/cctv?day=2026-09-02&show_retired=true').text)
+        self.assertIn('REAL-1',self.client.get('/operacoes-internas/cctv?day=2026-08-31').text)
+
     def test_independent_consolidation_and_manager_permissions(self):
         source_id=self.manager(date(2026,9,2))
         for permissions,generate_status,upload_status in [

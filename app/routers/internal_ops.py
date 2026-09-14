@@ -293,6 +293,7 @@ def can_view_department_reports(user: User) -> bool:
         or has_permission(user, "internal_ops_reports")
         or has_permission(user, "operational_reports_manage")
         or has_permission(user, "operational_manager_upload")
+        or any(has_permission(user,key) for key in ("cctv_manage","cctv_view","cctv_create","cctv_edit"))
         or has_permission(user, "operational_reports_receive")
         or bool(creatable_department_report_keys(user))
     )
