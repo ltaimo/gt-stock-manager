@@ -20,6 +20,12 @@ As configurações aplicam-se a novos relatórios. Relatórios e rascunhos anter
 
 ## Atualização do mini manual
 
+### Dashboard do relatório
+
+Ao gerar um relatório semanal ou mensal, o dashboard aparece automaticamente no início da pré-visualização. PDF e Word novos incluem os mesmos gráficos. Não existe um botão separado para os gerar. Os gráficos variam conforme os indicadores, tabelas, pendências e dados CCTV disponíveis.
+
+Para alimentar valores como entradas/saídas, combustível ou selos utilizados, registe os indicadores estruturados no diário, indicando a dimensão (regime, equipamento ou portão). Números de matrícula, selos e leituras acumuladas não são somados como quantidades. Nos documentos oficiais antigos, use **Criar cópia** e reveja a nova versão para obter o dashboard nas exportações.
+
 ### Monitoria CCTV
 
 Abra **Relatórios departamentais → Monitoria operacional CCTV**. Use **Registar nova câmara** para acrescentar equipamentos. Abra uma câmara → **Editar câmara** para alterar código/nome, área, modelo, NVR e localização. A data de retirada remove-a das listas ativas sem apagar o histórico; **Incluir câmaras retiradas** permite encontrá-la.

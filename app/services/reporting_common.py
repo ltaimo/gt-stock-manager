@@ -27,6 +27,7 @@ METRICS = {
  'diesel_level': ('Nível de diesel', '%', 'last'),
  'outage_minutes': ('Duração de cortes de energia', 'minutos', 'sum'),
  'tickets_resolved': ('Tickets resolvidos', 'tickets', 'sum'),
+ 'seals_used': ('Selos utilizados', 'selos', 'sum'),
 }
 
 def dumps(value):

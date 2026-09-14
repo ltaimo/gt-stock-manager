@@ -96,6 +96,10 @@ def reports_pdf(items, title, generated_by, language="pt"):
         story.append(Spacer(1, 12))
         for label, value in item["meta"]:
             story.append(Paragraph(f'<b>{escape(label)}</b>: {escape(value)}', styles["Normal"]))
+        for visual in item.get('dashboard_images',[]):
+            import base64
+            story.append(Spacer(1,10))
+            story.append(KeepTogether([Image(BytesIO(base64.b64decode(visual['data'])),width=doc.width,height=doc.width*visual['height']/visual['width'])]))
         for index, section in enumerate(item["sections"], 1):
             story.append(Paragraph(f'{index:02d}  {escape(section["title"])}', styles["GTSection"]))
             for line in section["lines"]:
@@ -116,7 +120,7 @@ def reports_pdf(items, title, generated_by, language="pt"):
                     grid = Table(cells, colWidths=[doc.width*w/sum(weights) for w in weights], repeatRows=1, hAlign='LEFT', splitInRow=int(any(len(c)>500 for row in table['rows'] for c in row)))
                     grid.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor('#FFF4CF')), ('GRID', (0,0), (-1,-1), .4, colors.HexColor('#B8BABD')), ('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (0,0), (-1,-1), 5), ('RIGHTPADDING', (0,0), (-1,-1), 5), ('TOPPADDING', (0,0), (-1,-1), 5), ('BOTTOMPADDING', (0,0), (-1,-1), 5)]))
                     story.extend([grid, Spacer(1, 8)])
-            if section['title'] == 'Indicadores operacionais':
+            if section['title'] == 'Indicadores operacionais' and not item.get('dashboard_images'):
                 from app.services.reporting_charts import metric_chart
                 for metric in item.get('charts', [])[:6]:
                     story.append(KeepTogether([Paragraph(escape(metric['label']+' / '+metric['dimension']+' ('+metric['unit']+')'), styles['Heading3']), Image(BytesIO(metric_chart(metric)), width=doc.width, height=doc.width*340/1100), Paragraph('Dias sem observação não são representados como zero.', styles['Normal'])]))
@@ -165,6 +169,9 @@ def reports_docx(items, title, generated_by, language="pt"):
         doc.add_paragraph((title+" · " if title != item['title'] else '')+item["number"])
         for label, value in item["meta"]:
             p = doc.add_paragraph(); p.add_run(label+": ").bold = True; p.add_run(value)
+        for visual in item.get('dashboard_images',[]):
+            import base64
+            doc.add_picture(BytesIO(base64.b64decode(visual['data'])),width=Cm(17))
         for number, block in enumerate(item["sections"], 1):
             p = doc.add_paragraph(f'{number:02d}  {block["title"]}', "Heading 1")
             shading = OxmlElement("w:shd"); shading.set(qn("w:fill"), "FFF4CF"); p._p.get_or_add_pPr().append(shading)
@@ -188,7 +195,7 @@ def reports_docx(items, title, generated_by, language="pt"):
                                 p.paragraph_format.space_after = Pt(3)
                                 for run in p.runs: run.font.size = Pt(8); run.bold = ri == 0
                     doc.add_paragraph()
-            if block['title'] == 'Indicadores operacionais':
+            if block['title'] == 'Indicadores operacionais' and not item.get('dashboard_images'):
                 from app.services.reporting_charts import metric_chart
                 for metric in item.get('charts', [])[:6]:
                     doc.add_paragraph(metric['label']+' / '+metric['dimension']+' ('+metric['unit']+')', 'Heading 2')

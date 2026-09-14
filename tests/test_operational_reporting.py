@@ -31,6 +31,20 @@ class OperationalReportingTests(unittest.TestCase):
         if value is not None:self.db.add(DailyReportEntry(report_id=row.id,category='metric',title='Indicador diário',metric_key=metric,dimension=dimension,value=value))
         self.db.commit();return row
 
+    def test_dashboard_is_automatic_and_exported_to_pdf_and_word(self):
+        from zipfile import ZipFile
+        from pypdf import PdfReader
+        self.seed_daily(date(2026,9,1),value=10)
+        self.seed_daily(date(2026,9,2),value=15)
+        rid=self.generate('security','weekly',date(2026,9,1))
+        page=self.client.get(self.root+f'/{rid}')
+        self.assertIn('report-dashboard',page.text);self.assertIn('data:image/png;base64,',page.text)
+        pdf=self.client.get(self.root+f'/{rid}/ficheiro/pdf');self.assertEqual(pdf.status_code,200)
+        reader=PdfReader(io.BytesIO(pdf.content));self.assertGreaterEqual(sum(len(p.images) for p in reader.pages),3)
+        word=self.client.get(self.root+f'/{rid}/ficheiro/docx');self.assertEqual(word.status_code,200)
+        with ZipFile(io.BytesIO(word.content)) as archive:
+            self.assertGreaterEqual(len([n for n in archive.namelist() if n.startswith('word/media/')]),3)
+
     def test_cctv_granular_access_edit_and_retirement(self):
         camera=CctvCamera(code='REAL-1',area='Entrada',registered_on=date(2026,8,24))
         self.db.add(camera);self.db.commit();cid=camera.id

@@ -255,7 +255,12 @@ def report_presentation(report,db=None):
     add_section(sections,'Fontes e rastreabilidade',[f"{SOURCE_TYPES[s['kind']]} #{s['id']} · {s['date']} · {s['label']}" for s in snap['sources']])
     if snap.get('comparison'):add_section(sections,'Fontes do comparativo anterior',[f"{SOURCE_TYPES[s['kind']]} #{s['id']} · {s['date']} · {s['label']}" for s in snap['comparison']['sources']])
     charts=[{**m,'maximum':max(float(p['value']) for p in m['trend']) or 1} for m in snap['metrics'] if len(m['trend'])>1]
-    return {'id':report.id,'number':report.number,'title':f"Relatório {PERIODS[report.period].lower()} — {DEPARTMENTS[report.department_key]}",'meta':[('Período',f'{report.date_from:%d/%m/%Y} a {report.date_to:%d/%m/%Y}'),('Versão',str(report.version)),('Estado',STATES[report.status]),('Gerado por',snap.get('generated_by','Não informado')),('Gerado em',display_time(snap['generated_at'])),('Submetido por',snap.get('submitted_by','Por submeter')),('Submetido em',display_time(report.submitted_at))],'sections':sections,'charts':charts}
+    item={'id':report.id,'number':report.number,'title':f"Relatório {PERIODS[report.period].lower()} — {DEPARTMENTS[report.department_key]}",'meta':[('Período',f'{report.date_from:%d/%m/%Y} a {report.date_to:%d/%m/%Y}'),('Versão',str(report.version)),('Estado',STATES[report.status]),('Gerado por',snap.get('generated_by','Não informado')),('Gerado em',display_time(snap['generated_at'])),('Submetido por',snap.get('submitted_by','Por submeter')),('Submetido em',display_time(report.submitted_at))],'sections':sections,'charts':charts}
+    if report.period in {'weekly','monthly','inspection'}:
+        from app.services.report_dashboard import dashboard_data, dashboard_images
+        item['dashboard']=dashboard_data(report,snap)
+        item['dashboard_images']=dashboard_images(item['dashboard'])
+    return item
 
 def submit_report(db,row,user):
     if row.status=='Submitted':raise HTTPException(409,'O relatório já foi submetido. Crie uma nova versão para corrigir.')

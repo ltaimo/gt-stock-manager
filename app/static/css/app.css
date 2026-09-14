@@ -176,3 +176,10 @@ output.rejected-quantity{font-weight:800;color:var(--red)}
 .report-guide-grid li{margin:.65rem 0;line-height:1.6}
 #department-reports-table td{vertical-align:top}#department-reports-table .inline-form{margin:.35rem 0}
 .computer-clock { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; font-size: .9rem; }
+.report-dashboard { display:grid; grid-template-columns:1fr; gap:16px; margin:24px 0; }
+.report-dashboard-figure { margin:0; min-width:0; padding:0; }
+.report-dashboard-overview { grid-column:1/-1; }
+.report-dashboard-figure img { display:block; width:100%; height:auto; border-radius:12px; }
+.report-dashboard-figure figcaption { font-size:.85rem; color:#586872; padding:6px 4px; }
+@media(max-width:1050px) { .report-dashboard { grid-template-columns:1fr; } }
+@media print { .report-dashboard { display:block; } .report-dashboard-figure { break-inside:avoid; margin-bottom:16px; } }
